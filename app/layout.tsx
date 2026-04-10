@@ -29,6 +29,30 @@ export const metadata: Metadata = {
   },
   description:
     "Engineering documentation for the high-stakes practitioner. Clinical, industrial, and learning tools.",
+  metadataBase: new URL("https://www.bringhurstdo.com"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "BringhurstDO LLC",
+    title: "BringhurstDO LLC",
+    description:
+      "Engineering documentation for the high-stakes practitioner. Clinical, industrial, and learning tools.",
+    images: ["/opengraph-image"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BringhurstDO LLC",
+    description:
+      "Engineering documentation for the high-stakes practitioner. Clinical, industrial, and learning tools.",
+    images: ["/opengraph-image"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
