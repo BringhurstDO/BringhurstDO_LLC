@@ -50,8 +50,8 @@ export const metadata: Metadata = {
     images: ["/opengraph-image"],
   },
   icons: {
-    icon: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/icon.svg",
+    apple: "/icon.svg",
   },
 };
 
@@ -74,3 +74,4 @@ export default function RootLayout({
     </html>
   );
 }
+
