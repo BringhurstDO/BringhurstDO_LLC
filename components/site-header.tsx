@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
 const navItems = [
@@ -18,11 +19,12 @@ export function SiteHeader() {
           href="/"
           className="flex items-center gap-3 font-heading text-lg font-semibold tracking-tight text-foreground"
         >
-          <img
+          <Image
             src="/Icon-BringhurstDOLLC.svg"
             alt="BringhurstDO LLC"
             width={28}
             height={28}
+            priority
             className="block h-7 w-7 shrink-0 object-contain"
           />
           BringhurstDO
