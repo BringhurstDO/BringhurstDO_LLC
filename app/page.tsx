@@ -211,24 +211,49 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <svg
             viewBox="0 0 1440 760"
-            className="absolute inset-0 h-full w-full opacity-[0.34]"
+            className="absolute inset-0 h-full w-full opacity-[0.46]"
             fill="none"
           >
             <defs>
               <pattern id="home-grid" width="80" height="80" patternUnits="userSpaceOnUse">
-                <path d="M80 0H0V80" stroke="#CBD5E1" strokeOpacity="0.28" strokeWidth="1" />
+                <path d="M80 0H0V80" stroke="#CBD5E1" strokeOpacity="0.34" strokeWidth="1" />
+              </pattern>
+              <pattern id="home-grid-fine" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M20 0H0V20" stroke="#94A3B8" strokeOpacity="0.14" strokeWidth="0.7" />
               </pattern>
               <linearGradient id="home-route" x1="120" y1="210" x2="1260" y2="470" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#0891B2" stopOpacity="0.18" />
-                <stop offset="0.54" stopColor="#475569" stopOpacity="0.12" />
-                <stop offset="1" stopColor="#4F46E5" stopOpacity="0.16" />
+                <stop stopColor="#0891B2" stopOpacity="0.25" />
+                <stop offset="0.54" stopColor="#475569" stopOpacity="0.18" />
+                <stop offset="1" stopColor="#4F46E5" stopOpacity="0.22" />
               </linearGradient>
+              <radialGradient id="home-glow-left" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(340 210) rotate(90) scale(260 360)">
+                <stop stopColor="#22D3EE" stopOpacity="0.2" />
+                <stop offset="1" stopColor="#22D3EE" stopOpacity="0" />
+              </radialGradient>
+              <radialGradient id="home-glow-right" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1100 470) rotate(90) scale(300 420)">
+                <stop stopColor="#4F46E5" stopOpacity="0.14" />
+                <stop offset="1" stopColor="#4F46E5" stopOpacity="0" />
+              </radialGradient>
             </defs>
+            <rect width="1440" height="760" fill="url(#home-glow-left)" />
+            <rect width="1440" height="760" fill="url(#home-glow-right)" />
             <rect width="1440" height="760" fill="url(#home-grid)" />
+            <rect width="1440" height="760" fill="url(#home-grid-fine)" opacity="0.35" />
             <g stroke="url(#home-route)" strokeWidth="1.3">
               <path d="M54 218c132-66 276-84 424-48 113 28 202 84 320 88 135 5 243-55 378-41 85 9 158 45 264 30" />
               <path d="M18 312c146-42 283-41 420 5 122 42 214 96 342 104 145 9 267-42 413-28 86 8 161 26 247 18" />
               <path d="M76 422c122-26 229-19 340 20 106 38 199 92 319 110 145 22 274-10 420-5 101 4 184 24 264 13" />
+            </g>
+            <g stroke="#38BDF8" strokeOpacity="0.22" strokeWidth="1.1" strokeDasharray="4 6">
+              <path d="M142 182c168-46 318-30 466 40 110 52 221 88 365 88 116 0 218-21 320-12" />
+              <path d="M118 512c170-52 336-34 500 32 116 46 221 74 342 68 98-5 178-29 260-28" />
+            </g>
+            <g fill="#334155" fillOpacity="0.16">
+              <circle cx="242" cy="248" r="3.2" />
+              <circle cx="648" cy="316" r="2.6" />
+              <circle cx="972" cy="278" r="2.8" />
+              <circle cx="1190" cy="386" r="2.6" />
+              <circle cx="468" cy="438" r="2.6" />
             </g>
             <g stroke="#94A3B8" strokeOpacity="0.18" strokeWidth="1">
               <path d="M150 148h210" />
