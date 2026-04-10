@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
 const navItems = [
@@ -16,8 +17,16 @@ export function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href="/"
-          className="font-heading text-lg font-semibold tracking-tight text-foreground"
+          className="flex items-center gap-3 font-heading text-lg font-semibold tracking-tight text-foreground"
         >
+          <Image
+            src="/Icon-BringhurstDOLLC.svg"
+            alt="BringhurstDO LLC"
+            width={28}
+            height={28}
+            priority
+            className="h-7 w-7 shrink-0"
+          />
           BringhurstDO
         </Link>
         <nav
