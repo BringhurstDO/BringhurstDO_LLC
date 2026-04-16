@@ -32,7 +32,7 @@ export function SyncSoapHeroCarousel() {
               formatted clinical documentation.
             </p>
             <div>
-              <ProductPrimaryCta href="#" external>
+              <ProductPrimaryCta href="https://www.syncsoap.com/" external>
                 Join the Gated Beta
               </ProductPrimaryCta>
             </div>

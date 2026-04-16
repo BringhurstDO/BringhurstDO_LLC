@@ -8,9 +8,9 @@ import { isPendingHref } from "@/lib/pending-link";
 /** Set each URL when ready. Empty string = bright red “pending” chip (not a link). */
 export const socialUrls = {
   linkedin: "https://www.linkedin.com/company/bringhurstdo-llc/?viewAsMember=true",
-  x: "",
-  instagram: "",
-  doximity: "",
+  x: "https://x.com/kyle_bringhurst",
+  instagram: "https://www.instagram.com/kyle_bringhurst/",
+  doximity: "https://www.doximity.com",
 } as const;
 
 function getLinkedInUrl(pathname: string | null): string {

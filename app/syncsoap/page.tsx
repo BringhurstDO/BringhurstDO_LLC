@@ -34,7 +34,8 @@ export default function SyncSoapPage() {
         ]}
         outcome="Chart from home, not the hospital. Reclaim your time."
         ctaLabel="Join the Gated Beta"
-        ctaHref={`/syncsoap#${CTA_SECTION_ID}`}
+        ctaHref="https://www.syncsoap.com/"
+        ctaExternal
         ctaSectionId={CTA_SECTION_ID}
       />
     </>
