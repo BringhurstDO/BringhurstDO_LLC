@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500" role="img" aria-labelledby="title desc">
+  <title id="title">BringhurstDO LLC social header</title>
+  <desc id="desc">A refined clinical and industrial systems social header for BringhurstDO LLC with a subtle product orchestration panel.</desc>
+
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="1500" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#08131B"/>
+      <stop offset="0.5" stop-color="#10202A"/>
+      <stop offset="1" stop-color="#1A2D37"/>
+    </linearGradient>
+
+    <radialGradient id="glowLeft" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(300 305) rotate(-12) scale(520 260)">
+      <stop offset="0" stop-color="#247D8A" stop-opacity="0.22"/>
+      <stop offset="0.6" stop-color="#247D8A" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#247D8A" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="glowRight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1135 180) rotate(130) scale(560 320)">
+      <stop offset="0" stop-color="#66CBEA" stop-opacity="0.2"/>
+      <stop offset="0.56" stop-color="#66CBEA" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#66CBEA" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="panelGradient" x1="840" y1="90" x2="1360" y2="408" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7FCFE" stop-opacity="0.14"/>
+      <stop offset="0.6" stop-color="#D7F5FE" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <pattern id="subtleGrid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M44 0H0V44" fill="none" stroke="#FFFFFF" stroke-opacity="0.03" stroke-width="1"/>
+    </pattern>
+
+    <pattern id="hexTexture" width="56" height="98" patternUnits="userSpaceOnUse" patternTransform="translate(8 0)">
+      <g fill-rule="evenodd">
+        <g fill="#FFFFFF" fill-opacity="0.034" fill-rule="nonzero">
+          <path d="M27.98 18.5l26 15v30l-26 15L2 63.5v-30l25.98-15zM6 35.8v25.4l21.98 12.68 22-12.7V35.8l-22-12.68L6 35.8zM0 30l25.96-15V0h-4v12.7L0 25.38V30zm0 37l25.96 15v16h-4V84.3L0 71.62V67zM30 0v15l25.98 15H56v-4.62h-.02L34 12.7V0h-4zm0 98V82l25.98-15H56v4.62h-.02L34 84.3V98h-4z"/>
+        </g>
+      </g>
+    </pattern>
+
+    <clipPath id="panelClip">
+      <rect x="825" y="86" width="565" height="330" rx="36"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1500" height="500" fill="url(#bgGradient)"/>
+  <rect width="1500" height="500" fill="url(#hexTexture)" opacity="0.26"/>
+  <rect width="1500" height="500" fill="url(#subtleGrid)" opacity="0.52"/>
+  <rect width="1500" height="500" fill="url(#glowLeft)"/>
+  <rect width="1500" height="500" fill="url(#glowRight)"/>
+  <path d="M86 100C226 50 370 52 498 100C625 148 758 152 898 102C1052 48 1210 50 1418 104" fill="none" stroke="#66CBEA" stroke-opacity="0.05" stroke-width="2"/>
+
+  <g transform="translate(184 98)">
+    <rect x="0" y="0" width="220" height="36" rx="18" fill="#17303B" stroke="#66CBEA" stroke-opacity="0.27"/>
+    <circle cx="23" cy="18" r="6" fill="#247D8A"/>
+    <text x="42" y="23" fill="#BDEFFF" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.5">BRINGHURSTDO LLC</text>
+
+    <text x="0" y="112" fill="#FFFFFF" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="54" font-weight="830" letter-spacing="-1.2">
+      <tspan x="0" dy="0">Engineering systems for</tspan>
+      <tspan x="0" dy="59">clinical, industrial, and</tspan>
+      <tspan x="0" dy="59">learning workflows</tspan>
+    </text>
+
+    <rect x="0" y="274" width="78" height="3" rx="1.5" fill="#247D8A"/>
+    <rect x="90" y="274" width="34" height="3" rx="1.5" fill="#66CBEA" opacity="0.6"/>
+
+    <text x="0" y="328" fill="#95AEB9" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="17" font-weight="500" letter-spacing="0.35">
+      bringhurstdo.com
+    </text>
+  </g>
+
+  <g opacity="0.8">
+    <rect x="825" y="86" width="565" height="330" rx="36" fill="url(#panelGradient)" stroke="#FFFFFF" stroke-opacity="0.12"/>
+
+    <g clip-path="url(#panelClip)">
+      <rect x="825" y="86" width="565" height="330" fill="#07131C" opacity="0.24"/>
+
+      <rect x="857" y="114" width="500" height="42" rx="18" fill="#FFFFFF" opacity="0.05"/>
+      <rect x="875" y="124" width="26" height="22" rx="8" fill="#247D8A" opacity="0.45"/>
+      <text x="914" y="140" fill="#F5FBFE" opacity="0.88" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="18" font-weight="800">BringhurstDO Systems</text>
+      <rect x="1215" y="124" width="68" height="18" rx="9" fill="#FFFFFF" opacity="0.06"/>
+      <rect x="1292" y="124" width="30" height="18" rx="9" fill="#FFFFFF" opacity="0.05"/>
+
+      <g transform="translate(860 178)">
+        <rect x="0" y="0" width="155" height="188" rx="22" fill="#061722" opacity="0.46" stroke="#66CBEA" stroke-opacity="0.12"/>
+        <text x="18" y="32" fill="#66CBEA" opacity="0.78" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="10" font-weight="800" letter-spacing="0.62">ACTIVE PRODUCT LANES</text>
+        <rect x="18" y="54" width="96" height="6" rx="3" fill="#FFFFFF" opacity="0.14"/>
+        <rect x="18" y="71" width="118" height="6" rx="3" fill="#FFFFFF" opacity="0.1"/>
+        <rect x="18" y="88" width="86" height="6" rx="3" fill="#FFFFFF" opacity="0.08"/>
+        <circle cx="78" cy="138" r="38" fill="none" stroke="#247D8A" stroke-opacity="0.16"/>
+        <circle cx="78" cy="138" r="27" fill="none" stroke="#66CBEA" stroke-opacity="0.12" stroke-dasharray="2 4"/>
+      </g>
+
+      <g transform="translate(1038 178)">
+        <text x="0" y="32" fill="#FFFFFF" opacity="0.9" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="-0.4">Platform Overview</text>
+        <rect x="0" y="52" width="262" height="7" rx="3.5" fill="#FFFFFF" opacity="0.14"/>
+
+        <rect x="0" y="86" width="84" height="24" rx="10" fill="#247D8A" opacity="0.33"/>
+        <text x="15" y="102" fill="#D8F5FF" opacity="0.85" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="9" font-weight="700">SyncSOAP</text>
+        <rect x="94" y="86" width="86" height="24" rx="10" fill="#FFFFFF" opacity="0.04" stroke="#FFFFFF" stroke-opacity="0.06"/>
+        <text x="110" y="102" fill="#D8F5FF" opacity="0.48" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="9" font-weight="700">SyncSafety</text>
+        <rect x="190" y="86" width="68" height="24" rx="10" fill="#FFFFFF" opacity="0.04" stroke="#FFFFFF" stroke-opacity="0.06"/>
+        <text x="207" y="102" fill="#D8F5FF" opacity="0.48" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="9" font-weight="700">Anki</text>
+
+        <rect x="0" y="132" width="286" height="96" rx="20" fill="#020B13" opacity="0.25" stroke="#66CBEA" stroke-opacity="0.12" stroke-dasharray="3 4"/>
+        <rect x="20" y="154" width="246" height="7" rx="3.5" fill="#FFFFFF" opacity="0.14"/>
+        <rect x="20" y="171" width="218" height="7" rx="3.5" fill="#FFFFFF" opacity="0.1"/>
+        <rect x="20" y="188" width="156" height="7" rx="3.5" fill="#247D8A" opacity="0.23"/>
+      </g>
+    </g>
+  </g>
+
+  <g opacity="0.18">
+    <path d="M1272 66H1398" stroke="#66CBEA" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="1410" cy="66" r="3" fill="#66CBEA"/>
+  </g>
+</svg>
