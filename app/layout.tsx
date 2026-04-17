@@ -42,10 +42,10 @@ export const metadata: Metadata = {
       "Engineering documentation for the high-stakes practitioner. Clinical, industrial, and learning tools.",
     images: [
       {
-        url: "/founder-headshot.jpg",
-        width: 3239,
-        height: 4192,
-        alt: "Kyle Bringhurst - BringhurstDO LLC",
+        url: "/bringhurstdo-social-header.png",
+        width: 1500,
+        height: 500,
+        alt: "BringhurstDO LLC social preview",
       },
     ],
   },
@@ -56,8 +56,8 @@ export const metadata: Metadata = {
       "Engineering documentation for the high-stakes practitioner. Clinical, industrial, and learning tools.",
     images: [
       {
-        url: "/founder-headshot.jpg",
-        alt: "Kyle Bringhurst - BringhurstDO LLC",
+        url: "/bringhurstdo-social-header.png",
+        alt: "BringhurstDO LLC social preview",
       },
     ],
   },
