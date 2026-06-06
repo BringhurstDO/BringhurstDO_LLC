@@ -30,12 +30,24 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+!.env.example
 
 # vercel
 .vercel
 
+# Local browser profiles captured during social-header/OG testing.
+# These can contain cookies, login databases, cache files, or other private state.
+/scripts/edge-og-temp*/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel
