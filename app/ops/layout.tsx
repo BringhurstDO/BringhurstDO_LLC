@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { OpsTopNav } from "@/app/ops/_components/ops-ui";
+
 export const metadata: Metadata = {
   title: "Operator Console",
   robots: {
@@ -17,6 +19,7 @@ export default function OpsLayout({
   // Vercel Deployment Protection/SSO or a real auth provider with audit trails.
   return (
     <div className="min-h-dvh bg-[#f5f7fa] text-slate-950">
+      <OpsTopNav />
       {children}
     </div>
   );

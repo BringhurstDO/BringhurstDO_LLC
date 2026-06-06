@@ -39,7 +39,7 @@ function StatusPill({ tone, children }: { tone: OpsTone; children: React.ReactNo
 }
 
 export default function OpsPage() {
-  const { boundaries, contentDrafts, generatedAt, projects, weeklyReport } =
+  const { boundaries, draftPosts, generatedAt, projects, weeklyReport } =
     opsDashboardData;
 
   return (
@@ -282,7 +282,7 @@ export default function OpsPage() {
             </span>
           </div>
           <div className="grid gap-3 p-4 md:hidden">
-            {contentDrafts.map((draft) => (
+            {draftPosts.map((draft) => (
               <article
                 key={draft.id}
                 className="rounded-lg border border-slate-200 bg-slate-50 p-4"
@@ -348,7 +348,7 @@ export default function OpsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {contentDrafts.map((draft) => (
+                {draftPosts.map((draft) => (
                   <tr key={draft.id} className="align-top">
                     <td className="px-5 py-4">
                       <div className="font-medium text-slate-950">{draft.title}</div>

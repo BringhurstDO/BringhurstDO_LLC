@@ -1,6 +1,27 @@
+import type { MetadataOnlyString, SafeOpsText } from "@/lib/ops/safety";
+
 export type OpsProjectId = "syncsoap" | "syncsafety" | "bringhurstdo";
 
 export type OpsTone = "good" | "watch" | "blocked" | "neutral";
+
+export type ContentChannel = "LinkedIn" | "Instagram" | "X" | "Blog" | "Email";
+
+export type ContentAudience =
+  | "physicians"
+  | "clinic owners"
+  | "med students"
+  | "investors"
+  | "general";
+
+export type ContentStatus =
+  | "idea"
+  | "drafted"
+  | "needs review"
+  | "approved"
+  | "posted"
+  | "archived";
+
+export type ContentRiskLevel = "low" | "medium" | "high";
 
 export type OpsMetric = {
   label: string;
@@ -24,6 +45,64 @@ export type OpsProjectSummary = {
   integrationTodos: string[];
 };
 
+export type ContentIdea = {
+  id: string;
+  projectId: OpsProjectId;
+  title: MetadataOnlyString;
+  angle: SafeOpsText;
+  audience: ContentAudience;
+  channelFit: ContentChannel[];
+  status: ContentStatus;
+  riskLevel: ContentRiskLevel;
+  sourceBoundary: MetadataOnlyString;
+  notes: SafeOpsText[];
+  createdAt: string;
+};
+
+export type DraftPost = {
+  id: string;
+  ideaId: string;
+  projectId: OpsProjectId;
+  title: MetadataOnlyString;
+  channel: ContentChannel;
+  audience: ContentAudience;
+  status: ContentStatus;
+  publishWindow: string;
+  bodyPreview: SafeOpsText;
+  approvalRequired: boolean;
+  postedManuallyAt?: string;
+  utmCampaignId?: string;
+  safetyNotes: SafeOpsText[];
+};
+
+export type UtmCampaignLink = {
+  id: string;
+  projectId: OpsProjectId;
+  label: MetadataOnlyString;
+  destinationUrl: string;
+  source: string;
+  medium: string;
+  campaign: string;
+  content: string;
+  generatedUrl: string;
+  status: "mock" | "ready" | "archived";
+  notes: SafeOpsText[];
+};
+
+export type ProjectHealthSnapshot = {
+  id: string;
+  projectId: OpsProjectId;
+  name: string;
+  siteStatus: string;
+  siteStatusTone: OpsTone;
+  deployStatus: string;
+  deployStatusTone: OpsTone;
+  monthlyCostEstimate: string;
+  tractionNotes: SafeOpsText[];
+  nextAction: SafeOpsText;
+  capturedAt: string;
+};
+
 export type WeeklyReportSection = {
   title: string;
   tone: OpsTone;
@@ -38,26 +117,11 @@ export type WeeklyOperatorReport = {
   mode: "mock";
   summary: string;
   sections: WeeklyReportSection[];
-};
-
-export type ContentDraftStatus =
-  | "idea"
-  | "draft"
-  | "review"
-  | "approved"
-  | "scheduled";
-
-export type ContentDraft = {
-  id: string;
-  projectId: OpsProjectId;
-  title: string;
-  channel: "LinkedIn" | "X" | "Instagram" | "Website";
-  audience: string;
-  status: ContentDraftStatus;
-  publishWindow: string;
-  approvalRequired: boolean;
-  sourceKind: "mock" | "manual";
-  safetyNotes: string[];
+  weeklyWins: SafeOpsText[];
+  risksAndBlockers: SafeOpsText[];
+  costNotes: SafeOpsText[];
+  marketingOutput: SafeOpsText[];
+  nextActions: SafeOpsText[];
 };
 
 export type OpsDashboardData = {
@@ -65,5 +129,8 @@ export type OpsDashboardData = {
   boundaries: string[];
   projects: OpsProjectSummary[];
   weeklyReport: WeeklyOperatorReport;
-  contentDrafts: ContentDraft[];
+  contentIdeas: ContentIdea[];
+  draftPosts: DraftPost[];
+  utmCampaignLinks: UtmCampaignLink[];
+  projectHealthSnapshots: ProjectHealthSnapshot[];
 };
