@@ -1,0 +1,3 @@
+# Never upload local browser profiles or cache artifacts to Vercel.
+# These can contain cookies, login databases, cache files, or other private state.
+scripts/edge-og-temp*/
