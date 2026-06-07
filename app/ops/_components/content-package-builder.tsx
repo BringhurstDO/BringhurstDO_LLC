@@ -105,12 +105,165 @@ function targetToSource(target: PublicationTarget) {
   return target.platform.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }
 
-function defaultDraftBody(target: PublicationTarget, summary: string) {
+function campaignName(sourceTitle: string, target: PublicationTarget) {
+  return `${slugify(sourceTitle)}_${targetToSource(target)}`;
+}
+
+function platformMedium(target: PublicationTarget) {
+  return target.platform === "Email" ? "manual" : "organic";
+}
+
+function cleanTemplateInput(value: string, fallback: string) {
+  return value.trim().replace(/\s+/g, " ") || fallback;
+}
+
+function truncateAtWord(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  const clipped = value.slice(0, maxLength - 1);
+  const lastSpace = clipped.lastIndexOf(" ");
+
+  return `${clipped.slice(0, lastSpace > 40 ? lastSpace : clipped.length).trim()}.`;
+}
+
+function hashtagValue(value: string) {
+  const tag = value.replace(/^@/, "").replace(/[^a-zA-Z0-9]+/g, "");
+
+  return tag ? `#${tag}` : "";
+}
+
+function productHashtag(target: PublicationTarget) {
+  if (target.projectId === "syncsoap") {
+    return "#SyncSOAP";
+  }
+
+  if (target.projectId === "syncsafety") {
+    return "#SyncSafety";
+  }
+
+  return "#BringhurstDO";
+}
+
+function buildUtmForTarget(
+  target: PublicationTarget,
+  campaign: string,
+  content = target.id,
+) {
+  return buildUtmUrl({
+    campaign,
+    content,
+    destinationUrl: target.defaultDestinationUrl,
+    medium: platformMedium(target),
+    source: targetToSource(target),
+  });
+}
+
+function targetIsBlocked(target: PublicationTarget) {
+  return (
+    target.accountStatus !== undefined &&
+    target.accountStatus !== "active"
+  );
+}
+
+function draftTemplateBody({
+  campaign,
+  destinationUrl,
+  sourceSummary,
+  sourceTitle,
+  target,
+}: {
+  campaign: string;
+  destinationUrl: string;
+  sourceSummary: string;
+  sourceTitle: string;
+  target: PublicationTarget;
+}) {
+  const title = cleanTemplateInput(sourceTitle, "Product update");
+  const summary = cleanTemplateInput(
+    sourceSummary,
+    "A metadata-only operator update is ready for manual review.",
+  );
+  const account = target.accountName;
+  const audience = target.audience;
+  const productTag = productHashtag(target);
+  const accountTag = hashtagValue(target.publicHandle);
+
+  if (target.platform === "Facebook" && targetIsBlocked(target)) {
+    return [
+      `Blocked Facebook draft for ${account}.`,
+      "This account is pending Meta trust/Page creation and should not be used for live posting.",
+      "Keep this slot disabled until the account status becomes active.",
+      "Manual approval is still required before any future publishing.",
+    ].join("\n\n");
+  }
+
+  if (target.platform === "LinkedIn") {
+    return [
+      `${title}`,
+      "",
+      `${summary}`,
+      "",
+      `For ${audience}, the useful signal is simple: ${account} is keeping this update practical, reviewable, and tied to a manual operator workflow.`,
+      "",
+      `Campaign: ${campaign}`,
+      `Learn more: ${destinationUrl}`,
+      "",
+      "Manual approval required before posting. No autoposting is connected.",
+    ].join("\n");
+  }
+
+  if (target.platform === "Instagram") {
+    return [
+      `${title}`,
+      "",
+      `${truncateAtWord(summary, 180)}`,
+      "",
+      `Built for ${audience}.`,
+      "Manual review before anything goes live.",
+      "",
+      `${destinationUrl}`,
+      "",
+      [productTag, accountTag, "#OperatorNotes", "#BuildInPublic"]
+        .filter(Boolean)
+        .join(" "),
+    ].join("\n");
+  }
+
+  if (target.platform === "X") {
+    const body = `${title}: ${truncateAtWord(
+      summary,
+      150,
+    )} For ${audience}. ${destinationUrl}`;
+
+    return truncateAtWord(body, 260);
+  }
+
+  if (target.platform === "Facebook") {
+    return [
+      `${title}`,
+      "",
+      `${summary}`,
+      "",
+      `For ${audience}.`,
+      `Learn more: ${destinationUrl}`,
+      "",
+      "Manual approval required before posting. No Meta API is connected.",
+    ].join("\n");
+  }
+
   return [
-    `Manual ${target.platform} draft for ${target.accountName}.`,
-    summary || "Add approved metadata-only update summary here.",
-    "Review manually before posting. No publishing API is connected.",
-  ].join("\n\n");
+    `${title}`,
+    "",
+    `${summary}`,
+    "",
+    `Target: ${account} / ${target.platform} / ${audience}`,
+    `Campaign: ${campaign}`,
+    `Destination: ${destinationUrl}`,
+    "",
+    "Manual approval required before publishing.",
+  ].join("\n");
 }
 
 function issueText(value: unknown, path: string) {
@@ -441,6 +594,15 @@ export function ContentPackageBuilder({
   );
 
   function toggleTarget(targetId: string) {
+    const target = publicationTargets.find((item) => item.id === targetId);
+
+    if (target && targetIsBlocked(target)) {
+      setSaveIssues([
+        `${target.accountName} is ${target.accountStatus}; activate the account before creating drafts.`,
+      ]);
+      return;
+    }
+
     setSelectedTargetIds((current) =>
       current.includes(targetId)
         ? current.filter((id) => id !== targetId)
@@ -450,23 +612,49 @@ export function ContentPackageBuilder({
 
   function generateDraftSlots() {
     const packageSlug = slugify(sourceTitle);
+    const activeTargets = selectedTargets.filter(
+      (target) => !targetIsBlocked(target),
+    );
+
+    if (activeTargets.length === 0) {
+      setSaveIssues([
+        "Select at least one active publication target before generating slots.",
+      ]);
+      return;
+    }
 
     setDraftSlots(
-      selectedTargets.map((target) => ({
-        body: defaultDraftBody(target, sourceSummary),
-        id: `slot-${packageSlug}-${target.id}`,
-        status: "drafted",
-        targetId: target.id,
-        title: sourceTitle || `${target.accountName} draft`,
-      })),
+      activeTargets.map((target) => {
+        const campaign = campaignName(sourceTitle, target);
+        const destinationUrl = buildUtmForTarget(target, campaign);
+
+        return {
+          body: draftTemplateBody({
+            campaign,
+            destinationUrl,
+            sourceSummary,
+            sourceTitle,
+            target,
+          }),
+          id: `slot-${packageSlug}-${target.id}`,
+          status: "drafted",
+          targetId: target.id,
+          title: sourceTitle || `${target.accountName} draft`,
+        };
+      }),
     );
+    setSaveIssues([]);
   }
 
   function addBlankDraftSlot() {
-    const target = selectedTargets[0] ?? publicationTargets[0];
+    const target =
+      selectedTargets.find((item) => !targetIsBlocked(item)) ??
+      publicationTargets.find((item) => !targetIsBlocked(item));
 
     if (!target) {
-      setSaveIssues(["Select or create a publication target before adding a slot."]);
+      setSaveIssues([
+        "Select or create an active publication target before adding a slot.",
+      ]);
       return;
     }
 
@@ -690,8 +878,34 @@ export function ContentPackageBuilder({
       baseIssues.push("Select at least one publication target.");
     }
 
+    const blockedSelectedTargets = selectedTargets.filter(targetIsBlocked);
+
+    if (blockedSelectedTargets.length > 0) {
+      baseIssues.push(
+        `Blocked targets cannot be saved: ${blockedSelectedTargets
+          .map((target) => target.accountName)
+          .join(", ")}.`,
+      );
+    }
+
     if (draftSlots.length === 0) {
       baseIssues.push("Generate or manually add at least one draft slot.");
+    }
+
+    const blockedDraftTargets = draftSlots
+      .map((slot) =>
+        publicationTargets.find((item) => item.id === slot.targetId),
+      )
+      .filter((target): target is PublicationTarget =>
+        Boolean(target && targetIsBlocked(target)),
+      );
+
+    if (blockedDraftTargets.length > 0) {
+      baseIssues.push(
+        `Draft slots include blocked targets: ${blockedDraftTargets
+          .map((target) => target.accountName)
+          .join(", ")}.`,
+      );
     }
 
     if (baseIssues.length > 0) {
@@ -741,20 +955,23 @@ export function ContentPackageBuilder({
       const target =
         publicationTargets.find((item) => item.id === slot.targetId) ??
         selectedTargets[0];
-      const campaign = `${packageSlug}_${targetToSource(target)}`;
+      const campaign = campaignName(sourceTitle, target);
       const content = `${target.id}_${index + 1}`;
-      const generatedUrl = buildUtmUrl({
-        campaign,
-        content,
-        destinationUrl: target.defaultDestinationUrl,
-        medium: target.platform === "Email" ? "manual" : "organic",
-        source: targetToSource(target),
-      });
+      const generatedUrl = buildUtmForTarget(target, campaign, content);
+      const body =
+        slot.body.trim() ||
+        draftTemplateBody({
+          campaign,
+          destinationUrl: generatedUrl,
+          sourceSummary,
+          sourceTitle,
+          target,
+        });
 
       return {
         accountName: target.accountName,
         approvalRequired: true,
-        body: slot.body,
+        body,
         contentPackageId,
         generatedUrl,
         id: `platform-draft-${packageSlug}-${target.id}-${index + 1}-${idSuffix}`,
@@ -1097,30 +1314,44 @@ export function ContentPackageBuilder({
           </p>
         </div>
         <div className="grid gap-3 p-5 lg:grid-cols-2">
-          {publicationTargets.map((target) => (
-            <label
-              key={target.id}
-              className="flex cursor-pointer gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm"
-            >
-              <input
-                checked={selectedTargetIds.includes(target.id)}
-                onChange={() => toggleTarget(target.id)}
-                type="checkbox"
-                className="mt-1 h-4 w-4"
-              />
-              <span>
-                <span className="block font-semibold text-slate-950">
-                  {target.accountName}
+          {publicationTargets.map((target) => {
+            const blocked = targetIsBlocked(target);
+
+            return (
+              <label
+                key={target.id}
+                className={`flex gap-3 rounded-lg border border-slate-200 p-4 text-sm ${
+                  blocked
+                    ? "cursor-not-allowed bg-slate-100 text-slate-500"
+                    : "cursor-pointer bg-slate-50"
+                }`}
+              >
+                <input
+                  checked={selectedTargetIds.includes(target.id)}
+                  disabled={blocked}
+                  onChange={() => toggleTarget(target.id)}
+                  type="checkbox"
+                  className="mt-1 h-4 w-4"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-950">
+                    {target.accountName}
+                  </span>
+                  <span className="mt-1 block text-slate-600">
+                    {target.platform} / {target.audience} / {target.publicHandle}
+                  </span>
+                  {blocked ? (
+                    <span className="mt-2 inline-flex rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
+                      {target.accountStatus}
+                    </span>
+                  ) : null}
+                  <span className="mt-2 block text-xs leading-5 text-slate-500">
+                    {target.sourceBoundary}
+                  </span>
                 </span>
-                <span className="mt-1 block text-slate-600">
-                  {target.platform} / {target.audience} / {target.publicHandle}
-                </span>
-                <span className="mt-2 block text-xs leading-5 text-slate-500">
-                  {target.sourceBoundary}
-                </span>
-              </span>
-            </label>
-          ))}
+              </label>
+            );
+          })}
         </div>
       </section>
 
@@ -1184,8 +1415,15 @@ export function ContentPackageBuilder({
                           className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
                         >
                           {publicationTargets.map((item) => (
-                            <option key={item.id} value={item.id}>
+                            <option
+                              key={item.id}
+                              value={item.id}
+                              disabled={targetIsBlocked(item)}
+                            >
                               {item.accountName} / {item.platform}
+                              {targetIsBlocked(item)
+                                ? ` / ${item.accountStatus}`
+                                : ""}
                             </option>
                           ))}
                         </select>

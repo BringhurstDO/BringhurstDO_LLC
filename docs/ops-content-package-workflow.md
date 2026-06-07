@@ -59,10 +59,17 @@ or paid services.
   with new linked IDs instead of replacing the existing package.
 - `Copy Post Packet` copies all platform draft slots, draft bodies, generated
   UTM URLs, posted state, public post URLs, and safety notes for manual review.
+- Generated slots use deterministic platform templates only. LinkedIn receives
+  a professional founder/product update, Instagram receives a shorter caption
+  with line breaks and hashtags, and X receives concise copy kept under platform
+  length limits.
 - The weekly queue is derived from saved local package records and groups drafts
   into ready, not posted, posted, and missing metrics.
 - Every platform draft slot keeps a generated UTM URL so manual posts have a
   campaign link before publishing.
+- Facebook targets remain disabled while their account status is
+  `blocked_pending_meta_trust`; no Facebook draft should be created until the
+  corresponding account status becomes `active`.
 
 Package tools must never become a credential path. Do not import or paste OAuth
 responses, cookies, tokens, raw social exports, raw logs, private messages,

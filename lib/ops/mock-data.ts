@@ -993,6 +993,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-founder-linkedin-investors",
       accountId: "account-founder-linkedin",
+      accountStatus: "active",
       projectId: "bringhurstdo",
       accountName: "Kyle Bringhurst LinkedIn",
       platform: "LinkedIn",
@@ -1008,6 +1009,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-founder-instagram-general",
       accountId: "account-founder-instagram",
+      accountStatus: "active",
       projectId: "bringhurstdo",
       accountName: "Kyle Bringhurst Instagram",
       platform: "Instagram",
@@ -1023,6 +1025,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-founder-facebook-general",
       accountId: "account-founder-facebook",
+      accountStatus: "blocked_pending_meta_trust",
       projectId: "bringhurstdo",
       accountName: "Kyle Bringhurst Facebook",
       platform: "Facebook",
@@ -1038,6 +1041,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-founder-x-general",
       accountId: "account-founder-x",
+      accountStatus: "active",
       projectId: "bringhurstdo",
       accountName: "Kyle Bringhurst X",
       platform: "X",
@@ -1053,6 +1057,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-bringhurstdo-linkedin-investors",
       accountId: "account-bringhurstdo-linkedin",
+      accountStatus: "active",
       projectId: "bringhurstdo",
       accountName: "BringhurstDO LinkedIn",
       platform: "LinkedIn",
@@ -1068,6 +1073,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-bringhurstdo-instagram-general",
       accountId: "account-bringhurstdo-instagram",
+      accountStatus: "active",
       projectId: "bringhurstdo",
       accountName: "BringhurstDO Instagram",
       platform: "Instagram",
@@ -1083,6 +1089,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-bringhurstdo-facebook-general",
       accountId: "account-bringhurstdo-facebook",
+      accountStatus: "blocked_pending_meta_trust",
       projectId: "bringhurstdo",
       accountName: "BringhurstDO Facebook",
       platform: "Facebook",
@@ -1098,6 +1105,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-bringhurstdo-x-general",
       accountId: "account-bringhurstdo-x",
+      accountStatus: "active",
       projectId: "bringhurstdo",
       accountName: "BringhurstDO X",
       platform: "X",
@@ -1113,6 +1121,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-syncsoap-linkedin-clinic-owners",
       accountId: "account-syncsoap-linkedin",
+      accountStatus: "active",
       projectId: "syncsoap",
       accountName: "SyncSOAP LinkedIn",
       platform: "LinkedIn",
@@ -1128,6 +1137,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-syncsoap-instagram-physicians",
       accountId: "account-syncsoap-instagram",
+      accountStatus: "active",
       projectId: "syncsoap",
       accountName: "SyncSOAP Instagram",
       platform: "Instagram",
@@ -1143,6 +1153,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-syncsoap-facebook-clinic-owners",
       accountId: "account-syncsoap-facebook",
+      accountStatus: "blocked_pending_meta_trust",
       projectId: "syncsoap",
       accountName: "SyncSOAP Facebook",
       platform: "Facebook",
@@ -1158,6 +1169,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-syncsoap-x-physicians",
       accountId: "account-syncsoap-x",
+      accountStatus: "active",
       projectId: "syncsoap",
       accountName: "SyncSOAP X",
       platform: "X",
@@ -1173,6 +1185,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-syncsafety-linkedin-general",
       accountId: "account-syncsafety-linkedin",
+      accountStatus: "active",
       projectId: "syncsafety",
       accountName: "SyncSafety LinkedIn",
       platform: "LinkedIn",
@@ -1188,6 +1201,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-syncsafety-instagram-general",
       accountId: "account-syncsafety-instagram",
+      accountStatus: "active",
       projectId: "syncsafety",
       accountName: "SyncSafety Instagram",
       platform: "Instagram",
@@ -1203,6 +1217,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-syncsafety-facebook-general",
       accountId: "account-syncsafety-facebook",
+      accountStatus: "blocked_pending_meta_trust",
       projectId: "syncsafety",
       accountName: "SyncSafety Facebook",
       platform: "Facebook",
@@ -1218,6 +1233,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-syncsafety-x-general",
       accountId: "account-syncsafety-x",
+      accountStatus: "active",
       projectId: "syncsafety",
       accountName: "SyncSafety X",
       platform: "X",
@@ -1233,6 +1249,7 @@ export const opsDashboardData: OpsDashboardData = {
     {
       id: "target-bringhurstdo-blog-general",
       accountId: "account-bringhurstdo-website",
+      accountStatus: "active",
       projectId: "bringhurstdo",
       accountName: "BringhurstDO Website",
       platform: "Blog",

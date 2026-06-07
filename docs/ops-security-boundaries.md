@@ -374,6 +374,12 @@ Allowed operations:
   already exists; do not silently replace local packages.
 - Copy a post packet containing platform draft text, UTM links, posted state,
   public post URLs, and safety notes for manual review.
+- Generate deterministic platform draft templates from metadata-only source
+  updates for LinkedIn, Instagram, and X. Template generation must not call AI
+  APIs or external services.
+- Keep Facebook draft targets disabled while account status is
+  `blocked_pending_meta_trust`; do not generate Facebook copy until the account
+  status is `active`.
 - Show a weekly content queue derived from local saved package records.
 - Track manual posted/not-posted state and aggregate manual performance metrics.
 

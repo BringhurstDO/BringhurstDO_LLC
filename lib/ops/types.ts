@@ -224,6 +224,7 @@ export type SourceUpdate = {
 export type PublicationTarget = {
   id: string;
   accountId: string;
+  accountStatus?: OpsAccountStatus;
   projectId?: OpsProjectId;
   accountName: MetadataOnlyString;
   platform: PublicationPlatform;
