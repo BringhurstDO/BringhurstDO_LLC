@@ -11,8 +11,11 @@ It remains mock/local-only.
 - `/ops/reports` is a mock weekly operator report.
 - `/ops/projects` is a mock project health view for SyncSOAP, SyncSafety, and
   BringhurstDO.
+- `/ops/import` validates pasted local JSON before previewing it.
 - All phase 2 data is stored in local TypeScript mock data under `lib/ops`.
 - UTM URLs are generated locally with no external tracking or posting API.
+- Export buttons produce local JSON, Markdown, and simple CSV files for manual
+  workflows. See `docs/ops-manual-workflow.md`.
 
 ## What Is Still Mock/Local
 
@@ -26,6 +29,7 @@ It remains mock/local-only.
 - Deploy status.
 - Monthly cost estimates.
 - Traction notes.
+- Exported files and pasted import previews.
 
 ## Future Integration Candidates
 
@@ -42,6 +46,9 @@ Only add these after explicit approval and production protection review:
 
 Do not add AI APIs, social APIs, AWS credentials, GA4, Meta, Vercel tokens,
 Stripe, paid services, posting APIs, or autoposting in phase 2.
+
+Future integration tokens must remain server-only and must never be rendered into
+browser props, downloaded exports, logs, screenshots, or static pages.
 
 ## Metadata-Only Boundary
 

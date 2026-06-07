@@ -1,6 +1,12 @@
 import { Activity, ClipboardCheck, DollarSign } from "lucide-react";
 
+import { ExportButtons } from "@/app/ops/_components/export-buttons";
 import { OpsPageHeader, OpsPanel, StatusPill } from "@/app/ops/_components/ops-ui";
+import {
+  jsonExportFile,
+  markdownExportFile,
+  projectHealthSnapshotsToMarkdown,
+} from "@/lib/ops/export";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +14,14 @@ export const fetchCache = "force-no-store";
 
 export default function OpsProjectsPage() {
   const { projectHealthSnapshots, projects } = opsDashboardData;
+  const projectHealthExportFiles = [
+    jsonExportFile("ops-project-health", "JSON", projectHealthSnapshots),
+    markdownExportFile(
+      "ops-project-health",
+      "Markdown",
+      projectHealthSnapshotsToMarkdown(projectHealthSnapshots),
+    ),
+  ];
 
   return (
     <main>
@@ -18,6 +32,18 @@ export default function OpsProjectsPage() {
       />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+        <OpsPanel
+          title="Project Health Snapshot Export"
+          eyebrow={`${projectHealthSnapshots.length} mock snapshots`}
+          actions={<ExportButtons files={projectHealthExportFiles} />}
+        >
+          <p className="text-sm leading-6 text-slate-700">
+            Export project health summaries for manual weekly review. These are
+            metadata-only snapshots and do not include source-system logs,
+            credentials, or sensitive payloads.
+          </p>
+        </OpsPanel>
+
         <div className="grid gap-6">
           {projectHealthSnapshots.map((snapshot) => {
             const project = projects.find((item) => item.id === snapshot.projectId);

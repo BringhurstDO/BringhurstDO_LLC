@@ -39,8 +39,15 @@ function StatusPill({ tone, children }: { tone: OpsTone; children: React.ReactNo
 }
 
 export default function OpsPage() {
-  const { boundaries, draftPosts, generatedAt, projects, weeklyReport } =
-    opsDashboardData;
+  const {
+    accountRegistry,
+    boundaries,
+    draftPosts,
+    generatedAt,
+    projects,
+    weeklyReport,
+    weeklyScorecard,
+  } = opsDashboardData;
 
   return (
     <main className="min-h-dvh">
@@ -81,6 +88,36 @@ export default function OpsPage() {
       </section>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+        <section aria-labelledby="weekly-scorecard-heading">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2
+              id="weekly-scorecard-heading"
+              className="font-sans text-base font-semibold text-slate-950"
+            >
+              Weekly Scorecard
+            </h2>
+            <span className="text-xs font-medium text-slate-500">
+              Manual/local metrics
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            {weeklyScorecard.map((metric) => (
+              <article
+                key={metric.id}
+                className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {metric.label}
+                </div>
+                <div className="mt-2 font-sans text-xl font-semibold text-slate-950">
+                  {metric.value}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">{metric.unit}</div>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section aria-labelledby="project-status-heading">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2
@@ -377,6 +414,27 @@ export default function OpsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="account-registry-heading"
+          className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2
+                id="account-registry-heading"
+                className="font-sans text-base font-semibold text-slate-950"
+              >
+                Account Registry
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {accountRegistry.length} project and founder account rows,
+                storing public account context only.
+              </p>
+            </div>
+            <StatusPill tone="watch">manual-only</StatusPill>
           </div>
         </section>
       </div>

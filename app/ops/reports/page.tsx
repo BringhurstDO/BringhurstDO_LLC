@@ -1,13 +1,28 @@
 import { AlertTriangle, CheckCircle2, CircleDollarSign, ListChecks } from "lucide-react";
 
+import { ExportButtons } from "@/app/ops/_components/export-buttons";
 import { OpsPageHeader, OpsPanel, StatusPill } from "@/app/ops/_components/ops-ui";
+import {
+  jsonExportFile,
+  markdownExportFile,
+  weeklyReportToMarkdown,
+} from "@/lib/ops/export";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export default function OpsReportsPage() {
-  const { projectHealthSnapshots, weeklyReport } = opsDashboardData;
+  const { projectHealthSnapshots, weeklyReport, weeklyScorecard } =
+    opsDashboardData;
+  const weeklyReportExportFiles = [
+    jsonExportFile("ops-weekly-report", "JSON", weeklyReport),
+    markdownExportFile(
+      "ops-weekly-report",
+      "Markdown",
+      weeklyReportToMarkdown(weeklyReport),
+    ),
+  ];
 
   return (
     <main>
@@ -18,6 +33,37 @@ export default function OpsReportsPage() {
       />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+        <OpsPanel
+          title="Weekly Report Export"
+          eyebrow={`${weeklyReport.weekStart} to ${weeklyReport.weekEnd}`}
+          actions={<ExportButtons files={weeklyReportExportFiles} />}
+        >
+          <p className="text-sm leading-6 text-slate-700">
+            Export the weekly operator report for manual review, archiving, or
+            copy/paste into a separate document. Exporting does not send email,
+            publish, or mutate any source system.
+          </p>
+        </OpsPanel>
+
+        <OpsPanel title="Weekly Scorecard" eyebrow="Manual/local metrics">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+            {weeklyScorecard.map((metric) => (
+              <article
+                key={metric.id}
+                className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+              >
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {metric.label}
+                </div>
+                <div className="mt-2 font-sans text-xl font-semibold text-slate-950">
+                  {metric.value}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">{metric.unit}</div>
+              </article>
+            ))}
+          </div>
+        </OpsPanel>
+
         <section className="grid gap-4 lg:grid-cols-3">
           {projectHealthSnapshots.map((snapshot) => (
             <article

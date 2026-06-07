@@ -6,6 +6,10 @@ export type OpsTone = "good" | "watch" | "blocked" | "neutral";
 
 export type ContentChannel = "LinkedIn" | "Instagram" | "X" | "Blog" | "Email";
 
+export type SocialMetricPlatform = "Meta/Instagram" | "LinkedIn" | "X";
+
+export type PublicationPlatform = ContentChannel;
+
 export type ContentAudience =
   | "physicians"
   | "clinic owners"
@@ -22,6 +26,54 @@ export type ContentStatus =
   | "archived";
 
 export type ContentRiskLevel = "low" | "medium" | "high";
+
+export type WeeklyScorecardMetricId =
+  | "posts"
+  | "followers"
+  | "websiteClicks"
+  | "leads"
+  | "conversations"
+  | "spend"
+  | "revenue";
+
+export type ManualMetricSource = "manual" | "imported" | "future-read-only";
+
+export type SourceUpdateType =
+  | "product-update"
+  | "launch-note"
+  | "customer-learning"
+  | "operator-note"
+  | "weekly-review";
+
+export type ContentPackageStatus =
+  | "drafting"
+  | "needs review"
+  | "approved"
+  | "partially posted"
+  | "posted"
+  | "archived";
+
+export type PlatformDraftStatus =
+  | "slot"
+  | "drafted"
+  | "needs review"
+  | "approved"
+  | "posted"
+  | "archived";
+
+export type PublishedPostStatus = "not posted" | "posted" | "archived";
+
+export type WeeklyScorecardMetric = {
+  id: WeeklyScorecardMetricId;
+  label: string;
+  value: string;
+  unit: string;
+  weekStart: string;
+  weekEnd: string;
+  source: ManualMetricSource;
+  tone: OpsTone;
+  notes: SafeOpsText[];
+};
 
 export type OpsMetric = {
   label: string;
@@ -89,6 +141,144 @@ export type UtmCampaignLink = {
   notes: SafeOpsText[];
 };
 
+export type ManualMetricEntry = {
+  id: string;
+  projectId: OpsProjectId;
+  metricId: WeeklyScorecardMetricId;
+  label: MetadataOnlyString;
+  value: string;
+  unit: string;
+  weekStart: string;
+  weekEnd: string;
+  source: ManualMetricSource;
+  enteredAt: string;
+  notes: SafeOpsText[];
+};
+
+export type OpsAccountKind = "project" | "founder";
+
+export type OpsAccountRegistryEntry = {
+  id: string;
+  projectId?: OpsProjectId;
+  name: MetadataOnlyString;
+  kind: OpsAccountKind;
+  platform: ContentChannel | "Website";
+  accountType: MetadataOnlyString;
+  publicHandle: MetadataOnlyString;
+  status: "active" | "planned" | "paused" | "manual-only";
+  statusTone: OpsTone;
+  purpose: SafeOpsText;
+  sourceBoundary: MetadataOnlyString;
+  manualReviewCadence: string;
+  allowedMetrics: MetadataOnlyString[];
+  forbiddenData: MetadataOnlyString[];
+  integrationPlaceholder: SafeOpsText;
+};
+
+export type SocialMetricPlaceholder = {
+  id: string;
+  platform: SocialMetricPlatform;
+  accountIds: string[];
+  status: "placeholder" | "manual" | "future-read-only";
+  sourceBoundary: MetadataOnlyString;
+  futureMetrics: MetadataOnlyString[];
+  forbiddenData: MetadataOnlyString[];
+  notes: SafeOpsText[];
+};
+
+export type SourceUpdate = {
+  id: string;
+  projectId: OpsProjectId;
+  title: MetadataOnlyString;
+  updateType: SourceUpdateType;
+  summary: SafeOpsText;
+  sourceDate: string;
+  sourceBoundary: MetadataOnlyString;
+  approvalRequired: boolean;
+  createdAt: string;
+  notes: SafeOpsText[];
+};
+
+export type PublicationTarget = {
+  id: string;
+  accountId: string;
+  projectId?: OpsProjectId;
+  accountName: MetadataOnlyString;
+  platform: PublicationPlatform;
+  publicHandle: MetadataOnlyString;
+  audience: ContentAudience;
+  defaultDestinationUrl: string;
+  sourceBoundary: MetadataOnlyString;
+  approvalRequired: boolean;
+  postingMode: "manual-only";
+  spendMode: "manual-approval-required";
+};
+
+export type PlatformDraft = {
+  id: string;
+  contentPackageId: string;
+  sourceUpdateId: string;
+  publicationTargetId: string;
+  projectId: OpsProjectId;
+  platform: PublicationPlatform;
+  accountName: MetadataOnlyString;
+  title: MetadataOnlyString;
+  body: SafeOpsText;
+  status: PlatformDraftStatus;
+  approvalRequired: boolean;
+  utmCampaignId: string;
+  generatedUrl: string;
+  safetyNotes: SafeOpsText[];
+  updatedAt: string;
+};
+
+export type PublishedPost = {
+  id: string;
+  platformDraftId: string;
+  publicationTargetId: string;
+  status: PublishedPostStatus;
+  postedManuallyAt?: string;
+  postUrl?: string;
+  manualNotes: SafeOpsText[];
+};
+
+export type PerformanceSnapshot = {
+  id: string;
+  publishedPostId: string;
+  capturedAt: string;
+  source: "manual";
+  impressions: string;
+  clicks: string;
+  reactions: string;
+  comments: string;
+  saves: string;
+  notes: SafeOpsText[];
+};
+
+export type BusinessOutcome = {
+  id: string;
+  contentPackageId: string;
+  capturedAt: string;
+  source: "manual";
+  leads: string;
+  conversations: string;
+  revenue: string;
+  notes: SafeOpsText[];
+};
+
+export type ContentPackage = {
+  id: string;
+  sourceUpdateId: string;
+  title: MetadataOnlyString;
+  projectIds: OpsProjectId[];
+  publicationTargetIds: string[];
+  status: ContentPackageStatus;
+  approvalRequired: boolean;
+  createdAt: string;
+  updatedAt: string;
+  notes: SafeOpsText[];
+};
+
 export type ProjectHealthSnapshot = {
   id: string;
   projectId: OpsProjectId;
@@ -129,8 +319,19 @@ export type OpsDashboardData = {
   boundaries: string[];
   projects: OpsProjectSummary[];
   weeklyReport: WeeklyOperatorReport;
+  weeklyScorecard: WeeklyScorecardMetric[];
   contentIdeas: ContentIdea[];
   draftPosts: DraftPost[];
   utmCampaignLinks: UtmCampaignLink[];
+  manualMetricEntries: ManualMetricEntry[];
+  accountRegistry: OpsAccountRegistryEntry[];
+  socialMetricPlaceholders: SocialMetricPlaceholder[];
+  sourceUpdates: SourceUpdate[];
+  publicationTargets: PublicationTarget[];
+  contentPackages: ContentPackage[];
+  platformDrafts: PlatformDraft[];
+  publishedPosts: PublishedPost[];
+  performanceSnapshots: PerformanceSnapshot[];
+  businessOutcomes: BusinessOutcome[];
   projectHealthSnapshots: ProjectHealthSnapshot[];
 };

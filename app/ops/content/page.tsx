@@ -1,6 +1,22 @@
-import { Link2, Megaphone, PencilLine } from "lucide-react";
+import Link from "next/link";
+import { FilePlus2, Link2, Megaphone, PencilLine } from "lucide-react";
 
-import { BoundaryPill, OpsPageHeader, OpsPanel, StatusPill } from "@/app/ops/_components/ops-ui";
+import { ExportButtons } from "@/app/ops/_components/export-buttons";
+import {
+  BoundaryPill,
+  OpsPageHeader,
+  OpsPanel,
+  StatusPill,
+} from "@/app/ops/_components/ops-ui";
+import {
+  csvExportFile,
+  draftPostsToCsv,
+  draftPostsToMarkdown,
+  jsonExportFile,
+  markdownExportFile,
+  utmCampaignLinksToCsv,
+  utmCampaignLinksToMarkdown,
+} from "@/lib/ops/export";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 import type { ContentStatus, OpsTone } from "@/lib/ops/types";
 
@@ -18,6 +34,23 @@ const statusTone: Record<ContentStatus, OpsTone> = {
 
 export default function OpsContentPage() {
   const { contentIdeas, draftPosts, utmCampaignLinks } = opsDashboardData;
+  const utmLinkById = new Map(
+    utmCampaignLinks.map((utmLink) => [utmLink.id, utmLink]),
+  );
+  const draftExportFiles = [
+    jsonExportFile("ops-draft-posts", "JSON", draftPosts),
+    markdownExportFile("ops-draft-posts", "Markdown", draftPostsToMarkdown(draftPosts)),
+    csvExportFile("ops-draft-posts", "CSV", draftPostsToCsv(draftPosts)),
+  ];
+  const utmExportFiles = [
+    jsonExportFile("ops-utm-links", "JSON", utmCampaignLinks),
+    markdownExportFile(
+      "ops-utm-links",
+      "Markdown",
+      utmCampaignLinksToMarkdown(utmCampaignLinks),
+    ),
+    csvExportFile("ops-utm-links", "CSV", utmCampaignLinksToCsv(utmCampaignLinks)),
+  ];
 
   return (
     <main>
@@ -32,7 +65,29 @@ export default function OpsContentPage() {
           <BoundaryPill>Manual posted tracking only</BoundaryPill>
           <BoundaryPill>No publishing API</BoundaryPill>
           <BoundaryPill>No audience lists or private identifiers</BoundaryPill>
+          <BoundaryPill>Every post gets a UTM link</BoundaryPill>
         </div>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-sans text-base font-semibold text-slate-950">
+                Source Update To Content Package
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Turn one metadata-only product or operator update into
+                platform-specific draft slots with generated UTM links.
+              </p>
+            </div>
+            <Link
+              href="/ops/content/new"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-700"
+            >
+              <FilePlus2 className="h-4 w-4" aria-hidden />
+              New Package
+            </Link>
+          </div>
+        </section>
 
         <OpsPanel title="Idea Bank" eyebrow={`${contentIdeas.length} local ideas`}>
           <div className="grid gap-4 lg:grid-cols-2">
@@ -91,7 +146,11 @@ export default function OpsContentPage() {
           </div>
         </OpsPanel>
 
-        <OpsPanel title="Draft Post Queue" eyebrow={`${draftPosts.length} draft rows`}>
+        <OpsPanel
+          title="Draft Post Queue"
+          eyebrow={`${draftPosts.length} draft rows`}
+          actions={<ExportButtons files={draftExportFiles} />}
+        >
           <div className="grid gap-3 md:hidden">
             {draftPosts.map((draft) => (
               <article
@@ -124,6 +183,12 @@ export default function OpsContentPage() {
                       {draft.publishWindow}
                     </dd>
                   </div>
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-slate-500">UTM</dt>
+                    <dd className="text-right font-medium text-slate-800">
+                      {draft.utmCampaignId ? "Generated" : "Missing"}
+                    </dd>
+                  </div>
                 </dl>
               </article>
             ))}
@@ -138,6 +203,7 @@ export default function OpsContentPage() {
                   <th scope="col" className="px-4 py-3">Audience</th>
                   <th scope="col" className="px-4 py-3">Status</th>
                   <th scope="col" className="px-4 py-3">Window</th>
+                  <th scope="col" className="px-4 py-3">UTM Discipline</th>
                   <th scope="col" className="px-4 py-3">Manual Tracking</th>
                 </tr>
               </thead>
@@ -161,6 +227,22 @@ export default function OpsContentPage() {
                       {draft.publishWindow}
                     </td>
                     <td className="px-4 py-4 text-slate-700">
+                      {draft.utmCampaignId ? (
+                        <div>
+                          <div className="font-medium text-slate-900">
+                            {utmLinkById.get(draft.utmCampaignId)?.label ??
+                              draft.utmCampaignId}
+                          </div>
+                          <div className="mt-1 break-all font-mono text-xs text-slate-500">
+                            {utmLinkById.get(draft.utmCampaignId)?.generatedUrl ??
+                              "Generated link pending review"}
+                          </div>
+                        </div>
+                      ) : (
+                        <StatusPill tone="blocked">missing</StatusPill>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 text-slate-700">
                       {draft.postedManuallyAt
                         ? `Posted manually ${draft.postedManuallyAt}`
                         : "Not posted"}
@@ -172,7 +254,11 @@ export default function OpsContentPage() {
           </div>
         </OpsPanel>
 
-        <OpsPanel title="UTM Campaign Helper" eyebrow="Generated locally">
+        <OpsPanel
+          title="UTM Campaign Helper"
+          eyebrow="Generated locally"
+          actions={<ExportButtons files={utmExportFiles} />}
+        >
           <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
             <div className="flex items-center gap-2 font-semibold text-slate-950">
               <Link2 className="h-4 w-4" aria-hidden />

@@ -4,9 +4,12 @@ import {
   FileText,
   FolderKanban,
   Home,
+  FileInput,
   LockKeyhole,
   Megaphone,
+  NotebookTabs,
   ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 
 import type { OpsTone } from "@/lib/ops/types";
@@ -14,8 +17,11 @@ import type { OpsTone } from "@/lib/ops/types";
 const navItems = [
   { href: "/ops", label: "Overview", icon: Home },
   { href: "/ops/content", label: "Content", icon: Megaphone },
+  { href: "/ops/metrics", label: "Metrics", icon: TrendingUp },
+  { href: "/ops/accounts", label: "Accounts", icon: NotebookTabs },
   { href: "/ops/reports", label: "Reports", icon: FileText },
   { href: "/ops/projects", label: "Projects", icon: FolderKanban },
+  { href: "/ops/import", label: "Import", icon: FileInput },
 ] as const;
 
 export const toneClasses: Record<OpsTone, string> = {
@@ -116,25 +122,30 @@ export function OpsPageHeader({
 }
 
 export function OpsPanel({
+  actions,
   children,
   eyebrow,
   title,
 }: {
+  actions?: React.ReactNode;
   children: React.ReactNode;
   eyebrow?: string;
   title: string;
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 p-5">
-        {eyebrow ? (
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {eyebrow}
-          </p>
-        ) : null}
-        <h2 className="font-sans text-base font-semibold text-slate-950">
-          {title}
-        </h2>
+      <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          {eyebrow ? (
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {eyebrow}
+            </p>
+          ) : null}
+          <h2 className="font-sans text-base font-semibold text-slate-950">
+            {title}
+          </h2>
+        </div>
+        {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
       <div className="p-5">{children}</div>
     </section>

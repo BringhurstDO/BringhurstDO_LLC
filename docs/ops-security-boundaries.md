@@ -219,6 +219,134 @@ Manual approval requirement: snapshots are read-only records. Any follow-up
 mutation, spend, deploy, or external system change requires explicit manual
 approval.
 
+## Phase 3 Manual Metrics And Accounts
+
+Phase 3 remains local/mock-only and manual-first. Do not connect posting APIs,
+ad-spend mutation, AI APIs, social APIs, AWS, GA4, Meta, Vercel, Stripe,
+databases, paid services, or live credentials.
+
+### Weekly Scorecard Metrics
+
+Allowed fields:
+
+- `id`
+- `projectId`
+- `metricId`
+- `label`
+- `value`
+- `unit`
+- `weekStart`
+- `weekEnd`
+- `source`
+- `enteredAt`
+- `notes`
+
+Forbidden fields:
+
+- Names, emails, phone numbers, or direct contact details.
+- Private message bodies.
+- Audience exports.
+- Cookies or tokens.
+- Platform credentials.
+- Raw analytics rows.
+- Raw logs.
+- Ad account secrets or mutation payloads.
+
+Source boundary: scorecard metrics may contain aggregate manual totals for
+posts, followers, website clicks, leads, conversations, spend, and revenue.
+
+Manual approval requirement: spend and revenue rows are records only. No row may
+change budget, create spend, publish content, or mutate an external system.
+
+### Account Registry
+
+Allowed fields:
+
+- `id`
+- `projectId`
+- `name`
+- `kind`
+- `platform`
+- `accountType`
+- `publicHandle`
+- `status`
+- `purpose`
+- `sourceBoundary`
+- `manualReviewCadence`
+- `allowedMetrics`
+- `forbiddenData`
+- `integrationPlaceholder`
+
+Forbidden fields:
+
+- Passwords.
+- API keys.
+- Cookies or tokens.
+- Login state.
+- Private messages.
+- Contact details.
+- Audience exports.
+- Ad account secrets.
+- Platform configuration secrets.
+
+Source boundary: registry rows describe public account context and future
+read-only aggregate metrics only. They are not a credential store.
+
+### Social Metric Placeholders
+
+Meta/Instagram, LinkedIn, and X placeholders may describe future read-only
+aggregate metrics only. Future integration tokens must remain server-only and
+must never render in browser props, downloaded exports, screenshots, logs, or
+static pages.
+
+## Content Package Workflow Boundary
+
+`/ops/content/new` is a local/manual workflow for turning one metadata-only
+source update into platform-specific draft slots. It may save to browser local
+storage after validation, but it must not write to a server database, call AI,
+post externally, mutate ad spend, or change a source system.
+
+Allowed models:
+
+- `SourceUpdate`
+- `ContentPackage`
+- `PublicationTarget`
+- `PlatformDraft`
+- `PublishedPost`
+- `PerformanceSnapshot`
+- `BusinessOutcome`
+
+Allowed data:
+
+- Metadata-only business or product update summaries.
+- Public publication target context.
+- Draft copy that has been manually reviewed.
+- Generated UTM URLs for public destinations.
+- Manual posted/not-posted state.
+- Public post URLs.
+- Aggregate manual performance metrics.
+- Aggregate manual business outcomes.
+
+Forbidden data:
+
+- PHI.
+- Patient identifiers.
+- Encounter IDs.
+- Encounter text.
+- Transcripts.
+- Clinical payloads.
+- Private messages.
+- Contact details.
+- Cookies or tokens.
+- Secret values.
+- Raw logs.
+- Platform credentials.
+- Audience exports.
+
+SyncSOAP source updates must stay at the product/business metadata level. They
+must not contain clinical examples, encounter-level details, transcripts, or
+patient stories.
+
 ### UTM Campaign Links
 
 Allowed fields:
