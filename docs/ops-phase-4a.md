@@ -23,6 +23,9 @@ adding live integrations.
   recorded.
 - Manual metric and outcome text inputs remain flexible, while exports include
   numeric mirrors for future analytics.
+- Imported packages repair recognized older generated draft bodies to the
+  current deterministic templates. Drafts that appear manually edited are not
+  silently overwritten; use `Repair Generated Drafts` after review.
 - Facebook draft targets remain disabled while their account status is
   `blocked_pending_meta_trust`.
 - Weekly Content Queue groups local package drafts by ready, not posted, posted,

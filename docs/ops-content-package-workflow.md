@@ -77,6 +77,11 @@ New package exports distinguish source scope from publishing scope:
 - Older exported packages are migrated on import to add explicit source and
   publishing project fields, numeric metric mirrors, and corrected capture
   dates where older exports used the source date.
+- Older generated draft bodies are regenerated only when they match known
+  deterministic-template fingerprints. Drafts that appear manually edited are
+  preserved with a migration note instead of being overwritten silently.
+- `Repair Generated Drafts` can be run manually on a saved package to re-apply
+  the current deterministic templates to recognized generated draft bodies.
 - The weekly queue is derived from saved local package records and groups drafts
   into ready, not posted, posted, and missing metrics.
 - Every platform draft slot keeps a generated UTM URL so manual posts have a

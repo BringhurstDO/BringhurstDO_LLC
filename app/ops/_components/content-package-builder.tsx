@@ -70,6 +70,7 @@ type ContentPackageBuilderProps = {
 
 const storageKey = "bringhurstdo.ops.contentPackages.v1";
 const maxPackageImportBytes = 200_000;
+const xSinglePostLimit = 280;
 
 const sourceUpdateTypes: SourceUpdateType[] = [
   "product-update",
@@ -200,7 +201,18 @@ function numericOutcomesFromOutcome(outcome: Partial<BusinessOutcome>) {
   };
 }
 
-function bodyWithGeneratedUrl(body: string, generatedUrl: string) {
+function collapseRepeatedPunctuation(value: string) {
+  return value
+    .replace(/\.{2,}/g, ".")
+    .replace(/\s+\./g, ".")
+    .replace(/([!?])\.+/g, "$1");
+}
+
+function bodyWithGeneratedUrl(
+  body: string,
+  generatedUrl: string,
+  { appendIfMissing = true } = {},
+) {
   const trimmed = body.trim();
 
   if (!trimmed) {
@@ -210,10 +222,37 @@ function bodyWithGeneratedUrl(body: string, generatedUrl: string) {
   const urlPattern = /https?:\/\/[^\s)]+/g;
 
   if (trimmed.match(urlPattern)) {
-    return trimmed.replace(urlPattern, generatedUrl);
+    return collapseRepeatedPunctuation(trimmed.replace(urlPattern, generatedUrl));
   }
 
-  return `${trimmed}\n\nUTM link: ${generatedUrl}`;
+  return collapseRepeatedPunctuation(
+    appendIfMissing ? `${trimmed}\n\nUTM link: ${generatedUrl}` : trimmed,
+  );
+}
+
+function campaignFromGeneratedUrl(generatedUrl: string, fallback: string) {
+  try {
+    return new URL(generatedUrl).searchParams.get("utm_campaign") ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function xDraftBody(title: string, summary: string, audience: string, url: string) {
+  const prefix = `${title}: `;
+  const audienceContext = audience === "general" ? "" : ` For ${audience}.`;
+  const suffix = `${audienceContext} ${url}`;
+  const budget = xSinglePostLimit - prefix.length - suffix.length;
+
+  if (budget >= 40) {
+    const summaryLine = truncateAtWord(summary, budget).replace(/[.?!]+$/, "");
+
+    return collapseRepeatedPunctuation(`${prefix}${summaryLine}.${suffix}`);
+  }
+
+  return collapseRepeatedPunctuation(
+    `Thread-ready: ${title}. Manual split required. ${url}`,
+  );
 }
 
 function hashtagValue(value: string) {
@@ -320,13 +359,12 @@ function draftTemplateBody({
   }
 
   if (target.platform === "X") {
-    const summaryLine = truncateAtWord(
+    return xDraftBody(
+      title,
       summary,
-      150,
-    ).replace(/[.?!]+$/, "");
-    const body = `${title}: ${summaryLine}. For ${audience}. ${destinationUrl}`;
-
-    return truncateAtWord(body, 260);
+      audience,
+      destinationUrl,
+    );
   }
 
   if (target.platform === "Facebook") {
@@ -412,8 +450,135 @@ function uniqueProjectIds(projectIds: unknown[]) {
   return Array.from(new Set(projectIds.filter(isOpsProjectId)));
 }
 
+function draftLooksGenerated(
+  draft: PlatformDraft,
+  sourceUpdate: SourceUpdate,
+  target: PublicationTarget | undefined,
+) {
+  const body = draft.body.trim();
+  const title = sourceUpdate.title.trim();
+
+  if (!body) {
+    return true;
+  }
+
+  if (
+    body.includes("useful signal is simple") &&
+    body.includes("Manual approval required before posting")
+  ) {
+    return true;
+  }
+
+  if (
+    body.includes("Manual review before anything goes live") &&
+    body.includes("#OperatorNotes")
+  ) {
+    return true;
+  }
+
+  if (
+    draft.platform === "X" &&
+    body.startsWith(`${title}:`) &&
+    target &&
+    body.includes(`For ${target.audience}`)
+  ) {
+    return true;
+  }
+
+  return (
+    body.startsWith(`Manual ${draft.platform} draft for`) &&
+    body.includes("No publishing API is connected")
+  );
+}
+
+function generatedDraftNeedsRepair(
+  draft: PlatformDraft,
+) {
+  const urls = draft.body.match(/https?:\/\/[^\s)]+/g) ?? [];
+
+  return (
+    !draft.body.trim() ||
+    draft.body.includes("..") ||
+    draft.body.includes("Should help me.\n\nBuilt for") ||
+    urls.some((url) => url !== draft.generatedUrl) ||
+    (urls.length === 0 && draft.platform !== "X") ||
+    (draft.platform === "X" && draft.body.length > xSinglePostLimit) ||
+    (draft.platform === "X" && !draft.body.includes(draft.generatedUrl)) ||
+    (draft.platform === "X" && /For [a-z ]+\.?$/.test(draft.body.trim()))
+  );
+}
+
+function draftTooLongNote(draft: PlatformDraft) {
+  return draft.platform === "X" && draft.body.length > xSinglePostLimit
+    ? "Manual review: X draft exceeds single-post length; split into a thread or shorten before posting."
+    : undefined;
+}
+
+function appendUniqueNotes(notes: string[], additions: Array<string | undefined>) {
+  return Array.from(
+    new Set([
+      ...notes,
+      ...additions.filter((note): note is string => Boolean(note)),
+    ]),
+  );
+}
+
+function normalizePlatformDraft(
+  draft: PlatformDraft,
+  sourceUpdate: SourceUpdate,
+  publicationTargets: PublicationTarget[],
+) {
+  const target = publicationTargets.find(
+    (item) => item.id === draft.publicationTargetId,
+  );
+  const looksGenerated = draftLooksGenerated(draft, sourceUpdate, target);
+  const needsRepair = generatedDraftNeedsRepair(draft);
+  const canRegenerate = Boolean(looksGenerated && needsRepair && target);
+  const repairedBody = canRegenerate
+    ? draftTemplateBody({
+        campaign: campaignFromGeneratedUrl(draft.generatedUrl, draft.utmCampaignId),
+        destinationUrl: draft.generatedUrl,
+        sourceSummary: sourceUpdate.summary,
+        sourceTitle: sourceUpdate.title,
+        target: target as PublicationTarget,
+      })
+    : bodyWithGeneratedUrl(draft.body, draft.generatedUrl, {
+        appendIfMissing: false,
+      });
+  const safeBody =
+    draft.platform === "X" && repairedBody.length > xSinglePostLimit && canRegenerate
+      ? xDraftBody(
+          sourceUpdate.title,
+          sourceUpdate.summary,
+          target?.audience ?? "general",
+          draft.generatedUrl,
+        )
+      : repairedBody;
+  const normalizedBody = bodyWithGeneratedUrl(safeBody, draft.generatedUrl, {
+    appendIfMissing: canRegenerate,
+  });
+  const migrationNote =
+    needsRepair && !canRegenerate
+      ? "Migration note: draft body looked manually edited or target metadata was unavailable, so it was not regenerated automatically."
+      : undefined;
+  const regeneratedNote = canRegenerate
+    ? "Migration note: recognized generated draft body was regenerated to current deterministic template."
+    : undefined;
+
+  return {
+    ...draft,
+    body: normalizedBody,
+    safetyNotes: appendUniqueNotes(draft.safetyNotes, [
+      migrationNote,
+      regeneratedNote,
+      draftTooLongNote({ ...draft, body: normalizedBody }),
+    ]),
+  };
+}
+
 function migrateLocalContentPackageRecord(
   value: unknown,
+  publicationTargets: PublicationTarget[] = [],
 ): LocalContentPackageRecord | null {
   if (!isLocalContentPackageRecord(value)) {
     return null;
@@ -438,15 +603,24 @@ function migrateLocalContentPackageRecord(
       ? draftRecord.publishingProjectId
       : draftRecord.projectId;
 
-    return {
+    const migratedDraft = {
       ...draft,
-      body: bodyWithGeneratedUrl(draft.body, draft.generatedUrl),
       projectId: publishingProjectId,
       publishingProjectId,
       sourceProjectId: isOpsProjectId(draftRecord.sourceProjectId)
         ? draftRecord.sourceProjectId
         : sourceProjectId,
     };
+
+    return normalizePlatformDraft(
+      migratedDraft,
+      {
+        ...value.sourceUpdate,
+        projectId: sourceProjectId,
+        sourceProjectId,
+      },
+      publicationTargets,
+    );
   });
   const publishingProjectIds =
     Array.isArray(contentPackageRecord.publishingProjectIds)
@@ -751,7 +925,9 @@ export function ContentPackageBuilder({
       const parsed = JSON.parse(stored) as unknown;
       const migratedRecords = Array.isArray(parsed)
         ? parsed
-            .map((item) => migrateLocalContentPackageRecord(item))
+            .map((item) =>
+              migrateLocalContentPackageRecord(item, publicationTargets),
+            )
             .filter((item): item is LocalContentPackageRecord => Boolean(item))
         : [];
       const issues = issueText(migratedRecords, "storedContentPackages");
@@ -770,7 +946,7 @@ export function ContentPackageBuilder({
     } catch {
       setSaveIssues(["Stored local content packages could not be parsed."]);
     }
-  }, []);
+  }, [publicationTargets]);
 
   const selectedTargets = useMemo(
     () =>
@@ -980,7 +1156,7 @@ export function ContentPackageBuilder({
     }
 
     const migratedImports = importedValues.map((value) =>
-      migrateLocalContentPackageRecord(value),
+      migrateLocalContentPackageRecord(value, publicationTargets),
     );
     const shapeIssues = migratedImports.flatMap((value, index) =>
       value
@@ -1343,6 +1519,43 @@ export function ContentPackageBuilder({
         numericOutcomes: numericOutcomesFromOutcome(nextOutcome),
       },
     });
+  }
+
+  function repairGeneratedDraftBodies(record: LocalContentPackageRecord) {
+    const repairedDrafts = record.platformDrafts.map((draft) =>
+      normalizePlatformDraft(draft, record.sourceUpdate, publicationTargets),
+    );
+    const repairedCount = repairedDrafts.filter((draft, index) => {
+      const original = record.platformDrafts[index];
+
+      return (
+        draft.body !== original.body ||
+        draft.safetyNotes.length !== original.safetyNotes.length
+      );
+    }).length;
+
+    if (repairedCount === 0) {
+      setPacketMessage(
+        `No recognized generated draft bodies needed repair for ${record.contentPackage.title}.`,
+      );
+      return;
+    }
+
+    updateRecord(record.contentPackage.id, {
+      contentPackage: {
+        ...record.contentPackage,
+        notes: appendUniqueNotes(record.contentPackage.notes, [
+          "Generated draft repair reviewed locally; manual approval still required before posting.",
+        ]),
+        updatedAt: new Date().toISOString(),
+      },
+      platformDrafts: repairedDrafts,
+    });
+    setPacketMessage(
+      `Repaired ${repairedCount} generated draft ${
+        repairedCount === 1 ? "body" : "bodies"
+      } for ${record.contentPackage.title}.`,
+    );
   }
 
   return (
@@ -1826,6 +2039,14 @@ export function ContentPackageBuilder({
                   >
                     <Copy className="h-4 w-4" />
                     Copy Post Packet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => repairGeneratedDraftBodies(record)}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <ClipboardCheck className="h-4 w-4" />
+                    Repair Generated Drafts
                   </button>
                   <select
                     value={record.contentPackage.status}

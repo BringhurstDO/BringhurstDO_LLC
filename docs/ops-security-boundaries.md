@@ -389,6 +389,9 @@ Allowed operations:
   current date when metrics/outcomes are recorded.
 - Migrate older package imports to add explicit source/publishing project fields
   and numeric manual metric mirrors before saving locally.
+- Regenerate older generated draft bodies only when they match known
+  deterministic-template fingerprints. If the draft appears manually edited,
+  preserve it and add a migration/review note instead of overwriting silently.
 - Keep Facebook draft targets disabled while account status is
   `blocked_pending_meta_trust`; do not generate Facebook copy until the account
   status is `active`.
