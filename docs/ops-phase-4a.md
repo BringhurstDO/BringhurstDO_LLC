@@ -15,6 +15,14 @@ adding live integrations.
 - Platform draft slots use deterministic templates only. LinkedIn, Instagram,
   and X produce distinct copy from the same metadata-only source update; no AI
   API is connected.
+- Content package exports distinguish `sourceProjectId` from
+  `publishingProjectId` so a SyncSOAP update can be posted by a BringhurstDO or
+  founder account without collapsing the two scopes.
+- `sourceDate` is the user-selected content/planning date and may be future.
+  `capturedAt` is the actual current date when manual metrics or outcomes are
+  recorded.
+- Manual metric and outcome text inputs remain flexible, while exports include
+  numeric mirrors for future analytics.
 - Facebook draft targets remain disabled while their account status is
   `blocked_pending_meta_trust`.
 - Weekly Content Queue groups local package drafts by ready, not posted, posted,

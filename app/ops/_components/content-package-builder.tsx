@@ -101,6 +101,12 @@ function nowId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Source date is the user-selected planning/content date and may be future.
+// Captured-at dates are the real current date for manual metric/outcome entry.
+function currentCaptureDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function targetToSource(target: PublicationTarget) {
   return target.platform.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }
@@ -117,6 +123,16 @@ function cleanTemplateInput(value: string, fallback: string) {
   return value.trim().replace(/\s+/g, " ") || fallback;
 }
 
+function withTerminalPunctuation(value: string) {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return normalized;
+  }
+
+  return /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
+}
+
 function truncateAtWord(value: string, maxLength: number) {
   if (value.length <= maxLength) {
     return value;
@@ -125,7 +141,79 @@ function truncateAtWord(value: string, maxLength: number) {
   const clipped = value.slice(0, maxLength - 1);
   const lastSpace = clipped.lastIndexOf(" ");
 
-  return `${clipped.slice(0, lastSpace > 40 ? lastSpace : clipped.length).trim()}.`;
+  return withTerminalPunctuation(
+    clipped.slice(0, lastSpace > 40 ? lastSpace : clipped.length),
+  );
+}
+
+function sentenceExcerpt(value: string, maxLength: number) {
+  const normalized = cleanTemplateInput(value, "");
+
+  if (normalized.length <= maxLength) {
+    return withTerminalPunctuation(normalized);
+  }
+
+  const clipped = normalized.slice(0, maxLength);
+  const sentenceEnd = Math.max(
+    clipped.lastIndexOf("."),
+    clipped.lastIndexOf("!"),
+    clipped.lastIndexOf("?"),
+  );
+
+  if (sentenceEnd >= 80) {
+    return withTerminalPunctuation(clipped.slice(0, sentenceEnd + 1));
+  }
+
+  return truncateAtWord(normalized, maxLength);
+}
+
+function coerceManualNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return 0;
+  }
+
+  const normalized = value.replace(/[$,%\s,]/g, "");
+  const parsed = Number.parseFloat(normalized);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function numericMetricsFromSnapshot(snapshot: Partial<PerformanceSnapshot>) {
+  return {
+    clicks: coerceManualNumber(snapshot.clicks),
+    comments: coerceManualNumber(snapshot.comments),
+    impressions: coerceManualNumber(snapshot.impressions),
+    reactions: coerceManualNumber(snapshot.reactions),
+    saves: coerceManualNumber(snapshot.saves),
+  };
+}
+
+function numericOutcomesFromOutcome(outcome: Partial<BusinessOutcome>) {
+  return {
+    conversations: coerceManualNumber(outcome.conversations),
+    leads: coerceManualNumber(outcome.leads),
+    revenue: coerceManualNumber(outcome.revenue),
+  };
+}
+
+function bodyWithGeneratedUrl(body: string, generatedUrl: string) {
+  const trimmed = body.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  const urlPattern = /https?:\/\/[^\s)]+/g;
+
+  if (trimmed.match(urlPattern)) {
+    return trimmed.replace(urlPattern, generatedUrl);
+  }
+
+  return `${trimmed}\n\nUTM link: ${generatedUrl}`;
 }
 
 function hashtagValue(value: string) {
@@ -218,7 +306,7 @@ function draftTemplateBody({
     return [
       `${title}`,
       "",
-      `${truncateAtWord(summary, 180)}`,
+      `${sentenceExcerpt(summary, 180)}`,
       "",
       `Built for ${audience}.`,
       "Manual review before anything goes live.",
@@ -232,10 +320,11 @@ function draftTemplateBody({
   }
 
   if (target.platform === "X") {
-    const body = `${title}: ${truncateAtWord(
+    const summaryLine = truncateAtWord(
       summary,
       150,
-    )} For ${audience}. ${destinationUrl}`;
+    ).replace(/[.?!]+$/, "");
+    const body = `${title}: ${summaryLine}. For ${audience}. ${destinationUrl}`;
 
     return truncateAtWord(body, 260);
   }
@@ -313,6 +402,108 @@ function isLocalContentPackageRecord(
     isString(sourceUpdate.title) &&
     isStringArray(contentPackage.publicationTargetIds)
   );
+}
+
+function isOpsProjectId(value: unknown): value is OpsProjectId {
+  return value === "syncsoap" || value === "syncsafety" || value === "bringhurstdo";
+}
+
+function uniqueProjectIds(projectIds: unknown[]) {
+  return Array.from(new Set(projectIds.filter(isOpsProjectId)));
+}
+
+function migrateLocalContentPackageRecord(
+  value: unknown,
+): LocalContentPackageRecord | null {
+  if (!isLocalContentPackageRecord(value)) {
+    return null;
+  }
+
+  const sourceUpdateRecord = value.sourceUpdate as SourceUpdate & {
+    sourceProjectId?: unknown;
+  };
+  const contentPackageRecord = value.contentPackage as ContentPackage & {
+    publishingProjectIds?: unknown;
+    sourceProjectIds?: unknown;
+  };
+  const sourceProjectId = isOpsProjectId(sourceUpdateRecord.sourceProjectId)
+    ? sourceUpdateRecord.sourceProjectId
+    : sourceUpdateRecord.projectId;
+  const platformDrafts = value.platformDrafts.map((draft) => {
+    const draftRecord = draft as PlatformDraft & {
+      publishingProjectId?: unknown;
+      sourceProjectId?: unknown;
+    };
+    const publishingProjectId = isOpsProjectId(draftRecord.publishingProjectId)
+      ? draftRecord.publishingProjectId
+      : draftRecord.projectId;
+
+    return {
+      ...draft,
+      body: bodyWithGeneratedUrl(draft.body, draft.generatedUrl),
+      projectId: publishingProjectId,
+      publishingProjectId,
+      sourceProjectId: isOpsProjectId(draftRecord.sourceProjectId)
+        ? draftRecord.sourceProjectId
+        : sourceProjectId,
+    };
+  });
+  const publishingProjectIds =
+    Array.isArray(contentPackageRecord.publishingProjectIds)
+      ? uniqueProjectIds(contentPackageRecord.publishingProjectIds)
+      : uniqueProjectIds(platformDrafts.map((draft) => draft.publishingProjectId));
+  const sourceProjectIds = Array.isArray(contentPackageRecord.sourceProjectIds)
+    ? uniqueProjectIds(contentPackageRecord.sourceProjectIds)
+    : [sourceProjectId];
+  const sourceDate = value.sourceUpdate.sourceDate;
+  const capturedAt = currentCaptureDate();
+  const performanceSnapshots = value.performanceSnapshots.map((snapshot) => {
+    const nextSnapshot = {
+      ...snapshot,
+      capturedAt:
+        !snapshot.capturedAt || snapshot.capturedAt === sourceDate
+          ? capturedAt
+          : snapshot.capturedAt,
+    };
+
+    return {
+      ...nextSnapshot,
+      numericMetrics: numericMetricsFromSnapshot(nextSnapshot),
+    };
+  });
+  const nextOutcome = {
+    ...value.businessOutcome,
+    capturedAt:
+      !value.businessOutcome.capturedAt ||
+      value.businessOutcome.capturedAt === sourceDate
+        ? capturedAt
+        : value.businessOutcome.capturedAt,
+  };
+
+  return {
+    businessOutcome: {
+      ...nextOutcome,
+      numericOutcomes: numericOutcomesFromOutcome(nextOutcome),
+    },
+    contentPackage: {
+      ...value.contentPackage,
+      projectIds: uniqueProjectIds([
+        ...sourceProjectIds,
+        ...publishingProjectIds,
+        ...value.contentPackage.projectIds,
+      ]),
+      publishingProjectIds,
+      sourceProjectIds,
+    },
+    performanceSnapshots,
+    platformDrafts,
+    publishedPosts: value.publishedPosts,
+    sourceUpdate: {
+      ...value.sourceUpdate,
+      projectId: sourceProjectId,
+      sourceProjectId,
+    },
+  };
 }
 
 function packageExportFilename(record: LocalContentPackageRecord) {
@@ -400,6 +591,8 @@ function buildPostPacket(record: LocalContentPackageRecord) {
 Status: ${draft.status}
 Posted: ${post?.status ?? "not posted"}
 Title: ${draft.title}
+Source project: ${draft.sourceProjectId}
+Publishing project: ${draft.publishingProjectId}
 UTM URL: ${draft.generatedUrl}
 Published URL: ${post?.postUrl ?? "Not posted"}
 
@@ -413,7 +606,9 @@ ${draft.safetyNotes.map((note) => `- ${note}`).join("\n")}`;
   return `# Post Packet: ${record.contentPackage.title}
 
 Source update: ${record.sourceUpdate.title}
+Source project: ${record.sourceUpdate.sourceProjectId}
 Source date: ${record.sourceUpdate.sourceDate}
+Publishing projects: ${record.contentPackage.publishingProjectIds.join(", ")}
 Approval required: ${record.contentPackage.approvalRequired ? "Yes" : "No"}
 Boundary: metadata-only, no PHI, no credentials, no private messages, no raw logs.
 Manual rule: post manually only after approval. No autoposting or spend mutation is connected.
@@ -554,10 +749,23 @@ export function ContentPackageBuilder({
 
     try {
       const parsed = JSON.parse(stored) as unknown;
-      const issues = issueText(parsed, "storedContentPackages");
+      const migratedRecords = Array.isArray(parsed)
+        ? parsed
+            .map((item) => migrateLocalContentPackageRecord(item))
+            .filter((item): item is LocalContentPackageRecord => Boolean(item))
+        : [];
+      const issues = issueText(migratedRecords, "storedContentPackages");
 
-      if (issues.length === 0 && Array.isArray(parsed)) {
-        setRecords(parsed as LocalContentPackageRecord[]);
+      if (
+        issues.length === 0 &&
+        Array.isArray(parsed) &&
+        migratedRecords.length === parsed.length
+      ) {
+        setRecords(migratedRecords);
+        window.localStorage.setItem(
+          storageKey,
+          JSON.stringify(migratedRecords, null, 2),
+        );
       }
     } catch {
       setSaveIssues(["Stored local content packages could not be parsed."]);
@@ -624,9 +832,13 @@ export function ContentPackageBuilder({
     }
 
     setDraftSlots(
-      activeTargets.map((target) => {
+      activeTargets.map((target, index) => {
         const campaign = campaignName(sourceTitle, target);
-        const destinationUrl = buildUtmForTarget(target, campaign);
+        const destinationUrl = buildUtmForTarget(
+          target,
+          campaign,
+          `${target.id}_${index + 1}`,
+        );
 
         return {
           body: draftTemplateBody({
@@ -767,8 +979,11 @@ export function ContentPackageBuilder({
       return;
     }
 
-    const shapeIssues = importedValues.flatMap((value, index) =>
-      isLocalContentPackageRecord(value)
+    const migratedImports = importedValues.map((value) =>
+      migrateLocalContentPackageRecord(value),
+    );
+    const shapeIssues = migratedImports.flatMap((value, index) =>
+      value
         ? []
         : [`contentPackageImport[${index}] is not a valid content package export.`],
     );
@@ -779,7 +994,9 @@ export function ContentPackageBuilder({
       return;
     }
 
-    const importedRecords = importedValues as LocalContentPackageRecord[];
+    const importedRecords = migratedImports.filter(
+      (record): record is LocalContentPackageRecord => Boolean(record),
+    );
     const safetyIssues = issueText(importedRecords, "contentPackageImport");
 
     if (safetyIssues.length > 0) {
@@ -919,6 +1136,7 @@ export function ContentPackageBuilder({
     const sourceUpdateId = `source-update-${packageSlug}-${idSuffix}`;
     const contentPackageId = `content-package-${packageSlug}-${idSuffix}`;
     const createdAt = new Date().toISOString();
+    const capturedAt = currentCaptureDate();
     const sourceUpdate: SourceUpdate = {
       approvalRequired: true,
       createdAt,
@@ -928,6 +1146,7 @@ export function ContentPackageBuilder({
         .map((note) => note.trim())
         .filter(Boolean),
       projectId: primaryProjectId,
+      sourceProjectId: primaryProjectId,
       sourceBoundary:
         "Metadata-only business/product update. No PHI, clinical payloads, credentials, private messages, or raw logs.",
       sourceDate,
@@ -945,7 +1164,11 @@ export function ContentPackageBuilder({
         "No AI or posting API is connected",
       ],
       projectIds: selectedProjectIds,
+      publishingProjectIds: uniqueProjectIds(
+        selectedTargets.map((target) => target.projectId),
+      ),
       publicationTargetIds: selectedTargets.map((target) => target.id),
+      sourceProjectIds: [primaryProjectId],
       sourceUpdateId,
       status: "drafting",
       title: sourceTitle,
@@ -958,15 +1181,15 @@ export function ContentPackageBuilder({
       const campaign = campaignName(sourceTitle, target);
       const content = `${target.id}_${index + 1}`;
       const generatedUrl = buildUtmForTarget(target, campaign, content);
-      const body =
-        slot.body.trim() ||
-        draftTemplateBody({
+      const templateBody = draftTemplateBody({
           campaign,
           destinationUrl: generatedUrl,
           sourceSummary,
           sourceTitle,
           target,
         });
+      const body = bodyWithGeneratedUrl(slot.body.trim() || templateBody, generatedUrl);
+      const publishingProjectId = target.projectId ?? primaryProjectId;
 
       return {
         accountName: target.accountName,
@@ -976,14 +1199,16 @@ export function ContentPackageBuilder({
         generatedUrl,
         id: `platform-draft-${packageSlug}-${target.id}-${index + 1}-${idSuffix}`,
         platform: target.platform,
-        projectId: target.projectId ?? primaryProjectId,
+        projectId: publishingProjectId,
         publicationTargetId: target.id,
+        publishingProjectId,
         safetyNotes: [
           "Manual approval required before posting",
           "No PHI, private identifiers, credentials, or raw logs",
           "No posting API is connected",
         ],
         sourceUpdateId,
+        sourceProjectId: primaryProjectId,
         status: slot.status,
         title: slot.title || sourceTitle,
         updatedAt: createdAt,
@@ -1001,12 +1226,19 @@ export function ContentPackageBuilder({
     );
     const performanceSnapshots = publishedPosts.map(
       (post): PerformanceSnapshot => ({
-        capturedAt: sourceDate,
+        capturedAt,
         clicks: "0",
         comments: "0",
         id: `performance-${post.id}`,
         impressions: "0",
         notes: ["Manual metrics only"],
+        numericMetrics: {
+          clicks: 0,
+          comments: 0,
+          impressions: 0,
+          reactions: 0,
+          saves: 0,
+        },
         publishedPostId: post.id,
         reactions: "0",
         saves: "0",
@@ -1014,12 +1246,17 @@ export function ContentPackageBuilder({
       }),
     );
     const businessOutcome: BusinessOutcome = {
-      capturedAt: sourceDate,
+      capturedAt,
       contentPackageId,
       conversations: "0",
       id: `outcome-${contentPackageId}`,
       leads: "0",
       notes: ["Aggregate outcomes only"],
+      numericOutcomes: {
+        conversations: 0,
+        leads: 0,
+        revenue: 0,
+      },
       revenue: "$0",
       source: "manual",
     };
@@ -1075,7 +1312,17 @@ export function ContentPackageBuilder({
   ) {
     updateRecord(record.contentPackage.id, {
       performanceSnapshots: record.performanceSnapshots.map((snapshot) =>
-        snapshot.id === snapshotId ? { ...snapshot, ...patch } : snapshot,
+        snapshot.id === snapshotId
+          ? {
+              ...snapshot,
+              ...patch,
+              capturedAt: currentCaptureDate(),
+              numericMetrics: numericMetricsFromSnapshot({
+                ...snapshot,
+                ...patch,
+              }),
+            }
+          : snapshot,
       ),
     });
   }
@@ -1084,8 +1331,17 @@ export function ContentPackageBuilder({
     record: LocalContentPackageRecord,
     patch: Partial<BusinessOutcome>,
   ) {
+    const nextOutcome = {
+      ...record.businessOutcome,
+      ...patch,
+      capturedAt: currentCaptureDate(),
+    };
+
     updateRecord(record.contentPackage.id, {
-      businessOutcome: { ...record.businessOutcome, ...patch },
+      businessOutcome: {
+        ...nextOutcome,
+        numericOutcomes: numericOutcomesFromOutcome(nextOutcome),
+      },
     });
   }
 
@@ -1104,7 +1360,7 @@ export function ContentPackageBuilder({
         <div className="grid gap-5 p-5">
           <div className="grid gap-4 lg:grid-cols-3">
             <label className="grid gap-2 text-sm font-semibold text-slate-700">
-              Primary product
+              Source product
               <select
                 value={primaryProjectId}
                 onChange={(event) =>

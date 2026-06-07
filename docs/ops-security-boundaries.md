@@ -330,12 +330,16 @@ Allowed models:
 Allowed data:
 
 - Metadata-only business or product update summaries.
+- Source project identifiers for the project/product the update is about.
+- Publishing project/account identifiers for the public account doing the manual
+  posting.
 - Public publication target context.
 - Draft copy that has been manually reviewed.
 - Generated UTM URLs for public destinations.
 - Manual posted/not-posted state.
 - Public post URLs.
 - Aggregate manual performance metrics.
+- Numeric metric mirrors coerced from manual inputs for future analytics.
 - Aggregate manual business outcomes.
 
 Forbidden data:
@@ -377,6 +381,14 @@ Allowed operations:
 - Generate deterministic platform draft templates from metadata-only source
   updates for LinkedIn, Instagram, and X. Template generation must not call AI
   APIs or external services.
+- Keep `sourceProjectId` and `publishingProjectId` explicit in package exports;
+  do not infer that the product being discussed and the account publishing are
+  the same project.
+- Allow future `sourceDate` values for planned content, but default
+  `capturedAt` on performance snapshots and business outcomes to the actual
+  current date when metrics/outcomes are recorded.
+- Migrate older package imports to add explicit source/publishing project fields
+  and numeric manual metric mirrors before saving locally.
 - Keep Facebook draft targets disabled while account status is
   `blocked_pending_meta_trust`; do not generate Facebook copy until the account
   status is `active`.

@@ -210,6 +210,16 @@ export type SocialMetricPlaceholder = {
 
 export type SourceUpdate = {
   id: string;
+  /**
+   * Product/project the source update is about. Future sourceDate values are
+   * allowed for planned content; this remains metadata-only and must not carry
+   * SyncSOAP clinical payloads.
+   */
+  sourceProjectId: OpsProjectId;
+  /**
+   * Backward-compatible alias for older exports. Prefer sourceProjectId in new
+   * code so publishing/account attribution cannot be confused with source scope.
+   */
   projectId: OpsProjectId;
   title: MetadataOnlyString;
   updateType: SourceUpdateType;
@@ -242,6 +252,12 @@ export type PlatformDraft = {
   contentPackageId: string;
   sourceUpdateId: string;
   publicationTargetId: string;
+  sourceProjectId: OpsProjectId;
+  publishingProjectId: OpsProjectId;
+  /**
+   * Backward-compatible alias for older exports. Prefer publishingProjectId in
+   * new code when describing the account/brand doing the manual posting.
+   */
   projectId: OpsProjectId;
   platform: PublicationPlatform;
   accountName: MetadataOnlyString;
@@ -275,6 +291,13 @@ export type PerformanceSnapshot = {
   reactions: string;
   comments: string;
   saves: string;
+  numericMetrics: {
+    impressions: number;
+    clicks: number;
+    reactions: number;
+    comments: number;
+    saves: number;
+  };
   notes: SafeOpsText[];
 };
 
@@ -286,6 +309,11 @@ export type BusinessOutcome = {
   leads: string;
   conversations: string;
   revenue: string;
+  numericOutcomes: {
+    leads: number;
+    conversations: number;
+    revenue: number;
+  };
   notes: SafeOpsText[];
 };
 
@@ -293,6 +321,12 @@ export type ContentPackage = {
   id: string;
   sourceUpdateId: string;
   title: MetadataOnlyString;
+  sourceProjectIds: OpsProjectId[];
+  publishingProjectIds: OpsProjectId[];
+  /**
+   * Backward-compatible combined project list for older views/imports. Prefer
+   * sourceProjectIds and publishingProjectIds in new code.
+   */
   projectIds: OpsProjectId[];
   publicationTargetIds: string[];
   status: ContentPackageStatus;

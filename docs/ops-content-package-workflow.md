@@ -17,6 +17,15 @@ or paid services.
 - `BusinessOutcome`: manually entered aggregate leads, conversations, and
   revenue tied to the package.
 
+New package exports distinguish source scope from publishing scope:
+
+- `sourceProjectId`: the project/product the source update is about.
+- `publishingProjectId`: the brand/account project doing the manual posting.
+- `sourceDate`: the user-selected content/planning date, which may be future.
+- `capturedAt`: the actual current date when metrics or outcomes are recorded.
+- `numericMetrics` and `numericOutcomes`: numeric mirrors coerced from flexible
+  manual text inputs for future analytics.
+
 ## Manual Workflow
 
 1. Open `/ops/content/new`.
@@ -63,6 +72,11 @@ or paid services.
   a professional founder/product update, Instagram receives a shorter caption
   with line breaks and hashtags, and X receives concise copy kept under platform
   length limits.
+- Draft bodies must use the exact `generatedUrl` saved on the draft. The JSON
+  export and Copy Post Packet should not disagree about the UTM link.
+- Older exported packages are migrated on import to add explicit source and
+  publishing project fields, numeric metric mirrors, and corrected capture
+  dates where older exports used the source date.
 - The weekly queue is derived from saved local package records and groups drafts
   into ready, not posted, posted, and missing metrics.
 - Every platform draft slot keeps a generated UTM URL so manual posts have a
