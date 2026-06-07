@@ -299,6 +299,9 @@ read-only aggregate metrics only. They are not a credential store.
 Phase 4A requires mock registry coverage for Kyle Bringhurst, BringhurstDO,
 SyncSOAP, and SyncSafety across LinkedIn, Instagram, Facebook, and X. Profile
 URLs are planning metadata only and must be verified manually before public use.
+Supported status labels are `active`, `planned`,
+`blocked_pending_meta_trust`, and `missing`. Facebook rows must stay
+`blocked_pending_meta_trust` until Meta trust/Page creation is available.
 
 ### Social Metric Placeholders
 
@@ -359,7 +362,8 @@ patient stories.
 
 Phase 4A remains local/browser-only and mock/manual-first. Do not add OAuth,
 social APIs, AI APIs, autoposting, databases, live credentials, or external
-mutation.
+mutation. Do not add Meta Business integration while Facebook rows are blocked
+pending Meta trust.
 
 Allowed operations:
 

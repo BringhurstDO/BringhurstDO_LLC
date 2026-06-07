@@ -169,6 +169,12 @@ export type ManualMetricEntry = {
 
 export type OpsAccountKind = "project" | "founder";
 
+export type OpsAccountStatus =
+  | "active"
+  | "planned"
+  | "blocked_pending_meta_trust"
+  | "missing";
+
 export type OpsAccountRegistryEntry = {
   id: string;
   projectId: OpsAccountProjectId;
@@ -181,7 +187,7 @@ export type OpsAccountRegistryEntry = {
   notes: SafeOpsText[];
   accountType: MetadataOnlyString;
   publicHandle: MetadataOnlyString;
-  status: "active" | "planned" | "paused" | "manual-only";
+  status: OpsAccountStatus;
   statusTone: OpsTone;
   purpose: SafeOpsText;
   sourceBoundary: MetadataOnlyString;

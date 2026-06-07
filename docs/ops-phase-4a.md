@@ -15,6 +15,10 @@ adding live integrations.
 - Account Registry stores mock public account planning rows for Kyle Bringhurst,
   BringhurstDO, SyncSOAP, and SyncSafety across LinkedIn, Instagram, Facebook,
   and X.
+- Account Registry status labels are `active`, `planned`,
+  `blocked_pending_meta_trust`, and `missing`.
+- Facebook rows stay `blocked_pending_meta_trust` until Meta allows Page
+  creation. They are not live publishing targets.
 
 ## Boundaries
 
@@ -23,6 +27,7 @@ adding live integrations.
 - No AI API.
 - No autoposting.
 - No ad-spend mutation.
+- No Meta Business integration.
 - No database or server persistence.
 - No live credentials.
 - No SyncSOAP clinical payloads, PHI, patient identifiers, encounter IDs,

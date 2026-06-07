@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 import { opsDashboardData } from "@/lib/ops/mock-data";
-import type { OpsTone } from "@/lib/ops/types";
+import type { OpsAccountStatus, OpsTone } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -26,6 +26,20 @@ const toneDotClasses: Record<OpsTone, string> = {
   blocked: "bg-red-500",
   neutral: "bg-slate-400",
 };
+
+const accountStatusTones: Record<OpsAccountStatus, OpsTone> = {
+  active: "good",
+  blocked_pending_meta_trust: "blocked",
+  missing: "blocked",
+  planned: "neutral",
+};
+
+const accountStatuses: OpsAccountStatus[] = [
+  "active",
+  "planned",
+  "blocked_pending_meta_trust",
+  "missing",
+];
 
 function StatusPill({ tone, children }: { tone: OpsTone; children: React.ReactNode }) {
   return (
@@ -48,6 +62,12 @@ export default function OpsPage() {
     weeklyReport,
     weeklyScorecard,
   } = opsDashboardData;
+  const accountStatusCounts = Object.fromEntries(
+    accountStatuses.map((status) => [
+      status,
+      accountRegistry.filter((account) => account.status === status).length,
+    ]),
+  ) as Record<OpsAccountStatus, number>;
 
   return (
     <main className="min-h-dvh">
@@ -434,7 +454,13 @@ export default function OpsPage() {
                 storing public account context only.
               </p>
             </div>
-            <StatusPill tone="watch">manual-only</StatusPill>
+            <div className="flex flex-wrap gap-2">
+              {accountStatuses.map((status) => (
+                <StatusPill key={status} tone={accountStatusTones[status]}>
+                  {status}: {accountStatusCounts[status]}
+                </StatusPill>
+              ))}
+            </div>
           </div>
         </section>
       </div>

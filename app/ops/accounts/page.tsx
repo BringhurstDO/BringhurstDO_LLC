@@ -7,10 +7,28 @@ import {
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
 import { opsDashboardData } from "@/lib/ops/mock-data";
-import type { OpsAccountRegistryEntry } from "@/lib/ops/types";
+import type {
+  OpsAccountRegistryEntry,
+  OpsAccountStatus,
+  OpsTone,
+} from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+
+const accountStatuses: OpsAccountStatus[] = [
+  "active",
+  "planned",
+  "blocked_pending_meta_trust",
+  "missing",
+];
+
+const accountStatusTones: Record<OpsAccountStatus, OpsTone> = {
+  active: "good",
+  blocked_pending_meta_trust: "blocked",
+  missing: "blocked",
+  planned: "neutral",
+};
 
 function AccountFieldList({ account }: { account: OpsAccountRegistryEntry }) {
   return (
@@ -57,6 +75,12 @@ export default function OpsAccountsPage() {
   const { accountRegistry, socialMetricPlaceholders } = opsDashboardData;
   const projectAccounts = accountRegistry.filter((account) => account.kind === "project");
   const founderAccounts = accountRegistry.filter((account) => account.kind === "founder");
+  const accountStatusCounts = Object.fromEntries(
+    accountStatuses.map((status) => [
+      status,
+      accountRegistry.filter((account) => account.status === status).length,
+    ]),
+  ) as Record<OpsAccountStatus, number>;
 
   return (
     <main>
@@ -73,6 +97,21 @@ export default function OpsAccountsPage() {
           <BoundaryPill>Manual approval before publishing</BoundaryPill>
           <BoundaryPill>Manual approval before spending</BoundaryPill>
         </div>
+
+        <OpsPanel title="Account Status Labels" eyebrow="Basic labels">
+          <div className="flex flex-wrap gap-2">
+            {accountStatuses.map((status) => (
+              <StatusPill key={status} tone={accountStatusTones[status]}>
+                {status}: {accountStatusCounts[status]}
+              </StatusPill>
+            ))}
+          </div>
+          <p className="mt-4 text-sm leading-6 text-slate-600">
+            Facebook rows are blocked while Meta Page creation is unavailable.
+            This registry remains public-context metadata only and does not
+            connect Meta Business tools.
+          </p>
+        </OpsPanel>
 
         <OpsPanel title="Project Accounts" eyebrow={`${projectAccounts.length} rows`}>
           <div className="grid gap-4 lg:grid-cols-2">
