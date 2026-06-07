@@ -4,11 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  Copy,
   ClipboardCheck,
+  Download,
   FilePlus2,
   Link2,
   Plus,
   Save,
+  Upload,
 } from "lucide-react";
 
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
@@ -46,6 +49,19 @@ type LocalContentPackageRecord = {
   sourceUpdate: SourceUpdate;
 };
 
+type WeeklyQueueState = "ready" | "not posted" | "posted" | "missing metrics";
+
+type WeeklyContentQueueRow = {
+  accountName: string;
+  draftId: string;
+  packageTitle: string;
+  platform: string;
+  postStatus: PublishedPostStatus;
+  state: WeeklyQueueState;
+  title: string;
+  url: string;
+};
+
 type ContentPackageBuilderProps = {
   initialRecords: LocalContentPackageRecord[];
   projects: OpsProjectSummary[];
@@ -53,6 +69,7 @@ type ContentPackageBuilderProps = {
 };
 
 const storageKey = "bringhurstdo.ops.contentPackages.v1";
+const maxPackageImportBytes = 200_000;
 
 const sourceUpdateTypes: SourceUpdateType[] = [
   "product-update",
@@ -102,6 +119,158 @@ function issueText(value: unknown, path: string) {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isString);
+}
+
+function isLocalContentPackageRecord(
+  value: unknown,
+): value is LocalContentPackageRecord {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const {
+    businessOutcome,
+    contentPackage,
+    performanceSnapshots,
+    platformDrafts,
+    publishedPosts,
+    sourceUpdate,
+  } = value;
+
+  return (
+    isRecord(businessOutcome) &&
+    isRecord(contentPackage) &&
+    isRecord(sourceUpdate) &&
+    Array.isArray(performanceSnapshots) &&
+    Array.isArray(platformDrafts) &&
+    Array.isArray(publishedPosts) &&
+    isString(contentPackage.id) &&
+    isString(contentPackage.title) &&
+    isString(sourceUpdate.id) &&
+    isString(sourceUpdate.title) &&
+    isStringArray(contentPackage.publicationTargetIds)
+  );
+}
+
+function packageExportFilename(record: LocalContentPackageRecord) {
+  return `ops-content-package-${slugify(record.contentPackage.title)}.json`;
+}
+
+function downloadTextFile(filename: string, mimeType: string, content: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function metricHasValue(value: string) {
+  const normalized = value.trim();
+
+  return Boolean(normalized) && normalized !== "0" && normalized !== "0.0";
+}
+
+function snapshotHasMetrics(snapshot: PerformanceSnapshot | undefined) {
+  if (!snapshot) {
+    return false;
+  }
+
+  return [
+    snapshot.impressions,
+    snapshot.clicks,
+    snapshot.reactions,
+    snapshot.comments,
+    snapshot.saves,
+  ].some(metricHasValue);
+}
+
+function buildWeeklyQueueRows(records: LocalContentPackageRecord[]) {
+  return records.flatMap((record): WeeklyContentQueueRow[] =>
+    record.platformDrafts.map((draft) => {
+      const post = record.publishedPosts.find(
+        (item) => item.platformDraftId === draft.id,
+      );
+      const snapshot = post
+        ? record.performanceSnapshots.find(
+            (item) => item.publishedPostId === post.id,
+          )
+        : undefined;
+      const postStatus = post?.status ?? "not posted";
+      let state: WeeklyQueueState = "not posted";
+
+      if (postStatus === "posted" && !snapshotHasMetrics(snapshot)) {
+        state = "missing metrics";
+      } else if (postStatus === "posted") {
+        state = "posted";
+      } else if (draft.status === "approved") {
+        state = "ready";
+      }
+
+      return {
+        accountName: draft.accountName,
+        draftId: draft.id,
+        packageTitle: record.contentPackage.title,
+        platform: draft.platform,
+        postStatus,
+        state,
+        title: draft.title,
+        url: draft.generatedUrl,
+      };
+    }),
+  );
+}
+
+function buildPostPacket(record: LocalContentPackageRecord) {
+  const draftSections = record.platformDrafts
+    .map((draft) => {
+      const post = record.publishedPosts.find(
+        (item) => item.platformDraftId === draft.id,
+      );
+
+      return `## ${draft.accountName} / ${draft.platform}
+
+Status: ${draft.status}
+Posted: ${post?.status ?? "not posted"}
+Title: ${draft.title}
+UTM URL: ${draft.generatedUrl}
+Published URL: ${post?.postUrl ?? "Not posted"}
+
+${draft.body}
+
+Safety notes:
+${draft.safetyNotes.map((note) => `- ${note}`).join("\n")}`;
+    })
+    .join("\n\n");
+
+  return `# Post Packet: ${record.contentPackage.title}
+
+Source update: ${record.sourceUpdate.title}
+Source date: ${record.sourceUpdate.sourceDate}
+Approval required: ${record.contentPackage.approvalRequired ? "Yes" : "No"}
+Boundary: metadata-only, no PHI, no credentials, no private messages, no raw logs.
+Manual rule: post manually only after approval. No autoposting or spend mutation is connected.
+
+${record.sourceUpdate.summary}
+
+${draftSections}
+`;
+}
+
 function validPostUrl(value: string) {
   if (!value.trim()) {
     return true;
@@ -133,6 +302,9 @@ export function ContentPackageBuilder({
   const [records, setRecords] = useState<LocalContentPackageRecord[]>(initialRecords);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveIssues, setSaveIssues] = useState<string[]>([]);
+  const [importJson, setImportJson] = useState("");
+  const [importMessage, setImportMessage] = useState("");
+  const [packetMessage, setPacketMessage] = useState("");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey);
@@ -168,6 +340,19 @@ export function ContentPackageBuilder({
 
     return Array.from(new Set([primaryProjectId, ...targetProjectIds]));
   }, [primaryProjectId, selectedTargets]);
+
+  const weeklyQueueRows = useMemo(() => buildWeeklyQueueRows(records), [records]);
+  const weeklyQueueGroups = useMemo(
+    () => ({
+      "missing metrics": weeklyQueueRows.filter(
+        (row) => row.state === "missing metrics",
+      ),
+      "not posted": weeklyQueueRows.filter((row) => row.state === "not posted"),
+      posted: weeklyQueueRows.filter((row) => row.state === "posted"),
+      ready: weeklyQueueRows.filter((row) => row.state === "ready"),
+    }),
+    [weeklyQueueRows],
+  );
 
   function toggleTarget(targetId: string) {
     setSelectedTargetIds((current) =>
@@ -233,6 +418,119 @@ export function ContentPackageBuilder({
     setRecords(nextRecords);
     setSaveIssues([]);
     return true;
+  }
+
+  function exportPackage(record: LocalContentPackageRecord) {
+    const issues = issueText(record, "contentPackageExport");
+
+    if (issues.length > 0) {
+      setSaveIssues(issues);
+      setSaveMessage("");
+      return;
+    }
+
+    downloadTextFile(
+      packageExportFilename(record),
+      "application/json",
+      `${JSON.stringify(record, null, 2)}\n`,
+    );
+    setSaveIssues([]);
+    setPacketMessage(`Exported ${record.contentPackage.title} as JSON.`);
+  }
+
+  async function copyPostPacket(record: LocalContentPackageRecord) {
+    const packet = buildPostPacket(record);
+    const issues = issueText(packet, "postPacket");
+
+    if (issues.length > 0) {
+      setSaveIssues(issues);
+      setPacketMessage("");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(packet);
+      setPacketMessage(`Copied post packet for ${record.contentPackage.title}.`);
+      setSaveIssues([]);
+    } catch {
+      setSaveIssues([
+        "Clipboard copy failed. Use Export Package JSON as the fallback local handoff.",
+      ]);
+      setPacketMessage("");
+    }
+  }
+
+  function importPackage() {
+    const trimmed = importJson.trim();
+
+    if (!trimmed) {
+      setSaveIssues(["Paste a content package JSON export before importing."]);
+      setImportMessage("");
+      return;
+    }
+
+    if (new Blob([importJson]).size > maxPackageImportBytes) {
+      setSaveIssues(["Content package imports must be 200 KB or smaller."]);
+      setImportMessage("");
+      return;
+    }
+
+    let parsed: unknown;
+
+    try {
+      parsed = JSON.parse(trimmed) as unknown;
+    } catch {
+      setSaveIssues(["Pasted package content is not valid JSON."]);
+      setImportMessage("");
+      return;
+    }
+
+    const importedValues = Array.isArray(parsed) ? parsed : [parsed];
+
+    if (importedValues.length > 20) {
+      setSaveIssues(["Import at most 20 content packages at a time."]);
+      setImportMessage("");
+      return;
+    }
+
+    const shapeIssues = importedValues.flatMap((value, index) =>
+      isLocalContentPackageRecord(value)
+        ? []
+        : [`contentPackageImport[${index}] is not a valid content package export.`],
+    );
+
+    if (shapeIssues.length > 0) {
+      setSaveIssues(shapeIssues);
+      setImportMessage("");
+      return;
+    }
+
+    const importedRecords = importedValues as LocalContentPackageRecord[];
+    const safetyIssues = issueText(importedRecords, "contentPackageImport");
+
+    if (safetyIssues.length > 0) {
+      setSaveIssues(safetyIssues);
+      setImportMessage("");
+      return;
+    }
+
+    const importedIds = new Set(
+      importedRecords.map((record) => record.contentPackage.id),
+    );
+    const nextRecords = [
+      ...importedRecords,
+      ...records.filter((record) => !importedIds.has(record.contentPackage.id)),
+    ];
+
+    if (persistRecords(nextRecords)) {
+      setImportJson("");
+      setImportMessage(
+        `Imported ${importedRecords.length} content package record${
+          importedRecords.length === 1 ? "" : "s"
+        } locally.`,
+      );
+      setSaveMessage("");
+    }
   }
 
   function saveContentPackage() {
@@ -525,6 +823,114 @@ export function ContentPackageBuilder({
 
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-5">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <Upload className="h-4 w-4" />
+            Import Package
+          </div>
+          <h2 className="mt-1 font-sans text-base font-semibold text-slate-950">
+            Paste A Content Package Export
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Imports are validated before rendering and saved only to this
+            browser. This is not a database, sync service, or API integration.
+          </p>
+        </div>
+        <div className="grid gap-4 p-5">
+          <label className="grid gap-2 text-sm font-semibold text-slate-700">
+            Content package JSON
+            <textarea
+              value={importJson}
+              onChange={(event) => setImportJson(event.target.value)}
+              placeholder='Paste a JSON export from "Export Package".'
+              spellCheck={false}
+              className="min-h-40 rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs leading-5 text-slate-800"
+            />
+          </label>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={importPackage}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-700"
+            >
+              <Upload className="h-4 w-4" />
+              Import Package
+            </button>
+            <p className="text-sm text-slate-500">
+              Rejects forbidden keys, obvious unsafe values, and invalid
+              package shapes before local save.
+            </p>
+          </div>
+          {importMessage ? (
+            <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-800">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              {importMessage}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="font-sans text-base font-semibold text-slate-950">
+            Weekly Content Queue
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Derived from saved local content packages. It shows what is ready,
+            not posted, posted, and missing manual performance metrics.
+          </p>
+        </div>
+        <div className="grid gap-4 p-5 lg:grid-cols-4">
+          {(
+            [
+              ["ready", weeklyQueueGroups.ready],
+              ["not posted", weeklyQueueGroups["not posted"]],
+              ["posted", weeklyQueueGroups.posted],
+              ["missing metrics", weeklyQueueGroups["missing metrics"]],
+            ] as const
+          ).map(([state, rows]) => (
+            <div
+              key={state}
+              className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-sans text-sm font-semibold capitalize text-slate-950">
+                  {state}
+                </h3>
+                <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                  {rows.length}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-3">
+                {rows.length === 0 ? (
+                  <p className="text-sm leading-6 text-slate-500">
+                    No drafts in this queue.
+                  </p>
+                ) : (
+                  rows.slice(0, 6).map((row) => (
+                    <article
+                      key={`${state}-${row.draftId}`}
+                      className="rounded-md border border-slate-200 bg-white p-3"
+                    >
+                      <div className="text-sm font-semibold text-slate-950">
+                        {row.title}
+                      </div>
+                      <div className="mt-1 text-xs leading-5 text-slate-500">
+                        {row.accountName} / {row.platform}
+                      </div>
+                      <div className="mt-2 break-all font-mono text-[11px] leading-5 text-slate-500">
+                        {row.url}
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-5">
           <h2 className="font-sans text-base font-semibold text-slate-950">
             Select Products, Accounts, And Platforms
           </h2>
@@ -732,6 +1138,13 @@ export function ContentPackageBuilder({
           </p>
         </div>
         <div className="grid gap-5 p-5">
+          {packetMessage ? (
+            <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-800">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              {packetMessage}
+            </div>
+          ) : null}
+
           {records.map((record) => (
             <article
               key={record.contentPackage.id}
@@ -746,25 +1159,43 @@ export function ContentPackageBuilder({
                     {record.sourceUpdate.summary}
                   </p>
                 </div>
-                <select
-                  value={record.contentPackage.status}
-                  onChange={(event) =>
-                    updateRecord(record.contentPackage.id, {
-                      contentPackage: {
-                        ...record.contentPackage,
-                        status: event.target.value as ContentPackageStatus,
-                        updatedAt: new Date().toISOString(),
-                      },
-                    })
-                  }
-                  className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800"
-                >
-                  {packageStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => exportPackage(record)}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export Package
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void copyPostPacket(record)}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy Post Packet
+                  </button>
+                  <select
+                    value={record.contentPackage.status}
+                    onChange={(event) =>
+                      updateRecord(record.contentPackage.id, {
+                        contentPackage: {
+                          ...record.contentPackage,
+                          status: event.target.value as ContentPackageStatus,
+                          updatedAt: new Date().toISOString(),
+                        },
+                      })
+                    }
+                    className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800"
+                  >
+                    {packageStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="mt-5 grid gap-4">

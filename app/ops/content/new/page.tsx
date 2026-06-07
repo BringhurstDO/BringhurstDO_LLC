@@ -52,7 +52,7 @@ export default function OpsNewContentPackagePage() {
       <OpsPageHeader
         eyebrow="Source update to content package"
         title="New Content Package"
-        description="Enter one metadata-only source update, select products/accounts/platforms, create platform draft slots, and save a local content package for manual posting."
+        description="Enter one metadata-only source update, select products/accounts/platforms, create platform draft slots, save locally, export/import packages, copy post packets, and track manual posting."
       />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -71,8 +71,9 @@ export default function OpsNewContentPackagePage() {
           <p className="mt-2">
             Enter One Metadata-Only Update, then Select Products, Accounts, And
             Platforms. Create Platform-Specific Draft Slots, save them locally,
-            and manage Saved Local Content Packages with manual posted/not
-            posted state, public URLs, and aggregate performance metrics.
+            export or import package JSON, copy post packets for manual review,
+            and manage weekly queue state, public URLs, and aggregate
+            performance metrics.
           </p>
         </section>
 

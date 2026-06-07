@@ -7,9 +7,51 @@ import {
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
 import { opsDashboardData } from "@/lib/ops/mock-data";
+import type { OpsAccountRegistryEntry } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+
+function AccountFieldList({ account }: { account: OpsAccountRegistryEntry }) {
+  return (
+    <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+      <div>
+        <dt className="text-slate-500">Project ID</dt>
+        <dd className="mt-1 font-medium text-slate-900">{account.projectId}</dd>
+      </div>
+      <div>
+        <dt className="text-slate-500">Platform</dt>
+        <dd className="mt-1 font-medium text-slate-900">{account.platform}</dd>
+      </div>
+      <div>
+        <dt className="text-slate-500">Handle</dt>
+        <dd className="mt-1 font-medium text-slate-900">{account.handle}</dd>
+      </div>
+      <div>
+        <dt className="text-slate-500">Role</dt>
+        <dd className="mt-1 font-medium text-slate-900">{account.role}</dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-slate-500">Profile URL</dt>
+        <dd className="mt-1 break-all font-mono text-xs text-slate-700">
+          {account.profileUrl}
+        </dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-slate-500">Notes</dt>
+        <dd className="mt-1 leading-6 text-slate-700">
+          {account.notes.join(" ")}
+        </dd>
+      </div>
+      <div className="sm:col-span-2">
+        <dt className="text-slate-500">Source boundary</dt>
+        <dd className="mt-1 leading-6 text-slate-700">
+          {account.sourceBoundary}
+        </dd>
+      </div>
+    </dl>
+  );
+}
 
 export default function OpsAccountsPage() {
   const { accountRegistry, socialMetricPlaceholders } = opsDashboardData;
@@ -48,32 +90,17 @@ export default function OpsAccountsPage() {
                       </h2>
                     </div>
                     <p className="mt-1 text-sm text-slate-500">
-                      {account.platform} / {account.accountType}
+                      {account.platform} / {account.role}
                     </p>
                   </div>
                   <StatusPill tone={account.statusTone}>{account.status}</StatusPill>
                 </div>
 
-                <dl className="mt-4 grid gap-3 text-sm">
-                  <div>
-                    <dt className="text-slate-500">Public handle</dt>
-                    <dd className="mt-1 font-medium text-slate-900">
-                      {account.publicHandle}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Purpose</dt>
-                    <dd className="mt-1 leading-6 text-slate-700">
-                      {account.purpose}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Source boundary</dt>
-                    <dd className="mt-1 leading-6 text-slate-700">
-                      {account.sourceBoundary}
-                    </dd>
-                  </div>
-                </dl>
+                <AccountFieldList account={account} />
+
+                <p className="mt-4 text-sm leading-6 text-slate-700">
+                  {account.purpose}
+                </p>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-md border border-slate-200 bg-white p-3">
@@ -113,11 +140,12 @@ export default function OpsAccountsPage() {
                       {account.name}
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      {account.platform} / {account.publicHandle}
+                      {account.platform} / {account.handle}
                     </p>
                   </div>
                   <StatusPill tone={account.statusTone}>{account.status}</StatusPill>
                 </div>
+                <AccountFieldList account={account} />
                 <p className="mt-4 text-sm leading-6 text-slate-700">
                   {account.purpose}
                 </p>

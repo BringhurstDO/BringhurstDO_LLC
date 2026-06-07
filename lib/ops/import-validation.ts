@@ -37,7 +37,7 @@ export type ManualImportValidationResult =
     };
 
 const projectIds = ["syncsoap", "syncsafety", "bringhurstdo"] as const;
-const channels = ["LinkedIn", "Instagram", "X", "Blog", "Email"] as const;
+const channels = ["LinkedIn", "Instagram", "Facebook", "X", "Blog", "Email"] as const;
 const audiences = [
   "physicians",
   "clinic owners",
@@ -165,7 +165,9 @@ function validateDraftPosts(value: unknown) {
     }
 
     if (!isOneOf(item.channel, channels)) {
-      issues.push(`${path}.channel must be LinkedIn, Instagram, X, Blog, or Email.`);
+      issues.push(
+        `${path}.channel must be LinkedIn, Instagram, Facebook, X, Blog, or Email.`,
+      );
     }
 
     if (!isOneOf(item.audience, audiences)) {

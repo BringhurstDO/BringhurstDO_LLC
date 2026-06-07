@@ -267,9 +267,13 @@ Allowed fields:
 - `name`
 - `kind`
 - `platform`
+- `handle`
+- `profileUrl`
+- `role`
+- `status`
+- `notes`
 - `accountType`
 - `publicHandle`
-- `status`
 - `purpose`
 - `sourceBoundary`
 - `manualReviewCadence`
@@ -291,6 +295,10 @@ Forbidden fields:
 
 Source boundary: registry rows describe public account context and future
 read-only aggregate metrics only. They are not a credential store.
+
+Phase 4A requires mock registry coverage for Kyle Bringhurst, BringhurstDO,
+SyncSOAP, and SyncSafety across LinkedIn, Instagram, Facebook, and X. Profile
+URLs are planning metadata only and must be verified manually before public use.
 
 ### Social Metric Placeholders
 
@@ -346,6 +354,41 @@ Forbidden data:
 SyncSOAP source updates must stay at the product/business metadata level. They
 must not contain clinical examples, encounter-level details, transcripts, or
 patient stories.
+
+## Phase 4A Package Import, Export, Copy Packet, And Weekly Queue
+
+Phase 4A remains local/browser-only and mock/manual-first. Do not add OAuth,
+social APIs, AI APIs, autoposting, databases, live credentials, or external
+mutation.
+
+Allowed operations:
+
+- Export one local `ContentPackage` record as JSON.
+- Import one local package export or a small local export array after
+  metadata-only validation and package-shape checks.
+- Copy a post packet containing platform draft text, UTM links, posted state,
+  public post URLs, and safety notes for manual review.
+- Show a weekly content queue derived from local saved package records.
+- Track manual posted/not-posted state and aggregate manual performance metrics.
+
+Forbidden operations:
+
+- Posting, scheduling, or editing social posts through an API.
+- OAuth login or token capture.
+- Ad-spend mutation or budget control.
+- Database writes or server persistence.
+- Raw platform exports, raw logs, private messages, contact details, cookies,
+  tokens, credentials, or source-system payloads.
+
+Source boundary: exported and imported packages may contain only metadata-only
+business/product/operator updates and manually reviewed draft copy. SyncSOAP
+package data must remain product/business metadata only and must not include PHI,
+patient identifiers, encounter IDs, transcripts, clinical payloads, or clinical
+examples.
+
+Manual approval requirement: copy packets, UTM links, package imports, and
+weekly queue rows do not grant publishing approval. Every post and every spend
+or mutation remains manual-approval-required.
 
 ### UTM Campaign Links
 

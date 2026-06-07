@@ -2,11 +2,23 @@ import type { MetadataOnlyString, SafeOpsText } from "@/lib/ops/safety";
 
 export type OpsProjectId = "syncsoap" | "syncsafety" | "bringhurstdo";
 
+export type OpsAccountProjectId = OpsProjectId | "kyle-bringhurst";
+
 export type OpsTone = "good" | "watch" | "blocked" | "neutral";
 
-export type ContentChannel = "LinkedIn" | "Instagram" | "X" | "Blog" | "Email";
+export type ContentChannel =
+  | "LinkedIn"
+  | "Instagram"
+  | "Facebook"
+  | "X"
+  | "Blog"
+  | "Email";
 
-export type SocialMetricPlatform = "Meta/Instagram" | "LinkedIn" | "X";
+export type SocialMetricPlatform =
+  | "Meta/Instagram"
+  | "Meta/Facebook"
+  | "LinkedIn"
+  | "X";
 
 export type PublicationPlatform = ContentChannel;
 
@@ -159,10 +171,14 @@ export type OpsAccountKind = "project" | "founder";
 
 export type OpsAccountRegistryEntry = {
   id: string;
-  projectId?: OpsProjectId;
+  projectId: OpsAccountProjectId;
   name: MetadataOnlyString;
   kind: OpsAccountKind;
   platform: ContentChannel | "Website";
+  handle: MetadataOnlyString;
+  profileUrl: string;
+  role: MetadataOnlyString;
+  notes: SafeOpsText[];
   accountType: MetadataOnlyString;
   publicHandle: MetadataOnlyString;
   status: "active" | "planned" | "paused" | "manual-only";
