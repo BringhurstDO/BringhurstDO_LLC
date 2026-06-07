@@ -26,8 +26,8 @@ or paid services.
 5. Review and edit each draft manually.
 6. Save locally after validation.
 7. Export Package when you want a local JSON handoff or backup.
-8. Import Package only by pasting a prior local JSON export that passes
-   metadata-only validation and package-shape checks.
+8. Import Package by selecting a prior local JSON export from the file picker.
+   The file must pass metadata-only validation and package-shape checks.
 9. Copy Post Packet to copy all platform drafts, UTM links, approval reminder,
    and posted state into a clean manual handoff.
 10. Copy the generated UTM link into the external platform.
@@ -52,9 +52,11 @@ or paid services.
 ## Phase 4A Manual Package Tools
 
 - `Export Package` downloads one local content package record as JSON.
-- `Import Package` accepts a single content package export or a small array of
-  exports, rejects unsafe metadata keys or obvious unsafe values, and saves only
-  to the current browser.
+- `Import Package` opens a local `.json` file picker, accepts a single content
+  package export or a small array of exports, rejects unsafe metadata keys or
+  obvious unsafe values, and saves only to the current browser.
+- If an imported package ID already exists, the import creates an imported copy
+  with new linked IDs instead of replacing the existing package.
 - `Copy Post Packet` copies all platform draft slots, draft bodies, generated
   UTM URLs, posted state, public post URLs, and safety notes for manual review.
 - The weekly queue is derived from saved local package records and groups drafts
@@ -62,9 +64,10 @@ or paid services.
 - Every platform draft slot keeps a generated UTM URL so manual posts have a
   campaign link before publishing.
 
-Package tools must never become a credential path. Do not paste OAuth responses,
-cookies, tokens, raw social exports, raw logs, private messages, contact details,
-or SyncSOAP clinical payloads into package imports or draft bodies.
+Package tools must never become a credential path. Do not import or paste OAuth
+responses, cookies, tokens, raw social exports, raw logs, private messages,
+contact details, or SyncSOAP clinical payloads into package imports or draft
+bodies.
 
 ## Forbidden Data
 

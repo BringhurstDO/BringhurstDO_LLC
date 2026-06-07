@@ -6,8 +6,10 @@ adding live integrations.
 ## What Is Local Now
 
 - Content package exports download JSON in the browser.
-- Content package imports accept pasted JSON only after metadata-only validation
-  and basic package-shape checks.
+- Content package imports use a browser file picker for exported `.json` files,
+  then run metadata-only validation and basic package-shape checks.
+- Duplicate package IDs are saved as imported copies with new linked IDs rather
+  than replacing existing local packages.
 - Copy Post Packet copies platform drafts, UTM links, posted state, public post
   URLs, and safety notes for manual review.
 - Weekly Content Queue groups local package drafts by ready, not posted, posted,
@@ -40,12 +42,14 @@ adding live integrations.
 3. Generate or manually create platform-specific draft slots.
 4. Save the package locally in the browser.
 5. Export Package if a local JSON handoff or backup is needed.
-6. Copy Post Packet for manual review and manual posting.
-7. Copy the generated UTM link into the external platform manually.
-8. Publish manually only after approval.
-9. Mark posted/not posted manually.
-10. Add public post URL and aggregate performance metrics manually.
-11. Review the weekly content queue for ready rows and missing metrics.
+6. Import Package by choosing a prior exported `.json` file when restoring or
+   moving a package between local browser contexts.
+7. Copy Post Packet for manual review and manual posting.
+8. Copy the generated UTM link into the external platform manually.
+9. Publish manually only after approval.
+10. Mark posted/not posted manually.
+11. Add public post URL and aggregate performance metrics manually.
+12. Review the weekly content queue for ready rows and missing metrics.
 
 ## Future Requirements
 

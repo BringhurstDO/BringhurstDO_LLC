@@ -368,8 +368,10 @@ pending Meta trust.
 Allowed operations:
 
 - Export one local `ContentPackage` record as JSON.
-- Import one local package export or a small local export array after
-  metadata-only validation and package-shape checks.
+- Import one local `.json` package export or a small local export array from the
+  browser file picker after metadata-only validation and package-shape checks.
+- Create an imported copy with new linked IDs when an imported package ID
+  already exists; do not silently replace local packages.
 - Copy a post packet containing platform draft text, UTM links, posted state,
   public post URLs, and safety notes for manual review.
 - Show a weekly content queue derived from local saved package records.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -284,6 +284,90 @@ function validPostUrl(value: string) {
   }
 }
 
+function createImportedPackageCopy(record: LocalContentPackageRecord) {
+  const importedAt = new Date().toISOString();
+  const importSuffix = `imported-${nowId()}`;
+  const sourceUpdateId = `${record.sourceUpdate.id}-${importSuffix}`;
+  const contentPackageId = `${record.contentPackage.id}-${importSuffix}`;
+  const draftIdMap = new Map<string, string>();
+  const postIdMap = new Map<string, string>();
+
+  const platformDrafts = record.platformDrafts.map((draft, index) => {
+    const draftId = `${draft.id}-${importSuffix}-${index + 1}`;
+    draftIdMap.set(draft.id, draftId);
+
+    return {
+      ...draft,
+      contentPackageId,
+      id: draftId,
+      sourceUpdateId,
+      updatedAt: importedAt,
+    };
+  });
+  const publishedPosts = record.publishedPosts.map((post, index) => {
+    const postId = `${post.id}-${importSuffix}-${index + 1}`;
+    postIdMap.set(post.id, postId);
+
+    return {
+      ...post,
+      id: postId,
+      manualNotes: [
+        ...post.manualNotes,
+        "Imported copy created because the original package ID already existed.",
+      ],
+      platformDraftId:
+        draftIdMap.get(post.platformDraftId) ??
+        `${post.platformDraftId}-${importSuffix}`,
+    };
+  });
+
+  return {
+    businessOutcome: {
+      ...record.businessOutcome,
+      contentPackageId,
+      id: `${record.businessOutcome.id}-${importSuffix}`,
+      notes: [
+        ...record.businessOutcome.notes,
+        "Imported copy created because the original package ID already existed.",
+      ],
+    },
+    contentPackage: {
+      ...record.contentPackage,
+      createdAt: importedAt,
+      id: contentPackageId,
+      notes: [
+        ...record.contentPackage.notes,
+        "Imported copy created because the original package ID already existed.",
+      ],
+      sourceUpdateId,
+      title: `${record.contentPackage.title} (Imported copy)`,
+      updatedAt: importedAt,
+    },
+    performanceSnapshots: record.performanceSnapshots.map((snapshot, index) => ({
+      ...snapshot,
+      id: `${snapshot.id}-${importSuffix}-${index + 1}`,
+      notes: [
+        ...snapshot.notes,
+        "Imported copy created because the original package ID already existed.",
+      ],
+      publishedPostId:
+        postIdMap.get(snapshot.publishedPostId) ?? snapshot.publishedPostId,
+    })),
+    platformDrafts,
+    publishedPosts,
+    sourceUpdate: {
+      ...record.sourceUpdate,
+      createdAt: importedAt,
+      id: sourceUpdateId,
+      notes: [
+        ...record.sourceUpdate.notes,
+        "Imported copy created because the original package ID already existed.",
+      ],
+      title: `${record.sourceUpdate.title} (Imported copy)`,
+    },
+  } satisfies LocalContentPackageRecord;
+}
+
 export function ContentPackageBuilder({
   initialRecords,
   projects,
@@ -302,9 +386,11 @@ export function ContentPackageBuilder({
   const [records, setRecords] = useState<LocalContentPackageRecord[]>(initialRecords);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveIssues, setSaveIssues] = useState<string[]>([]);
-  const [importJson, setImportJson] = useState("");
+  const [importIssues, setImportIssues] = useState<string[]>([]);
   const [importMessage, setImportMessage] = useState("");
+  const [importFileName, setImportFileName] = useState("");
   const [packetMessage, setPacketMessage] = useState("");
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey);
@@ -460,17 +546,17 @@ export function ContentPackageBuilder({
     }
   }
 
-  function importPackage() {
-    const trimmed = importJson.trim();
+  function importPackageJson(rawJson: string, sourceLabel: string) {
+    const trimmed = rawJson.trim();
 
     if (!trimmed) {
-      setSaveIssues(["Paste a content package JSON export before importing."]);
+      setImportIssues(["Selected import file is empty."]);
       setImportMessage("");
       return;
     }
 
-    if (new Blob([importJson]).size > maxPackageImportBytes) {
-      setSaveIssues(["Content package imports must be 200 KB or smaller."]);
+    if (new Blob([rawJson]).size > maxPackageImportBytes) {
+      setImportIssues(["Content package imports must be 200 KB or smaller."]);
       setImportMessage("");
       return;
     }
@@ -480,7 +566,7 @@ export function ContentPackageBuilder({
     try {
       parsed = JSON.parse(trimmed) as unknown;
     } catch {
-      setSaveIssues(["Pasted package content is not valid JSON."]);
+      setImportIssues([`${sourceLabel} is not valid JSON.`]);
       setImportMessage("");
       return;
     }
@@ -488,7 +574,7 @@ export function ContentPackageBuilder({
     const importedValues = Array.isArray(parsed) ? parsed : [parsed];
 
     if (importedValues.length > 20) {
-      setSaveIssues(["Import at most 20 content packages at a time."]);
+      setImportIssues(["Import at most 20 content packages at a time."]);
       setImportMessage("");
       return;
     }
@@ -500,7 +586,7 @@ export function ContentPackageBuilder({
     );
 
     if (shapeIssues.length > 0) {
-      setSaveIssues(shapeIssues);
+      setImportIssues(shapeIssues);
       setImportMessage("");
       return;
     }
@@ -509,27 +595,83 @@ export function ContentPackageBuilder({
     const safetyIssues = issueText(importedRecords, "contentPackageImport");
 
     if (safetyIssues.length > 0) {
-      setSaveIssues(safetyIssues);
+      setImportIssues(safetyIssues);
       setImportMessage("");
       return;
     }
 
-    const importedIds = new Set(
-      importedRecords.map((record) => record.contentPackage.id),
+    const knownPackageIds = new Set(
+      records.map((record) => record.contentPackage.id),
     );
-    const nextRecords = [
-      ...importedRecords,
-      ...records.filter((record) => !importedIds.has(record.contentPackage.id)),
-    ];
+    let copyCount = 0;
+    const normalizedRecords = importedRecords.map((record) => {
+      if (!knownPackageIds.has(record.contentPackage.id)) {
+        knownPackageIds.add(record.contentPackage.id);
+        return record;
+      }
+
+      const copiedRecord = createImportedPackageCopy(record);
+      knownPackageIds.add(copiedRecord.contentPackage.id);
+      copyCount += 1;
+      return copiedRecord;
+    });
+    const nextRecords = [...normalizedRecords, ...records];
 
     if (persistRecords(nextRecords)) {
-      setImportJson("");
+      setImportFileName(sourceLabel);
+      setImportIssues([]);
       setImportMessage(
-        `Imported ${importedRecords.length} content package record${
-          importedRecords.length === 1 ? "" : "s"
-        } locally.`,
+        `Imported ${normalizedRecords.length} content package record${
+          normalizedRecords.length === 1 ? "" : "s"
+        } from ${sourceLabel}${
+          copyCount > 0
+            ? `; ${copyCount} duplicate ID${copyCount === 1 ? "" : "s"} saved as imported copies.`
+            : "."
+        }`,
       );
+      setSaveIssues([]);
       setSaveMessage("");
+    }
+  }
+
+  function openImportFilePicker() {
+    importFileInputRef.current?.click();
+  }
+
+  async function handleImportFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setImportFileName(file.name);
+    setImportIssues([]);
+    setImportMessage("");
+
+    const isJsonFile =
+      file.type === "application/json" ||
+      file.name.toLowerCase().endsWith(".json");
+
+    if (!isJsonFile) {
+      setImportIssues(["Choose a .json file exported from Export Package."]);
+      setImportMessage("");
+      return;
+    }
+
+    if (file.size > maxPackageImportBytes) {
+      setImportIssues(["Content package imports must be 200 KB or smaller."]);
+      setImportMessage("");
+      return;
+    }
+
+    try {
+      const rawJson = await file.text();
+      importPackageJson(rawJson, file.name);
+    } catch {
+      setImportIssues([`Could not read ${file.name}. Choose a local JSON export.`]);
+      setImportMessage("");
     }
   }
 
@@ -828,42 +970,57 @@ export function ContentPackageBuilder({
             Import Package
           </div>
           <h2 className="mt-1 font-sans text-base font-semibold text-slate-950">
-            Paste A Content Package Export
+            Import An Exported Package JSON File
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Imports are validated before rendering and saved only to this
-            browser. This is not a database, sync service, or API integration.
+            Choose the JSON file downloaded by Export Package. Imports are
+            validated before rendering and saved only to this browser.
           </p>
         </div>
         <div className="grid gap-4 p-5">
-          <label className="grid gap-2 text-sm font-semibold text-slate-700">
-            Content package JSON
-            <textarea
-              value={importJson}
-              onChange={(event) => setImportJson(event.target.value)}
-              placeholder='Paste a JSON export from "Export Package".'
-              spellCheck={false}
-              className="min-h-40 rounded-lg border border-slate-300 bg-white p-3 font-mono text-xs leading-5 text-slate-800"
-            />
-          </label>
+          <input
+            ref={importFileInputRef}
+            onChange={(event) => void handleImportFileChange(event)}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+          />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
-              onClick={importPackage}
+              onClick={openImportFilePicker}
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-700"
             >
               <Upload className="h-4 w-4" />
               Import Package
             </button>
             <p className="text-sm text-slate-500">
-              Rejects forbidden keys, obvious unsafe values, and invalid
-              package shapes before local save.
+              Opens a local file picker for .json files. Duplicate package IDs
+              are saved as imported copies instead of replacing existing rows.
             </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+            {importFileName
+              ? `Last selected file: ${importFileName}`
+              : "No import file selected yet."}
           </div>
           {importMessage ? (
             <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-800">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
               {importMessage}
+            </div>
+          ) : null}
+          {importIssues.length > 0 ? (
+            <div className="grid gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              <div className="flex items-start gap-3 font-medium">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                Import failed before rendering or saving.
+              </div>
+              <ul className="space-y-2">
+                {importIssues.slice(0, 12).map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </div>
