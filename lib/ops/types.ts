@@ -76,6 +76,41 @@ export type PlatformDraftStatus =
 
 export type PublishedPostStatus = "not posted" | "posted" | "archived";
 
+export type OpsMediaType =
+  | "none"
+  | "image"
+  | "carousel"
+  | "screenshot"
+  | "screen_recording"
+  | "demo_video"
+  | "reel"
+  | "talking_head"
+  | "mixed";
+
+export type OpsCreativeAngle =
+  | "build-in-public"
+  | "product demo"
+  | "problem/solution"
+  | "founder story"
+  | "workflow pain"
+  | "before/after"
+  | "educational"
+  | "launch/update";
+
+export type OpsProductionEffort = "low" | "medium" | "high";
+
+export type OpsMediaReuseStatus = "new" | "reused" | "repurposed" | "remix";
+
+export type OpsMediaMetadata = {
+  mediaType: OpsMediaType;
+  mediaSummary: SafeOpsText;
+  visualHook: SafeOpsText;
+  creativeAngle: OpsCreativeAngle;
+  productionEffort: OpsProductionEffort;
+  assetLocation?: MetadataOnlyString;
+  reuseStatus: OpsMediaReuseStatus;
+};
+
 export type WeeklyScorecardMetric = {
   id: WeeklyScorecardMetricId;
   label: string;
@@ -284,6 +319,7 @@ export type PlatformDraft = {
   accountName: MetadataOnlyString;
   title: MetadataOnlyString;
   body: SafeOpsText;
+  media: OpsMediaMetadata;
   status: PlatformDraftStatus;
   approvalRequired: boolean;
   utmCampaignId: string;
@@ -294,9 +330,14 @@ export type PlatformDraft = {
 
 export type PublishedPost = {
   id: string;
+  accountName: MetadataOnlyString;
+  platform: PublicationPlatform;
   platformDraftId: string;
+  projectId: OpsProjectId;
   publicationTargetId: string;
   status: PublishedPostStatus;
+  postedAt?: string;
+  postedUrl?: string;
   postedManuallyAt?: string;
   postUrl?: string;
   manualNotes: SafeOpsText[];

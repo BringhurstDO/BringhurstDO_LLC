@@ -22,6 +22,11 @@ import type {
   OpsAudienceProfile,
   OpsBrandProfile,
   OpsAccountProjectId,
+  OpsCreativeAngle,
+  OpsMediaMetadata,
+  OpsMediaReuseStatus,
+  OpsMediaType,
+  OpsProductionEffort,
   OpsProjectId,
   OpsProjectSummary,
   PerformanceSnapshot,
@@ -36,11 +41,18 @@ import type {
 import { buildUtmUrl } from "@/lib/ops/utm";
 
 type DraftSlotInput = {
+  assetLocation: string;
   body: string;
+  creativeAngle: OpsCreativeAngle;
   id: string;
+  mediaSummary: string;
+  mediaType: OpsMediaType;
+  productionEffort: OpsProductionEffort;
+  reuseStatus: OpsMediaReuseStatus;
   status: PlatformDraftStatus;
   targetId: string;
   title: string;
+  visualHook: string;
 };
 
 type LocalContentPackageRecord = {
@@ -57,13 +69,23 @@ type WeeklyQueueState = "ready" | "not posted" | "posted" | "missing metrics";
 type WeeklyContentQueueRow = {
   accountName: string;
   draftId: string;
+  creativeAngle: OpsCreativeAngle;
+  mediaType: OpsMediaType;
   packageTitle: string;
   platform: string;
+  projectId: OpsProjectId;
   postStatus: PublishedPostStatus;
+  postedAt: string;
+  postedUrl: string;
+  productionEffort: OpsProductionEffort;
+  reuseStatus: OpsMediaReuseStatus;
   state: WeeklyQueueState;
   title: string;
   url: string;
+  visualHook: string;
 };
+
+type PostedFilter = "all" | "posted" | "not posted";
 
 type ContentPackageBuilderProps = {
   audienceProfiles: OpsAudienceProfile[];
@@ -94,6 +116,46 @@ const packageStatuses: ContentPackageStatus[] = [
   "posted",
   "archived",
 ];
+
+const mediaTypes: OpsMediaType[] = [
+  "none",
+  "image",
+  "carousel",
+  "screenshot",
+  "screen_recording",
+  "demo_video",
+  "reel",
+  "talking_head",
+  "mixed",
+];
+
+const creativeAngles: OpsCreativeAngle[] = [
+  "build-in-public",
+  "product demo",
+  "problem/solution",
+  "founder story",
+  "workflow pain",
+  "before/after",
+  "educational",
+  "launch/update",
+];
+
+const productionEfforts: OpsProductionEffort[] = ["low", "medium", "high"];
+const reuseStatuses: OpsMediaReuseStatus[] = [
+  "new",
+  "reused",
+  "repurposed",
+  "remix",
+];
+
+const defaultMediaMetadata: OpsMediaMetadata = {
+  creativeAngle: "build-in-public",
+  mediaSummary: "No media planned.",
+  mediaType: "none",
+  productionEffort: "low",
+  reuseStatus: "new",
+  visualHook: "Text-only post.",
+};
 
 function slugify(value: string) {
   const slug = value
@@ -523,6 +585,47 @@ function uniqueProjectIds(projectIds: unknown[]) {
   return Array.from(new Set(projectIds.filter(isOpsProjectId)));
 }
 
+function isOneOf<T extends readonly string[]>(
+  value: unknown,
+  allowed: T,
+): value is T[number] {
+  return typeof value === "string" && (allowed as readonly string[]).includes(value);
+}
+
+function normalizeMediaMetadata(value: unknown): OpsMediaMetadata {
+  if (!isRecord(value)) {
+    return defaultMediaMetadata;
+  }
+
+  const assetLocation = typeof value.assetLocation === "string"
+    ? value.assetLocation.trim()
+    : "";
+
+  return {
+    assetLocation: assetLocation || undefined,
+    creativeAngle: isOneOf(value.creativeAngle, creativeAngles)
+      ? value.creativeAngle
+      : defaultMediaMetadata.creativeAngle,
+    mediaSummary:
+      typeof value.mediaSummary === "string" && value.mediaSummary.trim()
+        ? value.mediaSummary
+        : defaultMediaMetadata.mediaSummary,
+    mediaType: isOneOf(value.mediaType, mediaTypes)
+      ? value.mediaType
+      : defaultMediaMetadata.mediaType,
+    productionEffort: isOneOf(value.productionEffort, productionEfforts)
+      ? value.productionEffort
+      : defaultMediaMetadata.productionEffort,
+    reuseStatus: isOneOf(value.reuseStatus, reuseStatuses)
+      ? value.reuseStatus
+      : defaultMediaMetadata.reuseStatus,
+    visualHook:
+      typeof value.visualHook === "string" && value.visualHook.trim()
+        ? value.visualHook
+        : defaultMediaMetadata.visualHook,
+  };
+}
+
 function draftLooksGenerated(
   draft: PlatformDraft,
   sourceUpdate: SourceUpdate,
@@ -678,6 +781,7 @@ function migrateLocalContentPackageRecord(
 
     const migratedDraft = {
       ...draft,
+      media: normalizeMediaMetadata(draftRecord.media),
       projectId: publishingProjectId,
       publishingProjectId,
       sourceProjectId: isOpsProjectId(draftRecord.sourceProjectId)
@@ -726,6 +830,49 @@ function migrateLocalContentPackageRecord(
         ? capturedAt
         : value.businessOutcome.capturedAt,
   };
+  const publishedPosts = value.publishedPosts.map((post) => {
+    const postRecord = post as PublishedPost & {
+      accountName?: unknown;
+      platform?: unknown;
+      postedAt?: unknown;
+      postedUrl?: unknown;
+      projectId?: unknown;
+    };
+    const draft = platformDrafts.find((item) => item.id === post.platformDraftId);
+    const postedUrl =
+      typeof postRecord.postedUrl === "string"
+        ? postRecord.postedUrl
+        : post.postUrl;
+    const postedAt =
+      typeof postRecord.postedAt === "string"
+        ? postRecord.postedAt
+        : post.postedManuallyAt;
+
+    return {
+      ...post,
+      accountName:
+        typeof postRecord.accountName === "string"
+          ? postRecord.accountName
+          : draft?.accountName ?? "Unknown account",
+      platform: isOneOf(postRecord.platform, [
+        "LinkedIn",
+        "Instagram",
+        "Facebook",
+        "X",
+        "Blog",
+        "Email",
+      ] as const)
+        ? postRecord.platform
+        : draft?.platform ?? "LinkedIn",
+      postedAt,
+      postedManuallyAt: post.postedManuallyAt ?? postedAt,
+      postedUrl,
+      postUrl: post.postUrl ?? postedUrl,
+      projectId: isOpsProjectId(postRecord.projectId)
+        ? postRecord.projectId
+        : draft?.publishingProjectId ?? sourceProjectId,
+    };
+  });
 
   return {
     businessOutcome: {
@@ -744,7 +891,7 @@ function migrateLocalContentPackageRecord(
     },
     performanceSnapshots,
     platformDrafts,
-    publishedPosts: value.publishedPosts,
+    publishedPosts,
     sourceUpdate: {
       ...value.sourceUpdate,
       projectId: sourceProjectId,
@@ -814,13 +961,21 @@ function buildWeeklyQueueRows(records: LocalContentPackageRecord[]) {
 
       return {
         accountName: draft.accountName,
+        creativeAngle: draft.media.creativeAngle,
         draftId: draft.id,
+        mediaType: draft.media.mediaType,
         packageTitle: record.contentPackage.title,
         platform: draft.platform,
+        postedAt: post?.postedAt ?? post?.postedManuallyAt ?? "",
+        postedUrl: post?.postedUrl ?? post?.postUrl ?? "",
         postStatus,
+        productionEffort: draft.media.productionEffort,
+        projectId: draft.publishingProjectId,
+        reuseStatus: draft.media.reuseStatus,
         state,
         title: draft.title,
         url: draft.generatedUrl,
+        visualHook: draft.media.visualHook,
       };
     }),
   );
@@ -841,7 +996,15 @@ Title: ${draft.title}
 Source project: ${draft.sourceProjectId}
 Publishing project: ${draft.publishingProjectId}
 UTM URL: ${draft.generatedUrl}
-Published URL: ${post?.postUrl ?? "Not posted"}
+Published URL: ${post?.postedUrl ?? post?.postUrl ?? "Not posted"}
+Posted at: ${post?.postedAt ?? post?.postedManuallyAt ?? "Not posted"}
+Media type: ${draft.media.mediaType}
+Media summary: ${draft.media.mediaSummary}
+Visual hook: ${draft.media.visualHook}
+Creative angle: ${draft.media.creativeAngle}
+Production effort: ${draft.media.productionEffort}
+Asset reference: ${draft.media.assetLocation ?? "None"}
+Reuse status: ${draft.media.reuseStatus}
 
 ${draft.body}
 
@@ -1007,6 +1170,18 @@ export function ContentPackageBuilder({
   const [importMessage, setImportMessage] = useState("");
   const [importFileName, setImportFileName] = useState("");
   const [packetMessage, setPacketMessage] = useState("");
+  const [historyMediaType, setHistoryMediaType] = useState<"all" | OpsMediaType>(
+    "all",
+  );
+  const [historyCreativeAngle, setHistoryCreativeAngle] = useState<
+    "all" | OpsCreativeAngle
+  >("all");
+  const [historyProjectId, setHistoryProjectId] = useState<"all" | OpsProjectId>(
+    "all",
+  );
+  const [historyPlatform, setHistoryPlatform] = useState<"all" | string>("all");
+  const [historyPostedFilter, setHistoryPostedFilter] =
+    useState<PostedFilter>("all");
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -1160,6 +1335,67 @@ export function ContentPackageBuilder({
     }),
     [weeklyQueueRows],
   );
+  const filteredHistoryRows = useMemo(
+    () =>
+      weeklyQueueRows.filter((row) => {
+        if (historyMediaType !== "all" && row.mediaType !== historyMediaType) {
+          return false;
+        }
+
+        if (
+          historyCreativeAngle !== "all" &&
+          row.creativeAngle !== historyCreativeAngle
+        ) {
+          return false;
+        }
+
+        if (historyProjectId !== "all" && row.projectId !== historyProjectId) {
+          return false;
+        }
+
+        if (historyPlatform !== "all" && row.platform !== historyPlatform) {
+          return false;
+        }
+
+        if (historyPostedFilter === "posted") {
+          return row.postStatus === "posted";
+        }
+
+        if (historyPostedFilter === "not posted") {
+          return row.postStatus !== "posted";
+        }
+
+        return true;
+      }),
+    [
+      historyCreativeAngle,
+      historyMediaType,
+      historyPlatform,
+      historyPostedFilter,
+      historyProjectId,
+      weeklyQueueRows,
+    ],
+  );
+  const recentlyPostedRows = useMemo(
+    () =>
+      weeklyQueueRows
+        .filter((row) => row.postStatus === "posted")
+        .sort((a, b) => b.postedAt.localeCompare(a.postedAt))
+        .slice(0, 5),
+    [weeklyQueueRows],
+  );
+  const historyPlatforms = useMemo(
+    () => Array.from(new Set(weeklyQueueRows.map((row) => row.platform))).sort(),
+    [weeklyQueueRows],
+  );
+  const recentSummaryText =
+    recentlyPostedRows.length > 0
+      ? `${recentlyPostedRows.length} recent posted item${
+          recentlyPostedRows.length === 1 ? "" : "s"
+        }: ${recentlyPostedRows
+          .map((row) => `${row.platform} ${row.mediaType} / ${row.creativeAngle}`)
+          .join("; ")}.`
+      : "No manually posted content is recorded yet.";
 
   function toggleTarget(targetId: string) {
     const target = publicationTargets.find((item) => item.id === targetId);
@@ -1201,6 +1437,7 @@ export function ContentPackageBuilder({
         );
 
         return {
+          assetLocation: "",
           body: draftTemplateBody({
             campaign,
             destinationUrl,
@@ -1208,10 +1445,16 @@ export function ContentPackageBuilder({
             sourceTitle,
             target,
           }),
+          creativeAngle: "build-in-public",
           id: `slot-${packageSlug}-${target.id}`,
+          mediaSummary: "No media planned.",
+          mediaType: "none",
+          productionEffort: "low",
+          reuseStatus: "new",
           status: "drafted",
           targetId: target.id,
           title: sourceTitle || `${target.accountName} draft`,
+          visualHook: "Text-only post.",
         };
       }),
     );
@@ -1233,11 +1476,18 @@ export function ContentPackageBuilder({
     setDraftSlots((current) => [
       ...current,
       {
+        assetLocation: "",
         body: "",
+        creativeAngle: "build-in-public",
         id: `slot-manual-${nowId()}`,
+        mediaSummary: "No media planned.",
+        mediaType: "none",
+        productionEffort: "low",
+        reuseStatus: "new",
         status: "slot",
         targetId: target.id,
         title: "",
+        visualHook: "Text-only post.",
       },
     ]);
   }
@@ -1558,6 +1808,15 @@ export function ContentPackageBuilder({
         contentPackageId,
         generatedUrl,
         id: `platform-draft-${packageSlug}-${target.id}-${index + 1}-${idSuffix}`,
+        media: {
+          assetLocation: slot.assetLocation.trim() || undefined,
+          creativeAngle: slot.creativeAngle,
+          mediaSummary: slot.mediaSummary.trim() || defaultMediaMetadata.mediaSummary,
+          mediaType: slot.mediaType,
+          productionEffort: slot.productionEffort,
+          reuseStatus: slot.reuseStatus,
+          visualHook: slot.visualHook.trim() || defaultMediaMetadata.visualHook,
+        },
         platform: target.platform,
         projectId: publishingProjectId,
         publicationTargetId: target.id,
@@ -1577,9 +1836,12 @@ export function ContentPackageBuilder({
     });
     const publishedPosts = platformDrafts.map(
       (draft): PublishedPost => ({
+        accountName: draft.accountName,
         id: `published-post-${draft.id}`,
         manualNotes: ["Track URL only after manual posting"],
+        platform: draft.platform,
         platformDraftId: draft.id,
+        projectId: draft.publishingProjectId,
         publicationTargetId: draft.publicationTargetId,
         status: "not posted",
       }),
@@ -1648,12 +1910,36 @@ export function ContentPackageBuilder({
     postId: string,
     patch: Partial<PublishedPost>,
   ) {
-    const nextPosts = record.publishedPosts.map((post) =>
-      post.id === postId ? { ...post, ...patch } : post,
-    );
+    const nextPosts = record.publishedPosts.map((post) => {
+      if (post.id !== postId) {
+        return post;
+      }
+
+      const nextStatus = patch.status ?? post.status;
+      const nextPostedAt =
+        nextStatus === "posted"
+          ? patch.postedAt ??
+            patch.postedManuallyAt ??
+            post.postedAt ??
+            post.postedManuallyAt ??
+            new Date().toISOString()
+          : undefined;
+      const nextPostedUrl = patch.postedUrl ?? patch.postUrl ?? post.postedUrl;
+
+      return {
+        ...post,
+        ...patch,
+        postedAt: nextPostedAt,
+        postedManuallyAt: nextPostedAt,
+        postedUrl: nextPostedUrl,
+        postUrl: nextPostedUrl,
+      };
+    });
 
     const invalidUrl = nextPosts.find(
-      (post) => post.postUrl && !validPostUrl(post.postUrl),
+      (post) =>
+        (post.postUrl && !validPostUrl(post.postUrl)) ||
+        (post.postedUrl && !validPostUrl(post.postedUrl)),
     );
 
     if (invalidUrl) {
@@ -2108,6 +2394,211 @@ export function ContentPackageBuilder({
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-5">
           <h2 className="font-sans text-base font-semibold text-slate-950">
+            Media And Creative History
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Tracks what media metadata and creative angle were used without
+            storing images, videos, uploads, patient media, or raw files.
+          </p>
+        </div>
+        <div className="grid gap-5 p-5">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="text-sm font-semibold text-slate-950">
+              What have I posted recently?
+            </div>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {recentSummaryText}
+            </p>
+            {recentlyPostedRows.length > 0 ? (
+              <div className="mt-3 grid gap-2">
+                {recentlyPostedRows.map((row) => (
+                  <div
+                    key={`recent-${row.draftId}`}
+                    className="rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-600"
+                  >
+                    <div className="font-semibold text-slate-950">
+                      {row.title}
+                    </div>
+                    <div>
+                      {row.projectId} / {row.accountName} / {row.platform} /{" "}
+                      {row.mediaType} / {row.creativeAngle}
+                    </div>
+                    <div className="break-all font-mono text-xs text-slate-500">
+                      {row.postedUrl || "Posted URL not recorded"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-5">
+            <label className="grid gap-2 text-xs font-semibold text-slate-600">
+              Media type
+              <select
+                value={historyMediaType}
+                onChange={(event) =>
+                  setHistoryMediaType(event.target.value as "all" | OpsMediaType)
+                }
+                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+              >
+                <option value="all">all</option>
+                {mediaTypes.map((mediaType) => (
+                  <option key={mediaType} value={mediaType}>
+                    {mediaType}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs font-semibold text-slate-600">
+              Creative angle
+              <select
+                value={historyCreativeAngle}
+                onChange={(event) =>
+                  setHistoryCreativeAngle(
+                    event.target.value as "all" | OpsCreativeAngle,
+                  )
+                }
+                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+              >
+                <option value="all">all</option>
+                {creativeAngles.map((angle) => (
+                  <option key={angle} value={angle}>
+                    {angle}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs font-semibold text-slate-600">
+              Project
+              <select
+                value={historyProjectId}
+                onChange={(event) =>
+                  setHistoryProjectId(event.target.value as "all" | OpsProjectId)
+                }
+                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+              >
+                <option value="all">all</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs font-semibold text-slate-600">
+              Platform
+              <select
+                value={historyPlatform}
+                onChange={(event) => setHistoryPlatform(event.target.value)}
+                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+              >
+                <option value="all">all</option>
+                {historyPlatforms.map((platform) => (
+                  <option key={platform} value={platform}>
+                    {platform}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-xs font-semibold text-slate-600">
+              Posted state
+              <select
+                value={historyPostedFilter}
+                onChange={(event) =>
+                  setHistoryPostedFilter(event.target.value as PostedFilter)
+                }
+                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+              >
+                <option value="all">all</option>
+                <option value="posted">posted</option>
+                <option value="not posted">not posted</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-3">
+            {filteredHistoryRows.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
+                No local media metadata rows match these filters.
+              </div>
+            ) : (
+              filteredHistoryRows.map((row) => (
+                <article
+                  key={`history-${row.draftId}`}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <h3 className="font-sans text-sm font-semibold text-slate-950">
+                        {row.title}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        {row.packageTitle}
+                      </p>
+                    </div>
+                    <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                      {row.postStatus}
+                    </span>
+                  </div>
+                  <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <dt className="text-slate-500">Project</dt>
+                      <dd className="font-medium text-slate-900">
+                        {row.projectId}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Account / platform</dt>
+                      <dd className="font-medium text-slate-900">
+                        {row.accountName} / {row.platform}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Media / angle</dt>
+                      <dd className="font-medium text-slate-900">
+                        {row.mediaType} / {row.creativeAngle}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Effort / reuse</dt>
+                      <dd className="font-medium text-slate-900">
+                        {row.productionEffort} / {row.reuseStatus}
+                      </dd>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <dt className="text-slate-500">Visual hook</dt>
+                      <dd className="font-medium text-slate-900">
+                        {row.visualHook}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Posted at</dt>
+                      <dd className="font-medium text-slate-900">
+                        {row.postedAt || "Not posted"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Metrics state</dt>
+                      <dd className="font-medium text-slate-900">{row.state}</dd>
+                    </div>
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <dt className="text-slate-500">Posted URL</dt>
+                      <dd className="break-all font-mono text-xs leading-5 text-slate-600">
+                        {row.postedUrl || "Not posted"}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="font-sans text-base font-semibold text-slate-950">
             Select Products, Accounts, And Platforms
           </h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -2257,6 +2748,132 @@ export function ContentPackageBuilder({
                       </label>
                       <div className="rounded-md border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-600">
                         UTM destination: {target?.defaultDestinationUrl}
+                      </div>
+                      <div className="rounded-md border border-slate-200 bg-white p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Media Metadata Only
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Describe media references only. Do not upload files,
+                          patient images, encounter media, transcripts, private
+                          messages, or raw logs.
+                        </p>
+                        <div className="mt-3 grid gap-3">
+                          <label className="grid gap-2 text-xs font-semibold text-slate-600">
+                            Media type
+                            <select
+                              value={slot.mediaType}
+                              onChange={(event) =>
+                                updateDraftSlot(slot.id, {
+                                  mediaType: event.target.value as OpsMediaType,
+                                })
+                              }
+                              className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                            >
+                              {mediaTypes.map((mediaType) => (
+                                <option key={mediaType} value={mediaType}>
+                                  {mediaType}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="grid gap-2 text-xs font-semibold text-slate-600">
+                            Creative angle
+                            <select
+                              value={slot.creativeAngle}
+                              onChange={(event) =>
+                                updateDraftSlot(slot.id, {
+                                  creativeAngle: event.target
+                                    .value as OpsCreativeAngle,
+                                })
+                              }
+                              className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                            >
+                              {creativeAngles.map((angle) => (
+                                <option key={angle} value={angle}>
+                                  {angle}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="grid gap-2 text-xs font-semibold text-slate-600">
+                              Effort
+                              <select
+                                value={slot.productionEffort}
+                                onChange={(event) =>
+                                  updateDraftSlot(slot.id, {
+                                    productionEffort: event.target
+                                      .value as OpsProductionEffort,
+                                  })
+                                }
+                                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                              >
+                                {productionEfforts.map((effort) => (
+                                  <option key={effort} value={effort}>
+                                    {effort}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="grid gap-2 text-xs font-semibold text-slate-600">
+                              Reuse
+                              <select
+                                value={slot.reuseStatus}
+                                onChange={(event) =>
+                                  updateDraftSlot(slot.id, {
+                                    reuseStatus: event.target
+                                      .value as OpsMediaReuseStatus,
+                                  })
+                                }
+                                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                              >
+                                {reuseStatuses.map((status) => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                          <label className="grid gap-2 text-xs font-semibold text-slate-600">
+                            Media summary
+                            <textarea
+                              value={slot.mediaSummary}
+                              onChange={(event) =>
+                                updateDraftSlot(slot.id, {
+                                  mediaSummary: event.target.value,
+                                })
+                              }
+                              className="min-h-16 rounded-md border border-slate-300 bg-white p-2 text-sm leading-5 text-slate-900"
+                            />
+                          </label>
+                          <label className="grid gap-2 text-xs font-semibold text-slate-600">
+                            Visual hook
+                            <input
+                              value={slot.visualHook}
+                              onChange={(event) =>
+                                updateDraftSlot(slot.id, {
+                                  visualHook: event.target.value,
+                                })
+                              }
+                              className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                            />
+                          </label>
+                          <label className="grid gap-2 text-xs font-semibold text-slate-600">
+                            Asset reference
+                            <input
+                              value={slot.assetLocation}
+                              onChange={(event) =>
+                                updateDraftSlot(slot.id, {
+                                  assetLocation: event.target.value,
+                                })
+                              }
+                              placeholder="External URL, local path note, or reference ID only"
+                              className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                            />
+                          </label>
+                        </div>
                       </div>
                     </div>
                     <div className="grid gap-3">
@@ -2433,6 +3050,49 @@ export function ContentPackageBuilder({
                           <p className="mt-3 break-all font-mono text-xs leading-5 text-slate-500">
                             {draft.generatedUrl}
                           </p>
+                          <dl className="mt-4 grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-600 sm:grid-cols-2">
+                            <div>
+                              <dt className="font-semibold text-slate-700">
+                                Media type
+                              </dt>
+                              <dd>{draft.media.mediaType}</dd>
+                            </div>
+                            <div>
+                              <dt className="font-semibold text-slate-700">
+                                Creative angle
+                              </dt>
+                              <dd>{draft.media.creativeAngle}</dd>
+                            </div>
+                            <div>
+                              <dt className="font-semibold text-slate-700">
+                                Effort / reuse
+                              </dt>
+                              <dd>
+                                {draft.media.productionEffort} /{" "}
+                                {draft.media.reuseStatus}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="font-semibold text-slate-700">
+                                Asset reference
+                              </dt>
+                              <dd className="break-all">
+                                {draft.media.assetLocation ?? "None"}
+                              </dd>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <dt className="font-semibold text-slate-700">
+                                Media summary
+                              </dt>
+                              <dd>{draft.media.mediaSummary}</dd>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <dt className="font-semibold text-slate-700">
+                                Visual hook
+                              </dt>
+                              <dd>{draft.media.visualHook}</dd>
+                            </div>
+                          </dl>
                         </div>
 
                         <div className="grid gap-3">
@@ -2468,10 +3128,11 @@ export function ContentPackageBuilder({
                             <label className="grid gap-2 text-sm font-semibold text-slate-700">
                               Published URL
                               <input
-                                value={post?.postUrl ?? ""}
+                                value={post?.postedUrl ?? post?.postUrl ?? ""}
                                 onChange={(event) =>
                                   post
                                     ? updatePublishedPost(record, post.id, {
+                                        postedUrl: event.target.value,
                                         postUrl: event.target.value,
                                       })
                                     : undefined

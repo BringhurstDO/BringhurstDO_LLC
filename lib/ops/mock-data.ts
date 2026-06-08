@@ -1520,6 +1520,14 @@ export const opsDashboardData: OpsDashboardData = {
         campaign: "package_syncsoap_beta",
         content: "clinic_owner_slot",
       }),
+      media: {
+        mediaType: "none",
+        mediaSummary: "Text-only public positioning post; no media attached.",
+        visualHook: "Small-clinic pilot readiness as the opening line.",
+        creativeAngle: "workflow pain",
+        productionEffort: "low",
+        reuseStatus: "new",
+      },
       safetyNotes: [
         "No patient stories",
         "No clinical payloads",
@@ -1550,6 +1558,14 @@ export const opsDashboardData: OpsDashboardData = {
         campaign: "package_syncsoap_beta",
         content: "physician_slot",
       }),
+      media: {
+        mediaType: "none",
+        mediaSummary: "Text-only short-form draft; no media attached.",
+        visualHook: "Documentation workflow focus in the first sentence.",
+        creativeAngle: "workflow pain",
+        productionEffort: "low",
+        reuseStatus: "new",
+      },
       safetyNotes: [
         "No encounter details",
         "No performance claims without review",
@@ -1561,7 +1577,10 @@ export const opsDashboardData: OpsDashboardData = {
   publishedPosts: [
     {
       id: "published-post-syncsoap-beta-linkedin",
+      accountName: "SyncSOAP LinkedIn",
+      platform: "LinkedIn",
       platformDraftId: "platform-draft-syncsoap-beta-linkedin",
+      projectId: "syncsoap",
       publicationTargetId: "target-syncsoap-linkedin-clinic-owners",
       status: "not posted",
       manualNotes: [
