@@ -105,7 +105,12 @@ function nowId() {
 // Source date is the user-selected planning/content date and may be future.
 // Captured-at dates are the real current date for manual metric/outcome entry.
 function currentCaptureDate() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function targetToSource(target: PublicationTarget) {
@@ -238,14 +243,76 @@ function campaignFromGeneratedUrl(generatedUrl: string, fallback: string) {
   }
 }
 
+function cleanXExcerptEnding(value: string) {
+  let next = value.trim().replace(/[,:;\s-]+$/g, "").replace(/[.!?]+$/g, "");
+  const danglingPhrasePatterns = [
+    /\bgiven the length of the$/i,
+    /\bgiven the length of$/i,
+    /\bgiven the length$/i,
+  ];
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+
+    danglingPhrasePatterns.forEach((pattern) => {
+      if (pattern.test(next)) {
+        next = next.replace(pattern, "").trim().replace(/[,:;\s-]+$/g, "");
+        changed = true;
+      }
+    });
+
+    if (/\b(of|the|and|or|to|for|with)$/i.test(next)) {
+      next = next.replace(/\s+\S+$/g, "").trim().replace(/[,:;\s-]+$/g, "");
+      changed = true;
+    }
+  }
+
+  return next;
+}
+
+function xSummaryExcerpt(summary: string, maxLength: number) {
+  const normalized = cleanTemplateInput(summary, "");
+
+  if (normalized.length <= maxLength) {
+    return cleanXExcerptEnding(normalized);
+  }
+
+  const clipped = normalized.slice(0, maxLength);
+  const sentenceEnd = Math.max(
+    clipped.lastIndexOf("."),
+    clipped.lastIndexOf("!"),
+    clipped.lastIndexOf("?"),
+  );
+
+  if (sentenceEnd >= 35) {
+    return cleanXExcerptEnding(clipped.slice(0, sentenceEnd + 1));
+  }
+
+  const phraseEnds = [",", ";", ":", " - ", " -- "]
+    .map((marker) => clipped.lastIndexOf(marker))
+    .filter((index) => index >= 35);
+  const phraseEnd = phraseEnds.length > 0 ? Math.max(...phraseEnds) : -1;
+
+  if (phraseEnd >= 35) {
+    return cleanXExcerptEnding(clipped.slice(0, phraseEnd));
+  }
+
+  const lastSpace = clipped.lastIndexOf(" ");
+  const wordBoundary = lastSpace >= 35 ? lastSpace : clipped.length;
+
+  return cleanXExcerptEnding(clipped.slice(0, wordBoundary));
+}
+
 function xDraftBody(title: string, summary: string, audience: string, url: string) {
-  const prefix = `${title}: `;
+  const cleanTitle = cleanTemplateInput(title, "Product update");
+  const prefix = /[!?]$/.test(cleanTitle) ? `${cleanTitle} ` : `${cleanTitle}: `;
   const audienceContext = audience === "general" ? "" : ` For ${audience}.`;
   const suffix = `${audienceContext} ${url}`;
   const budget = xSinglePostLimit - prefix.length - suffix.length;
 
   if (budget >= 40) {
-    const summaryLine = truncateAtWord(summary, budget).replace(/[.?!]+$/, "");
+    const summaryLine = xSummaryExcerpt(summary, budget);
 
     return collapseRepeatedPunctuation(`${prefix}${summaryLine}.${suffix}`);
   }
