@@ -17,6 +17,215 @@ export const opsDashboardData: OpsDashboardData = {
     "No secret values or raw logs",
     "Manual approval before social posting or spend",
   ],
+  brandProfiles: [
+    {
+      id: "kyle-bringhurst",
+      displayName: "Kyle Bringhurst",
+      role: "Founder voice for practical build notes",
+      voiceTone: [
+        "Direct, operator-led, and specific",
+        "Measured optimism without hype",
+        "Founder learning in public without exposing private ops details",
+      ],
+      allowedTopics: [
+        "Founder lessons from building healthcare and compliance software",
+        "Manual content operations, product discipline, and small-team execution",
+        "Public project updates that have been reviewed for safety and claims",
+      ],
+      prohibitedClaims: [
+        "Do not claim clinical, financial, legal, or safety outcomes without review",
+        "Do not imply autonomous posting, ad spending, or business control",
+        "Do not share private conversations, contact details, or internal dashboards",
+      ],
+      requiredDisclaimers: [
+        "Manual approval required before posting",
+        "No AI, OAuth, posting API, or ad-spend automation is connected",
+      ],
+      safetyNotes: [
+        "Keep personal anecdotes public-safe and non-identifying",
+        "Use aggregate business context only",
+      ],
+      sourceBoundary:
+        "Founder content may use public-safe operator notes only; no private messages, credentials, or raw logs.",
+    },
+    {
+      id: "bringhurstdo",
+      displayName: "BringhurstDO",
+      role: "Parent company and metadata-only ops aggregator",
+      voiceTone: [
+        "Calm, systems-minded, and operational",
+        "Plain language about governance and decision support",
+        "Conservative about future integrations and automation",
+      ],
+      allowedTopics: [
+        "Metadata-only ops dashboard principles",
+        "Manual reporting, content workflows, and project coordination",
+        "Public company updates that avoid private security posture details",
+      ],
+      prohibitedClaims: [
+        "Do not present mock dashboard data as live business intelligence",
+        "Do not reveal internal controls, cost details, credentials, or raw logs",
+        "Do not imply BringhurstDO controls SyncSOAP clinical workflows",
+      ],
+      requiredDisclaimers: [
+        "BringhurstDO aggregates summaries; source apps retain sensitive data",
+        "Manual approval required before publishing or spending",
+      ],
+      safetyNotes: [
+        "Keep public pages separate from private ops routes",
+        "Use aggregate metadata only",
+      ],
+      sourceBoundary:
+        "BringhurstDO content may use public site and aggregate ops summaries only; no private route content should be copied into public posts.",
+    },
+    {
+      id: "syncsoap",
+      displayName: "SyncSOAP",
+      role: "HIPAA-sensitive clinical documentation product",
+      voiceTone: [
+        "Clinical workflow-aware, careful, and evidence-seeking",
+        "Practical for small clinics before enterprise claims",
+        "Specific about workflow pain without using clinical examples",
+      ],
+      allowedTopics: [
+        "Documentation workflow burden at an aggregate level",
+        "Small-clinic pilot readiness and product positioning",
+        "Metadata-only security, compliance evidence status, and manual review posture",
+      ],
+      prohibitedClaims: [
+        "Do not claim diagnosis, treatment, billing, compliance, or outcome guarantees",
+        "Do not compare clinical performance without reviewed evidence",
+        "Do not use patient stories, encounter details, transcripts, or clinical payloads",
+      ],
+      requiredDisclaimers: [
+        "Marketing context must remain metadata-only",
+        "No PHI, patient identifiers, encounter text, transcripts, or clinical payloads",
+        "Manual approval required before posting",
+      ],
+      safetyNotes: [
+        "Use general workflow language only",
+        "Avoid screenshots or examples from clinical use",
+      ],
+      sourceBoundary:
+        "SyncSOAP content may use product positioning and aggregate readiness notes only; PHI and clinical payloads must stay inside SyncSOAP.",
+    },
+    {
+      id: "syncsafety",
+      displayName: "SyncSafety",
+      role: "Industrial safety and EHS workflow product",
+      voiceTone: [
+        "Clear, operational, and practical for safety leaders",
+        "Focused on reducing administrative friction",
+        "Careful about compliance language and filing implications",
+      ],
+      allowedTopics: [
+        "Safety workflow organization and documentation discipline",
+        "EHS leader pain points at a public-safe aggregate level",
+        "Manual content operations and public product updates",
+      ],
+      prohibitedClaims: [
+        "Do not imply automatic regulatory filing or legal compliance guarantees",
+        "Do not claim incident reduction, cost savings, or audit outcomes without review",
+        "Do not store or quote private workplace incidents or employee details",
+      ],
+      requiredDisclaimers: [
+        "Manual approval required before posting or spending",
+        "No social, ad, or compliance filing API is connected",
+      ],
+      safetyNotes: [
+        "Use public-safe workplace workflow framing",
+        "Keep metrics aggregate and manually entered until integrations are approved",
+      ],
+      sourceBoundary:
+        "SyncSafety content may use public product positioning and aggregate workflow notes only; no private incident narratives or employee details.",
+    },
+  ],
+  audienceProfiles: [
+    {
+      id: "physicians",
+      label: "Clinicians",
+      description:
+        "Clinical users who care about documentation burden, reviewability, and patient-safety-adjacent workflow clarity.",
+      contentUse: [
+        "Use concise workflow language",
+        "Respect clinical responsibility and avoid replacing judgment",
+        "Avoid clinical examples unless separately approved and de-identified outside this app",
+      ],
+      safetyNotes: [
+        "No PHI or encounter details",
+        "No diagnostic, treatment, or billing guarantees",
+      ],
+    },
+    {
+      id: "clinic owners",
+      label: "Small Clinic Owners",
+      description:
+        "Operators weighing practical adoption, setup burden, trust, and cost discipline.",
+      contentUse: [
+        "Emphasize narrow pilots, manual review, and operational fit",
+        "Keep cost and adoption claims measured",
+        "Use aggregate readiness signals only",
+      ],
+      safetyNotes: [
+        "No customer identifiers",
+        "No unsupported ROI claims",
+      ],
+    },
+    {
+      id: "investors",
+      label: "Investors",
+      description:
+        "Business readers looking for market logic, execution discipline, and product sequencing.",
+      contentUse: [
+        "Discuss strategy, constraints, and learning loops",
+        "Separate mock/local state from live traction",
+        "Avoid implying validated metrics before they exist",
+      ],
+      safetyNotes: [
+        "No private financial details",
+        "No pipeline names or contact details",
+      ],
+    },
+    {
+      id: "general",
+      label: "General Founder Audience",
+      description:
+        "Public readers interested in product building, operations, and transparent progress notes.",
+      contentUse: [
+        "Keep language clear and low-jargon",
+        "Make the useful takeaway practical",
+        "Avoid private implementation details",
+      ],
+      safetyNotes: [
+        "No credentials, private messages, raw logs, or identifiers",
+        "Manual approval before posting",
+      ],
+    },
+    {
+      id: "EHS leaders",
+      label: "EHS Leaders",
+      description:
+        "Safety and operations leaders who care about documentation discipline, compliance workflow clarity, and reducing administrative drag.",
+      contentUse: [
+        "Use practical workplace workflow language",
+        "Separate organization and tracking from legal or regulatory guarantees",
+        "Keep incident examples public-safe and non-identifying",
+      ],
+      safetyNotes: [
+        "No employee details or private incident narratives",
+        "No legal, safety, or compliance outcome guarantees",
+      ],
+    },
+  ],
+  draftReviewChecklist: [
+    "Confirm the source update is metadata-only and contains no PHI, credentials, private messages, raw logs, transcripts, or clinical payloads.",
+    "Confirm every SyncSOAP draft stays at product, workflow, or aggregate evidence level.",
+    "Confirm claims are supportable and do not promise clinical, legal, safety, financial, or compliance outcomes.",
+    "Confirm the selected brand voice and audience framing match the publication target.",
+    "Confirm every post has the exact generated UTM link and a public destination URL.",
+    "Confirm a human manually approves the post before publishing.",
+    "Confirm no ad spend, posting, database write, OAuth flow, or external API mutation is triggered.",
+  ],
   projects: [
     {
       id: "syncsoap",
@@ -189,7 +398,7 @@ export const opsDashboardData: OpsDashboardData = {
       title: "OSHA workflow friction",
       angle:
         "Frame SyncSafety as a calmer way to organize incident documentation work.",
-      audience: "general",
+      audience: "EHS leaders",
       channelFit: ["LinkedIn", "Blog"],
       status: "drafted",
       riskLevel: "low",
@@ -262,7 +471,7 @@ export const opsDashboardData: OpsDashboardData = {
       projectId: "syncsafety",
       title: "OSHA workflow friction post",
       channel: "LinkedIn",
-      audience: "general",
+      audience: "EHS leaders",
       status: "drafted",
       publishWindow: "Week of 2026-06-16",
       bodyPreview:
@@ -298,7 +507,7 @@ export const opsDashboardData: OpsDashboardData = {
       projectId: "syncsafety",
       title: "Safety manager email seed",
       channel: "Email",
-      audience: "general",
+      audience: "EHS leaders",
       status: "posted",
       publishWindow: "Manual log: 2026-06-05",
       bodyPreview:
@@ -1191,7 +1400,7 @@ export const opsDashboardData: OpsDashboardData = {
       accountName: "SyncSafety LinkedIn",
       platform: "LinkedIn",
       publicHandle: "syncsafety",
-      audience: "general",
+      audience: "EHS leaders",
       defaultDestinationUrl: syncSafetyDestination,
       sourceBoundary:
         "Manual public post target. No posting API or lead contact storage.",
@@ -1207,7 +1416,7 @@ export const opsDashboardData: OpsDashboardData = {
       accountName: "SyncSafety Instagram",
       platform: "Instagram",
       publicHandle: "@sync.safety",
-      audience: "general",
+      audience: "EHS leaders",
       defaultDestinationUrl: syncSafetyDestination,
       sourceBoundary:
         "Manual public post target. No Meta API, private messages, or audience export.",
@@ -1223,7 +1432,7 @@ export const opsDashboardData: OpsDashboardData = {
       accountName: "SyncSafety Facebook",
       platform: "Facebook",
       publicHandle: "missing",
-      audience: "general",
+      audience: "EHS leaders",
       defaultDestinationUrl: syncSafetyDestination,
       sourceBoundary:
         "Blocked pending Meta trust/Page creation. Do not use for live posting. No Meta API, private messages, or audience export.",
@@ -1239,7 +1448,7 @@ export const opsDashboardData: OpsDashboardData = {
       accountName: "SyncSafety X",
       platform: "X",
       publicHandle: "@SyncSafety",
-      audience: "general",
+      audience: "EHS leaders",
       defaultDestinationUrl: syncSafetyDestination,
       sourceBoundary:
         "Manual public post target. No X API, private messages, or audience export.",

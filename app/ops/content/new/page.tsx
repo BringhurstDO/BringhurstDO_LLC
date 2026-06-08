@@ -7,8 +7,11 @@ export const fetchCache = "force-no-store";
 
 export default function OpsNewContentPackagePage() {
   const {
+    audienceProfiles,
+    brandProfiles,
     businessOutcomes,
     contentPackages,
+    draftReviewChecklist,
     performanceSnapshots,
     platformDrafts,
     projects,
@@ -78,6 +81,9 @@ export default function OpsNewContentPackagePage() {
         </section>
 
         <ContentPackageBuilder
+          audienceProfiles={audienceProfiles}
+          brandProfiles={brandProfiles}
+          draftReviewChecklist={draftReviewChecklist}
           initialRecords={initialRecords}
           projects={projects}
           publicationTargets={publicationTargets}

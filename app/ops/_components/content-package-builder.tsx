@@ -19,6 +19,9 @@ import type {
   BusinessOutcome,
   ContentPackage,
   ContentPackageStatus,
+  OpsAudienceProfile,
+  OpsBrandProfile,
+  OpsAccountProjectId,
   OpsProjectId,
   OpsProjectSummary,
   PerformanceSnapshot,
@@ -63,6 +66,9 @@ type WeeklyContentQueueRow = {
 };
 
 type ContentPackageBuilderProps = {
+  audienceProfiles: OpsAudienceProfile[];
+  brandProfiles: OpsBrandProfile[];
+  draftReviewChecklist: string[];
   initialRecords: LocalContentPackageRecord[];
   projects: OpsProjectSummary[];
   publicationTargets: PublicationTarget[];
@@ -957,7 +963,29 @@ function createImportedPackageCopy(record: LocalContentPackageRecord) {
   } satisfies LocalContentPackageRecord;
 }
 
+function targetBrandProfileId(target: PublicationTarget): OpsAccountProjectId {
+  return target.accountId.startsWith("account-founder")
+    ? "kyle-bringhurst"
+    : target.projectId ?? "bringhurstdo";
+}
+
+function uniqueById<T extends { id: string }>(items: T[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
+      return false;
+    }
+
+    seen.add(item.id);
+    return true;
+  });
+}
+
 export function ContentPackageBuilder({
+  audienceProfiles,
+  brandProfiles,
+  draftReviewChecklist,
   initialRecords,
   projects,
   publicationTargets,
@@ -1030,6 +1058,95 @@ export function ContentPackageBuilder({
 
     return Array.from(new Set([primaryProjectId, ...targetProjectIds]));
   }, [primaryProjectId, selectedTargets]);
+
+  const selectedBrandProfiles = useMemo(() => {
+    const profileIds = new Set<OpsAccountProjectId>([
+      primaryProjectId,
+      ...selectedTargets.map(targetBrandProfileId),
+    ]);
+
+    return uniqueById(
+      brandProfiles.filter((profile) => profileIds.has(profile.id)),
+    );
+  }, [brandProfiles, primaryProjectId, selectedTargets]);
+
+  const selectedAudienceProfiles = useMemo(() => {
+    const audienceIds = new Set(selectedTargets.map((target) => target.audience));
+
+    return uniqueById(
+      audienceProfiles.filter((profile) => audienceIds.has(profile.id)),
+    );
+  }, [audienceProfiles, selectedTargets]);
+
+  const aiPreviewSafetyIssues = useMemo(
+    () =>
+      issueText(
+        {
+          sourceSummary,
+          sourceTitle,
+        },
+        "aiContextCandidate",
+      ),
+    [sourceSummary, sourceTitle],
+  );
+  const aiContextPreview = useMemo(() => {
+    const sourceIsSafe = aiPreviewSafetyIssues.length === 0;
+
+    return {
+      aiState: "disabled",
+      dataMode: "local/mock-only",
+      sourceUpdate: {
+        sourceProjectId: primaryProjectId,
+        sourceDate,
+        title: sourceIsSafe
+          ? sourceTitle || "Untitled metadata-only update"
+          : "[blocked pending metadata-only review]",
+        summary: sourceIsSafe
+          ? sourceSummary || "No metadata-only source summary entered yet."
+          : "[blocked pending metadata-only review]",
+        updateType: sourceType,
+        sourceBoundary:
+          "Metadata-only business/product update; internal notes are excluded from AI context.",
+      },
+      brandRules: selectedBrandProfiles.map((profile) => ({
+        brand: profile.displayName,
+        voiceTone: profile.voiceTone,
+        allowedTopics: profile.allowedTopics,
+        prohibitedClaims: profile.prohibitedClaims,
+        requiredDisclaimers: profile.requiredDisclaimers,
+        sourceBoundary: profile.sourceBoundary,
+      })),
+      audienceRules: selectedAudienceProfiles.map((profile) => ({
+        audience: profile.label,
+        contentUse: profile.contentUse,
+        safetyNotes: profile.safetyNotes,
+      })),
+      publicationTargets: selectedTargets.map((target) => ({
+        accountName: target.accountName,
+        platform: target.platform,
+        publicHandle: target.publicHandle,
+        audience: target.audience,
+        destinationUrl: target.defaultDestinationUrl,
+        postingMode: target.postingMode,
+        spendMode: target.spendMode,
+        sourceBoundary: target.sourceBoundary,
+      })),
+      reviewChecklist: draftReviewChecklist,
+      excludedData:
+        "No PHI, patient identifiers, encounter text, transcripts, clinical payloads, credentials, private messages, raw logs, cookies, tokens, OAuth data, or audience exports.",
+    };
+  }, [
+    aiPreviewSafetyIssues.length,
+    draftReviewChecklist,
+    primaryProjectId,
+    selectedAudienceProfiles,
+    selectedBrandProfiles,
+    selectedTargets,
+    sourceDate,
+    sourceSummary,
+    sourceTitle,
+    sourceType,
+  ]);
 
   const weeklyQueueRows = useMemo(() => buildWeeklyQueueRows(records), [records]);
   const weeklyQueueGroups = useMemo(
@@ -1713,6 +1830,155 @@ export function ContentPackageBuilder({
               className="min-h-20 rounded-lg border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-800"
             />
           </label>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              AI readiness
+            </div>
+            <h2 className="mt-1 font-sans text-base font-semibold text-slate-950">
+              Brand Rules And AI Context Preview
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              AI is disabled. This shows the bounded context that could be sent
+              later after explicit approval, stronger review gates, and an AI
+              provider decision.
+            </p>
+          </div>
+          <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+            AI disabled: no API connected
+          </span>
+        </div>
+        <div className="grid gap-5 p-5">
+          <div className="grid gap-4 lg:grid-cols-2">
+            {selectedBrandProfiles.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                Select a source product or publication target to preview brand
+                rules.
+              </div>
+            ) : (
+              selectedBrandProfiles.map((profile) => (
+                <article
+                  key={profile.id}
+                  className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                >
+                  <h3 className="font-sans text-sm font-semibold text-slate-950">
+                    {profile.displayName}
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {profile.role}
+                  </p>
+                  <dl className="mt-4 grid gap-3 text-sm">
+                    <div>
+                      <dt className="font-semibold text-slate-700">Voice</dt>
+                      <dd className="mt-1 text-slate-600">
+                        {profile.voiceTone.join("; ")}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-slate-700">
+                        Allowed topics
+                      </dt>
+                      <dd className="mt-1 text-slate-600">
+                        {profile.allowedTopics.join("; ")}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-slate-700">
+                        Prohibited claims
+                      </dt>
+                      <dd className="mt-1 text-slate-600">
+                        {profile.prohibitedClaims.join("; ")}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-slate-700">
+                        Required notes
+                      </dt>
+                      <dd className="mt-1 text-slate-600">
+                        {profile.requiredDisclaimers.join("; ")}
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="grid gap-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-sans text-sm font-semibold text-slate-950">
+                  Audience Profiles
+                </h3>
+                <div className="mt-3 grid gap-3">
+                  {selectedAudienceProfiles.length === 0 ? (
+                    <p className="text-sm leading-6 text-slate-600">
+                      Select publication targets to preview clinician, clinic
+                      owner, investor, EHS, or founder-audience guidance.
+                    </p>
+                  ) : (
+                    selectedAudienceProfiles.map((profile) => (
+                      <div
+                        key={profile.id}
+                        className="rounded-md border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-600"
+                      >
+                        <div className="font-semibold text-slate-950">
+                          {profile.label}
+                        </div>
+                        <p className="mt-1">{profile.description}</p>
+                        <p className="mt-2">
+                          Use: {profile.contentUse.join("; ")}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-sans text-sm font-semibold text-slate-950">
+                  Draft Review Checklist
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                  {draftReviewChecklist.map((item) => (
+                    <li key={item} className="flex gap-2">
+                      <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-500" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-950 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-sans text-sm font-semibold text-white">
+                    AI Context Preview
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-slate-300">
+                    Local preview only. Nothing is transmitted.
+                  </p>
+                </div>
+                <span className="rounded-md border border-slate-700 px-2 py-1 text-xs font-semibold text-slate-300">
+                  local only
+                </span>
+              </div>
+              {aiPreviewSafetyIssues.length > 0 ? (
+                <div className="mt-4 rounded-md border border-amber-400/40 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">
+                  Source text was excluded from this preview because it needs
+                  metadata-only review: {aiPreviewSafetyIssues.join("; ")}
+                </div>
+              ) : null}
+              <pre className="mt-4 max-h-[34rem] overflow-auto rounded-md bg-slate-900 p-3 text-xs leading-5 text-slate-100">
+                {JSON.stringify(aiContextPreview, null, 2)}
+              </pre>
+            </div>
+          </div>
         </div>
       </section>
 

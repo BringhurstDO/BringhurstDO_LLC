@@ -26,6 +26,7 @@ export type ContentAudience =
   | "physicians"
   | "clinic owners"
   | "med students"
+  | "EHS leaders"
   | "investors"
   | "general";
 
@@ -195,6 +196,26 @@ export type OpsAccountRegistryEntry = {
   allowedMetrics: MetadataOnlyString[];
   forbiddenData: MetadataOnlyString[];
   integrationPlaceholder: SafeOpsText;
+};
+
+export type OpsBrandProfile = {
+  id: OpsAccountProjectId;
+  displayName: MetadataOnlyString;
+  role: MetadataOnlyString;
+  voiceTone: SafeOpsText[];
+  allowedTopics: SafeOpsText[];
+  prohibitedClaims: SafeOpsText[];
+  requiredDisclaimers: SafeOpsText[];
+  safetyNotes: SafeOpsText[];
+  sourceBoundary: MetadataOnlyString;
+};
+
+export type OpsAudienceProfile = {
+  id: ContentAudience;
+  label: MetadataOnlyString;
+  description: SafeOpsText;
+  contentUse: SafeOpsText[];
+  safetyNotes: SafeOpsText[];
 };
 
 export type SocialMetricPlaceholder = {
@@ -375,6 +396,9 @@ export type OpsDashboardData = {
   generatedAt: string;
   boundaries: string[];
   projects: OpsProjectSummary[];
+  brandProfiles: OpsBrandProfile[];
+  audienceProfiles: OpsAudienceProfile[];
+  draftReviewChecklist: SafeOpsText[];
   weeklyReport: WeeklyOperatorReport;
   weeklyScorecard: WeeklyScorecardMetric[];
   contentIdeas: ContentIdea[];

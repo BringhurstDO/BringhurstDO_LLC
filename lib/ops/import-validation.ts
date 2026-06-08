@@ -42,6 +42,7 @@ const audiences = [
   "physicians",
   "clinic owners",
   "med students",
+  "EHS leaders",
   "investors",
   "general",
 ] as const;
