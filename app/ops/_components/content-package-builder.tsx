@@ -15,12 +15,14 @@ import {
 } from "lucide-react";
 
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
+import { createLocalStorageOpsPersistenceAdapter } from "@/lib/ops/persistence";
 import type {
   BusinessOutcome,
   ContentPackage,
   ContentPackageStatus,
   OpsAudienceProfile,
   OpsBrandProfile,
+  OpsContentPackageRecord,
   OpsAccountProjectId,
   OpsCreativeAngle,
   OpsMediaMetadata,
@@ -55,14 +57,7 @@ type DraftSlotInput = {
   visualHook: string;
 };
 
-type LocalContentPackageRecord = {
-  businessOutcome: BusinessOutcome;
-  contentPackage: ContentPackage;
-  performanceSnapshots: PerformanceSnapshot[];
-  platformDrafts: PlatformDraft[];
-  publishedPosts: PublishedPost[];
-  sourceUpdate: SourceUpdate;
-};
+type LocalContentPackageRecord = OpsContentPackageRecord;
 
 type WeeklyQueueState = "ready" | "not posted" | "posted" | "missing metrics";
 
@@ -1349,6 +1344,7 @@ export function ContentPackageBuilder({
   const [importFileName, setImportFileName] = useState("");
   const [packetMessage, setPacketMessage] = useState("");
   const [aiPromptMessage, setAiPromptMessage] = useState("");
+  const [storageMessage, setStorageMessage] = useState("");
   const [historyMediaType, setHistoryMediaType] = useState<"all" | OpsMediaType>(
     "all",
   );
@@ -1364,37 +1360,52 @@ export function ContentPackageBuilder({
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(storageKey);
+    let isMounted = true;
+    const adapter = createLocalStorageOpsPersistenceAdapter({
+      storage: window.localStorage,
+      storageKey,
+    });
 
-    if (!stored) {
-      return;
-    }
+    async function loadStoredPackages() {
+      try {
+        const loaded = await adapter.loadContentPackages();
 
-    try {
-      const parsed = JSON.parse(stored) as unknown;
-      const migratedRecords = Array.isArray(parsed)
-        ? parsed
-            .map((item) =>
-              migrateLocalContentPackageRecord(item, publicationTargets),
-            )
-            .filter((item): item is LocalContentPackageRecord => Boolean(item))
-        : [];
-      const issues = issueText(migratedRecords, "storedContentPackages");
+        if (loaded.contentPackages.length === 0) {
+          return;
+        }
 
-      if (
-        issues.length === 0 &&
-        Array.isArray(parsed) &&
-        migratedRecords.length === parsed.length
-      ) {
-        setRecords(migratedRecords);
-        window.localStorage.setItem(
-          storageKey,
-          JSON.stringify(migratedRecords, null, 2),
-        );
+        const migratedRecords = loaded.contentPackages
+          .map((item) =>
+            migrateLocalContentPackageRecord(item, publicationTargets),
+          )
+          .filter((item): item is LocalContentPackageRecord => Boolean(item));
+        const issues = issueText(migratedRecords, "storedContentPackages");
+
+        if (
+          isMounted &&
+          issues.length === 0 &&
+          migratedRecords.length === loaded.contentPackages.length
+        ) {
+          setRecords(migratedRecords);
+          await adapter.saveContentPackages(migratedRecords);
+          setStorageMessage(
+            `Loaded ${migratedRecords.length} local browser package record${
+              migratedRecords.length === 1 ? "" : "s"
+            }.`,
+          );
+        }
+      } catch {
+        if (isMounted) {
+          setSaveIssues(["Stored local content packages could not be parsed."]);
+        }
       }
-    } catch {
-      setSaveIssues(["Stored local content packages could not be parsed."]);
     }
+
+    void loadStoredPackages();
+
+    return () => {
+      isMounted = false;
+    };
   }, [publicationTargets]);
 
   const selectedTargets = useMemo(
@@ -1680,7 +1691,7 @@ export function ContentPackageBuilder({
     );
   }
 
-  function persistRecords(nextRecords: LocalContentPackageRecord[]) {
+  async function persistRecords(nextRecords: LocalContentPackageRecord[]) {
     const issues = issueText(nextRecords, "contentPackageRecords");
 
     if (issues.length > 0) {
@@ -1689,10 +1700,26 @@ export function ContentPackageBuilder({
       return false;
     }
 
-    window.localStorage.setItem(storageKey, JSON.stringify(nextRecords, null, 2));
-    setRecords(nextRecords);
-    setSaveIssues([]);
-    return true;
+    try {
+      const adapter = createLocalStorageOpsPersistenceAdapter({
+        storage: window.localStorage,
+        storageKey,
+      });
+      const saved = await adapter.saveContentPackages(nextRecords);
+
+      setRecords(nextRecords);
+      setSaveIssues([]);
+      setStorageMessage(
+        `Saved ${nextRecords.length} package record${
+          nextRecords.length === 1 ? "" : "s"
+        } to ${saved.source}.`,
+      );
+      return true;
+    } catch {
+      setSaveIssues(["Local browser storage failed. Export JSON before retrying."]);
+      setSaveMessage("");
+      return false;
+    }
   }
 
   function exportPackage(record: LocalContentPackageRecord) {
@@ -1763,7 +1790,7 @@ export function ContentPackageBuilder({
     }
   }
 
-  function importPackageJson(rawJson: string, sourceLabel: string) {
+  async function importPackageJson(rawJson: string, sourceLabel: string) {
     const trimmed = rawJson.trim();
 
     if (!trimmed) {
@@ -1839,7 +1866,7 @@ export function ContentPackageBuilder({
     });
     const nextRecords = [...normalizedRecords, ...records];
 
-    if (persistRecords(nextRecords)) {
+    if (await persistRecords(nextRecords)) {
       setImportFileName(sourceLabel);
       setImportIssues([]);
       setImportMessage(
@@ -1890,14 +1917,14 @@ export function ContentPackageBuilder({
 
     try {
       const rawJson = await file.text();
-      importPackageJson(rawJson, file.name);
+      await importPackageJson(rawJson, file.name);
     } catch {
       setImportIssues([`Could not read ${file.name}. Choose a local JSON export.`]);
       setImportMessage("");
     }
   }
 
-  function saveContentPackage() {
+  async function saveContentPackage() {
     const baseIssues: string[] = [];
 
     if (!sourceTitle.trim()) {
@@ -2099,7 +2126,7 @@ export function ContentPackageBuilder({
     };
     const nextRecords = [record, ...records];
 
-    if (persistRecords(nextRecords)) {
+    if (await persistRecords(nextRecords)) {
       setSaveMessage("Content package saved locally after metadata-only validation.");
     }
   }
@@ -2109,7 +2136,7 @@ export function ContentPackageBuilder({
       record.contentPackage.id === recordId ? { ...record, ...patch } : record,
     );
 
-    persistRecords(nextRecords);
+    void persistRecords(nextRecords);
   }
 
   function updatePublishedPost(
@@ -2237,6 +2264,32 @@ export function ContentPackageBuilder({
 
   return (
     <div className="grid gap-6">
+      <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+              <Save className="h-4 w-4" />
+              Storage mode: local browser
+            </div>
+            <h2 className="mt-1 font-sans text-base font-semibold text-amber-950">
+              Browser-local persistence only
+            </h2>
+            <p className="mt-2 max-w-4xl text-sm leading-6 text-amber-900">
+              Content packages are saved with the localStorage adapter on this
+              device and browser. Export JSON before clearing browser data,
+              switching devices, or testing in another browser. No database,
+              paid storage, credentials, or server persistence is connected.
+            </p>
+          </div>
+          <span className="inline-flex w-fit rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800">
+            Durable DB: not connected
+          </span>
+        </div>
+        {storageMessage ? (
+          <p className="mt-3 text-sm font-medium text-amber-900">{storageMessage}</p>
+        ) : null}
+      </section>
+
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-5">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">

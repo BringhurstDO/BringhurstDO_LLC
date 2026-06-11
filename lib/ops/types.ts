@@ -379,6 +379,101 @@ export type BusinessOutcome = {
   notes: SafeOpsText[];
 };
 
+export type OpsContentPackageRecord = {
+  businessOutcome: BusinessOutcome;
+  contentPackage: ContentPackage;
+  performanceSnapshots: PerformanceSnapshot[];
+  platformDrafts: PlatformDraft[];
+  publishedPosts: PublishedPost[];
+  sourceUpdate: SourceUpdate;
+};
+
+export type OpsAiPromptHistoryRecord = {
+  id: string;
+  contentPackageId: string;
+  createdAt: string;
+  storageMode: "local-browser" | "database-ready";
+  promptTitle: MetadataOnlyString;
+  promptPreview: SafeOpsText;
+  sourceBoundary: MetadataOnlyString;
+  safetyChecklist: SafeOpsText[];
+  includedContext: SafeOpsText[];
+  excludedContext: SafeOpsText[];
+  copiedManuallyAt?: string;
+  notes: SafeOpsText[];
+};
+
+export type OpsServerRecordMetadata = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  schemaVersion: number;
+  sourceBoundary: MetadataOnlyString;
+};
+
+export type OpsServerContentPackageRecord = OpsServerRecordMetadata & {
+  tableName: "ops_content_packages";
+  data: ContentPackage;
+};
+
+export type OpsServerSourceUpdateRecord = OpsServerRecordMetadata & {
+  tableName: "ops_source_updates";
+  data: SourceUpdate;
+};
+
+export type OpsServerPlatformDraftRecord = OpsServerRecordMetadata & {
+  tableName: "ops_platform_drafts";
+  data: PlatformDraft;
+};
+
+export type OpsServerPublishedPostRecord = OpsServerRecordMetadata & {
+  tableName: "ops_published_posts";
+  data: PublishedPost;
+};
+
+export type OpsServerPerformanceSnapshotRecord = OpsServerRecordMetadata & {
+  tableName: "ops_performance_snapshots";
+  data: PerformanceSnapshot;
+};
+
+export type OpsServerBusinessOutcomeRecord = OpsServerRecordMetadata & {
+  tableName: "ops_business_outcomes";
+  data: BusinessOutcome;
+};
+
+export type OpsServerMediaMetadataRecord = OpsServerRecordMetadata & {
+  tableName: "ops_media_metadata";
+  platformDraftId: string;
+  data: OpsMediaMetadata;
+};
+
+export type OpsServerAccountRegistryRecord = OpsServerRecordMetadata & {
+  tableName: "ops_account_registry";
+  data: OpsAccountRegistryEntry;
+};
+
+export type OpsServerBrandRuleRecord = OpsServerRecordMetadata & {
+  tableName: "ops_brand_rules";
+  data: OpsBrandProfile;
+};
+
+export type OpsServerAiPromptHistoryRecord = OpsServerRecordMetadata & {
+  tableName: "ops_ai_prompt_history";
+  data: OpsAiPromptHistoryRecord;
+};
+
+export type OpsServerPersistenceRecord =
+  | OpsServerAccountRegistryRecord
+  | OpsServerAiPromptHistoryRecord
+  | OpsServerBrandRuleRecord
+  | OpsServerBusinessOutcomeRecord
+  | OpsServerContentPackageRecord
+  | OpsServerMediaMetadataRecord
+  | OpsServerPerformanceSnapshotRecord
+  | OpsServerPlatformDraftRecord
+  | OpsServerPublishedPostRecord
+  | OpsServerSourceUpdateRecord;
+
 export type ContentPackage = {
   id: string;
   sourceUpdateId: string;
