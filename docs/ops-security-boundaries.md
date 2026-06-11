@@ -300,8 +300,9 @@ Phase 4A requires mock registry coverage for Kyle Bringhurst, BringhurstDO,
 SyncSOAP, and SyncSafety across LinkedIn, Instagram, Facebook, and X. Profile
 URLs are planning metadata only and must be verified manually before public use.
 Supported status labels are `active`, `planned`,
-`blocked_pending_meta_trust`, and `missing`. Facebook rows must stay
-`blocked_pending_meta_trust` until Meta trust/Page creation is available.
+`blocked_pending_meta_trust`, and `missing`. Facebook rows may be `active`
+when a public page URL is available, but they remain manual-only and must not
+imply Meta Business integration, OAuth, posting API access, or autoposting.
 
 ### Social Metric Placeholders
 
@@ -366,8 +367,8 @@ patient stories.
 
 Phase 4A remains local/browser-only and mock/manual-first. Do not add OAuth,
 social APIs, AI APIs, autoposting, databases, live credentials, or external
-mutation. Do not add Meta Business integration while Facebook rows are blocked
-pending Meta trust.
+mutation. Do not add Meta Business integration for Facebook rows unless a
+future phase explicitly approves it.
 
 Allowed operations:
 
@@ -392,9 +393,9 @@ Allowed operations:
 - Regenerate older generated draft bodies only when they match known
   deterministic-template fingerprints. If the draft appears manually edited,
   preserve it and add a migration/review note instead of overwriting silently.
-- Keep Facebook draft targets disabled while account status is
-  `blocked_pending_meta_trust`; do not generate Facebook copy until the account
-  status is `active`.
+- Keep Facebook draft targets disabled unless account status is `active`;
+  active Facebook targets are manual-only and still require approval before
+  posting.
 - Show a weekly content queue derived from local saved package records.
 - Track manual posted/not-posted state and aggregate manual performance metrics.
 

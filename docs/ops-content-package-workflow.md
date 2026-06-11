@@ -86,9 +86,9 @@ New package exports distinguish source scope from publishing scope:
   into ready, not posted, posted, and missing metrics.
 - Every platform draft slot keeps a generated UTM URL so manual posts have a
   campaign link before publishing.
-- Facebook targets remain disabled while their account status is
-  `blocked_pending_meta_trust`; no Facebook draft should be created until the
-  corresponding account status becomes `active`.
+- Facebook targets remain disabled unless their account status is `active`.
+  Active Facebook draft slots are manual-only and still require approval before
+  posting.
 
 Package tools must never become a credential path. Do not import or paste OAuth
 responses, cookies, tokens, raw social exports, raw logs, private messages,

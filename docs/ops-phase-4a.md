@@ -26,8 +26,8 @@ adding live integrations.
 - Imported packages repair recognized older generated draft bodies to the
   current deterministic templates. Drafts that appear manually edited are not
   silently overwritten; use `Repair Generated Drafts` after review.
-- Facebook draft targets remain disabled while their account status is
-  `blocked_pending_meta_trust`.
+- Facebook draft targets are available only when the matching account status is
+  `active`; active Facebook rows remain manual-only and approval-gated.
 - Weekly Content Queue groups local package drafts by ready, not posted, posted,
   and missing metrics.
 - Account Registry stores mock public account planning rows for Kyle Bringhurst,
@@ -35,8 +35,9 @@ adding live integrations.
   and X.
 - Account Registry status labels are `active`, `planned`,
   `blocked_pending_meta_trust`, and `missing`.
-- Facebook rows stay `blocked_pending_meta_trust` until Meta allows Page
-  creation. They are not live publishing targets.
+- Facebook rows may use temporary share URLs until canonical page URLs or
+  usernames are available. No Meta Business integration, OAuth, posting API, or
+  autoposting is connected.
 
 ## Boundaries
 
@@ -56,7 +57,8 @@ adding live integrations.
 1. Enter one metadata-only source update at `/ops/content/new`.
 2. Select product/account/platform publication targets.
 3. Generate or manually create platform-specific draft slots.
-4. Review deterministic platform copy for LinkedIn, Instagram, and X.
+4. Review deterministic platform copy for LinkedIn, Instagram, Facebook, and X
+   when those manual targets are selected.
 5. Save the package locally in the browser.
 6. Export Package if a local JSON handoff or backup is needed.
 7. Import Package by choosing a prior exported `.json` file when restoring or

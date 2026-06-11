@@ -107,9 +107,9 @@ export default function OpsAccountsPage() {
             ))}
           </div>
           <p className="mt-4 text-sm leading-6 text-slate-600">
-            Facebook rows are blocked while Meta Page creation is unavailable.
-            This registry remains public-context metadata only and does not
-            connect Meta Business tools.
+            Active Facebook rows are manual targets only. This registry remains
+            public-context metadata only and does not connect Meta Business,
+            OAuth, posting APIs, or autoposting.
           </p>
         </OpsPanel>
 
