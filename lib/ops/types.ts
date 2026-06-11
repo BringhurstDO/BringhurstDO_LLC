@@ -457,6 +457,11 @@ export type OpsServerBrandRuleRecord = OpsServerRecordMetadata & {
   data: OpsBrandProfile;
 };
 
+export type OpsServerAudienceProfileRecord = OpsServerRecordMetadata & {
+  tableName: "ops_audience_profiles";
+  data: OpsAudienceProfile;
+};
+
 export type OpsServerAiPromptHistoryRecord = OpsServerRecordMetadata & {
   tableName: "ops_ai_prompt_history";
   data: OpsAiPromptHistoryRecord;
@@ -465,6 +470,7 @@ export type OpsServerAiPromptHistoryRecord = OpsServerRecordMetadata & {
 export type OpsServerPersistenceRecord =
   | OpsServerAccountRegistryRecord
   | OpsServerAiPromptHistoryRecord
+  | OpsServerAudienceProfileRecord
   | OpsServerBrandRuleRecord
   | OpsServerBusinessOutcomeRecord
   | OpsServerContentPackageRecord

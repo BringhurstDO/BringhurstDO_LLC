@@ -6,6 +6,10 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export default function OpsNewContentPackagePage() {
+  const storageMode =
+    process.env.OPS_STORAGE_MODE === "database" && process.env.DATABASE_URL
+      ? "database"
+      : "local-browser";
   const {
     audienceProfiles,
     brandProfiles,
@@ -87,6 +91,7 @@ export default function OpsNewContentPackagePage() {
           initialRecords={initialRecords}
           projects={projects}
           publicationTargets={publicationTargets}
+          storageMode={storageMode}
         />
       </div>
     </main>

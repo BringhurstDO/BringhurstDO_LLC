@@ -1,6 +1,13 @@
 "use client";
 
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -15,7 +22,11 @@ import {
 } from "lucide-react";
 
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
-import { createLocalStorageOpsPersistenceAdapter } from "@/lib/ops/persistence";
+import {
+  createLocalStorageOpsPersistenceAdapter,
+  createRemoteOpsPersistenceAdapter,
+  type OpsStorageMode,
+} from "@/lib/ops/persistence";
 import type {
   BusinessOutcome,
   ContentPackage,
@@ -89,6 +100,7 @@ type ContentPackageBuilderProps = {
   initialRecords: LocalContentPackageRecord[];
   projects: OpsProjectSummary[];
   publicationTargets: PublicationTarget[];
+  storageMode: Extract<OpsStorageMode, "database" | "local-browser">;
 };
 
 const storageKey = "bringhurstdo.ops.contentPackages.v1";
@@ -1325,6 +1337,7 @@ export function ContentPackageBuilder({
   initialRecords,
   projects,
   publicationTargets,
+  storageMode,
 }: ContentPackageBuilderProps) {
   const [primaryProjectId, setPrimaryProjectId] =
     useState<OpsProjectId>("syncsoap");
@@ -1358,13 +1371,26 @@ export function ContentPackageBuilder({
   const [historyPostedFilter, setHistoryPostedFilter] =
     useState<PostedFilter>("all");
   const importFileInputRef = useRef<HTMLInputElement>(null);
+  const storageIsDatabase = storageMode === "database";
+  const storageLabel = storageIsDatabase
+    ? "Storage mode: durable database"
+    : "Storage mode: local browser";
+  const storageWarning = storageIsDatabase
+    ? "Content packages are saved through the protected Ops Postgres adapter. Keep JSON exports as a backup until database backups and restore drills are verified."
+    : "Content packages are saved with the localStorage adapter on this device and browser. Export JSON before clearing browser data, switching devices, or testing in another browser.";
+
+  const createPersistenceAdapter = useCallback(() => {
+    return storageIsDatabase
+      ? createRemoteOpsPersistenceAdapter()
+      : createLocalStorageOpsPersistenceAdapter({
+          storage: window.localStorage,
+          storageKey,
+        });
+  }, [storageIsDatabase]);
 
   useEffect(() => {
     let isMounted = true;
-    const adapter = createLocalStorageOpsPersistenceAdapter({
-      storage: window.localStorage,
-      storageKey,
-    });
+    const adapter = createPersistenceAdapter();
 
     async function loadStoredPackages() {
       try {
@@ -1389,14 +1415,14 @@ export function ContentPackageBuilder({
           setRecords(migratedRecords);
           await adapter.saveContentPackages(migratedRecords);
           setStorageMessage(
-            `Loaded ${migratedRecords.length} local browser package record${
+            `Loaded ${migratedRecords.length} package record${
               migratedRecords.length === 1 ? "" : "s"
-            }.`,
+            } from ${loaded.source}.`,
           );
         }
       } catch {
         if (isMounted) {
-          setSaveIssues(["Stored local content packages could not be parsed."]);
+          setSaveIssues(["Stored content packages could not be loaded."]);
         }
       }
     }
@@ -1406,7 +1432,7 @@ export function ContentPackageBuilder({
     return () => {
       isMounted = false;
     };
-  }, [publicationTargets]);
+  }, [createPersistenceAdapter, publicationTargets]);
 
   const selectedTargets = useMemo(
     () =>
@@ -1701,10 +1727,7 @@ export function ContentPackageBuilder({
     }
 
     try {
-      const adapter = createLocalStorageOpsPersistenceAdapter({
-        storage: window.localStorage,
-        storageKey,
-      });
+      const adapter = createPersistenceAdapter();
       const saved = await adapter.saveContentPackages(nextRecords);
 
       setRecords(nextRecords);
@@ -1716,7 +1739,7 @@ export function ContentPackageBuilder({
       );
       return true;
     } catch {
-      setSaveIssues(["Local browser storage failed. Export JSON before retrying."]);
+      setSaveIssues(["Ops storage save failed. Export JSON before retrying."]);
       setSaveMessage("");
       return false;
     }
@@ -2269,20 +2292,20 @@ export function ContentPackageBuilder({
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
               <Save className="h-4 w-4" />
-              Storage mode: local browser
+              {storageLabel}
             </div>
             <h2 className="mt-1 font-sans text-base font-semibold text-amber-950">
-              Browser-local persistence only
+              {storageIsDatabase
+                ? "Durable database persistence"
+                : "Browser-local persistence only"}
             </h2>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-amber-900">
-              Content packages are saved with the localStorage adapter on this
-              device and browser. Export JSON before clearing browser data,
-              switching devices, or testing in another browser. No database,
-              paid storage, credentials, or server persistence is connected.
+              {storageWarning} No AI API, social API, OAuth, autoposting,
+              ad-spend mutation, or forbidden SyncSOAP data is connected.
             </p>
           </div>
           <span className="inline-flex w-fit rounded-md border border-amber-300 bg-white px-3 py-1 text-xs font-semibold text-amber-800">
-            Durable DB: not connected
+            {storageIsDatabase ? "Durable DB: active" : "Durable DB: not connected"}
           </span>
         </div>
         {storageMessage ? (
