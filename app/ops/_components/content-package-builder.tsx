@@ -1029,6 +1029,184 @@ ${draftSections}
 `;
 }
 
+function formatPromptList(items: string[]) {
+  return items.length > 0
+    ? items.map((item) => `- ${item}`).join("\n")
+    : "- None provided.";
+}
+
+function buildManualAiPrompt({
+  audienceProfiles,
+  brandProfiles,
+  draftReviewChecklist,
+  publicationTargets,
+  record,
+}: {
+  audienceProfiles: OpsAudienceProfile[];
+  brandProfiles: OpsBrandProfile[];
+  draftReviewChecklist: string[];
+  publicationTargets: PublicationTarget[];
+  record: LocalContentPackageRecord;
+}) {
+  const targets = record.platformDrafts.map((draft) => {
+    const target = publicationTargets.find(
+      (item) => item.id === draft.publicationTargetId,
+    );
+
+    return {
+      draft,
+      target,
+    };
+  });
+  const brandIds = new Set<OpsAccountProjectId>([
+    record.sourceUpdate.sourceProjectId,
+    ...targets
+      .filter((item): item is { draft: PlatformDraft; target: PublicationTarget } =>
+        Boolean(item.target),
+      )
+      .map(({ target }) => targetBrandProfileId(target)),
+  ]);
+  const audienceIds = new Set(
+    targets
+      .map(({ target }) => target?.audience)
+      .filter((audience): audience is PublicationTarget["audience"] =>
+        Boolean(audience),
+      ),
+  );
+  const selectedBrands = uniqueById(
+    brandProfiles.filter((profile) => brandIds.has(profile.id)),
+  );
+  const selectedAudiences = uniqueById(
+    audienceProfiles.filter((profile) => audienceIds.has(profile.id)),
+  );
+  const brandRules = selectedBrands
+    .map(
+      (profile) => `## ${profile.displayName}
+Role: ${profile.role}
+Voice/tone:
+${formatPromptList(profile.voiceTone)}
+Allowed topics:
+${formatPromptList(profile.allowedTopics)}
+Prohibited claims:
+${formatPromptList(profile.prohibitedClaims)}
+Required disclaimers / safety notes:
+${formatPromptList([...profile.requiredDisclaimers, ...profile.safetyNotes])}
+Source boundary: ${profile.sourceBoundary}`,
+    )
+    .join("\n\n");
+  const audienceRules = selectedAudiences
+    .map(
+      (profile) => `## ${profile.label}
+Description: ${profile.description}
+Use:
+${formatPromptList(profile.contentUse)}
+Safety notes:
+${formatPromptList(profile.safetyNotes)}`,
+    )
+    .join("\n\n");
+  const targetSections = targets
+    .map(({ draft, target }) => {
+      const targetSummary = target
+        ? `${target.accountName} / ${target.platform} / ${target.publicHandle} / ${target.audience}`
+        : `${draft.accountName} / ${draft.platform}`;
+
+      return `## ${targetSummary}
+Source project: ${draft.sourceProjectId}
+Publishing project: ${draft.publishingProjectId}
+Destination URL: ${target?.defaultDestinationUrl ?? "Unknown"}
+UTM URL: ${draft.generatedUrl}
+Posting mode: ${target?.postingMode ?? "manual-only"}
+Spend mode: ${target?.spendMode ?? "manual-approval-required"}
+Boundary: ${target?.sourceBoundary ?? "Metadata-only manual target."}`;
+    })
+    .join("\n\n");
+  const mediaSections = record.platformDrafts
+    .map(
+      (draft) => `## ${draft.accountName} / ${draft.platform}
+Media type: ${draft.media.mediaType}
+Media summary: ${draft.media.mediaSummary}
+Visual hook: ${draft.media.visualHook}
+Creative angle: ${draft.media.creativeAngle}
+Production effort: ${draft.media.productionEffort}
+Asset reference only: ${draft.media.assetLocation ?? "None"}
+Reuse status: ${draft.media.reuseStatus}`,
+    )
+    .join("\n\n");
+  const draftSections = record.platformDrafts
+    .map(
+      (draft) => `## ${draft.accountName} / ${draft.platform}
+Draft status: ${draft.status}
+Draft title: ${draft.title}
+Starting draft:
+${draft.body}`,
+    )
+    .join("\n\n");
+
+  return `# Manual AI Prompt Bridge: ${record.contentPackage.title}
+
+You are helping draft public marketing/social content from a metadata-only BringhurstDO Ops package. No API is connected. This prompt was copied manually by a human operator.
+
+## Non-Negotiable Safety Rules
+- Do not infer, invent, request, or include PHI, patient identifiers, encounter text, transcripts, clinical payloads, credentials, private messages, raw logs, cookies, tokens, OAuth data, audience exports, or secret values.
+- Do not claim diagnosis, treatment, billing, legal, safety, financial, compliance, ROI, or clinical outcomes unless directly supported in the allowed context below.
+- Keep SyncSOAP content metadata-only: product positioning, workflow burden, aggregate readiness, and public-safe marketing language only.
+- Manual human review is required before posting. Do not provide autoposting, API, OAuth, database, or ad-spend instructions.
+- Preserve every exact UTM URL if you include a link.
+
+## Included Context
+- Metadata-only source update title, summary, type, date, and source project.
+- Brand/project voice, allowed topics, prohibited claims, required disclaimers, and source boundaries.
+- Audience guidance for the selected publication targets.
+- Platform/account targets and public destination/UTM links.
+- Media metadata descriptions only, not files.
+- Existing deterministic drafts as starting material.
+
+## Excluded Context
+- Internal notes from the source update or package.
+- PHI, patient identifiers, encounter IDs, encounter text, transcripts, clinical payloads, patient images, or clinical media.
+- Credentials, cookies, tokens, OAuth data, private messages, audience exports, raw logs, source-system payloads, and secret values.
+- Any media file, upload, storage bucket, or binary asset.
+
+## Source Update
+Title: ${record.sourceUpdate.title}
+Source project: ${record.sourceUpdate.sourceProjectId}
+Source date: ${record.sourceUpdate.sourceDate}
+Update type: ${record.sourceUpdate.updateType}
+Boundary: ${record.sourceUpdate.sourceBoundary}
+Summary:
+${record.sourceUpdate.summary}
+
+## Brand Rules And Prohibited Claims
+${brandRules || "No brand rules available."}
+
+## Audience Profiles
+${audienceRules || "No audience rules available."}
+
+## Platform And Account Targets
+${targetSections || "No platform targets available."}
+
+## Media Metadata
+${mediaSections || "No media metadata available."}
+
+## Existing Deterministic Drafts
+${draftSections || "No existing draft text available."}
+
+## Review Checklist Before Posting
+${formatPromptList(draftReviewChecklist)}
+
+## Requested Output Format
+Return revised drafts separately for LinkedIn, Instagram, and X when those platforms are present. If a platform is not present in the targets, say "Not requested" for that platform.
+
+For each requested platform, return:
+1. Draft title
+2. Draft body
+3. Suggested media note using only the provided media metadata
+4. Safety notes and claims to review
+5. Exact UTM URL used
+
+Keep the drafts practical, public-safe, and aligned with the selected brand and audience rules.`;
+}
+
 function validPostUrl(value: string) {
   if (!value.trim()) {
     return true;
@@ -1170,6 +1348,7 @@ export function ContentPackageBuilder({
   const [importMessage, setImportMessage] = useState("");
   const [importFileName, setImportFileName] = useState("");
   const [packetMessage, setPacketMessage] = useState("");
+  const [aiPromptMessage, setAiPromptMessage] = useState("");
   const [historyMediaType, setHistoryMediaType] = useState<"all" | OpsMediaType>(
     "all",
   );
@@ -1553,6 +1732,34 @@ export function ContentPackageBuilder({
         "Clipboard copy failed. Use Export Package JSON as the fallback local handoff.",
       ]);
       setPacketMessage("");
+    }
+  }
+
+  async function copyAiPrompt(record: LocalContentPackageRecord) {
+    const prompt = buildManualAiPrompt({
+      audienceProfiles,
+      brandProfiles,
+      draftReviewChecklist,
+      publicationTargets,
+      record,
+    });
+    const issues = issueText(prompt, "manualAiPrompt");
+
+    if (issues.length > 0) {
+      setSaveIssues(issues);
+      setAiPromptMessage("");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setAiPromptMessage(`Copied manual AI prompt for ${record.contentPackage.title}.`);
+      setSaveIssues([]);
+    } catch {
+      setSaveIssues([
+        "Clipboard copy failed. Select and copy the AI Prompt Preview manually.",
+      ]);
+      setAiPromptMessage("");
     }
   }
 
@@ -2959,7 +3166,27 @@ export function ContentPackageBuilder({
             </div>
           ) : null}
 
-          {records.map((record) => (
+          {aiPromptMessage ? (
+            <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-800">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              {aiPromptMessage}
+            </div>
+          ) : null}
+
+          {records.map((record) => {
+            const manualAiPrompt = buildManualAiPrompt({
+              audienceProfiles,
+              brandProfiles,
+              draftReviewChecklist,
+              publicationTargets,
+              record,
+            });
+            const manualAiPromptIssues = issueText(
+              manualAiPrompt,
+              "manualAiPromptPreview",
+            );
+
+            return (
             <article
               key={record.contentPackage.id}
               className="rounded-lg border border-slate-200 bg-slate-50 p-4"
@@ -2992,6 +3219,14 @@ export function ContentPackageBuilder({
                   </button>
                   <button
                     type="button"
+                    onClick={() => void copyAiPrompt(record)}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy AI Prompt
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => repairGeneratedDraftBodies(record)}
                     className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
@@ -3019,6 +3254,68 @@ export function ContentPackageBuilder({
                   </select>
                 </div>
               </div>
+
+              <details className="mt-5 rounded-lg border border-amber-200 bg-amber-50/60">
+                <summary className="cursor-pointer p-4 text-sm font-semibold text-amber-950">
+                  AI Prompt Preview - manual copy only
+                </summary>
+                <div className="grid gap-4 border-t border-amber-200 p-4">
+                  <div className="rounded-md border border-amber-200 bg-white p-3 text-sm leading-6 text-amber-950">
+                    Manual AI bridge only. Review before using. No AI API is
+                    connected. This preview excludes internal notes, secret
+                    values, raw logs, private messages, transcripts, clinical
+                    payloads, patient data, and media files.
+                  </div>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-md border border-slate-200 bg-white p-3">
+                      <h4 className="font-sans text-sm font-semibold text-slate-950">
+                        Included Context
+                      </h4>
+                      <ul className="mt-2 space-y-1 text-sm leading-6 text-slate-600">
+                        <li>Metadata-only source update title and summary</li>
+                        <li>Brand rules and prohibited claims</li>
+                        <li>Selected audience profiles</li>
+                        <li>Platform/account targets and UTM links</li>
+                        <li>Media metadata descriptions only</li>
+                        <li>Existing deterministic drafts as starting material</li>
+                      </ul>
+                    </div>
+                    <div className="rounded-md border border-slate-200 bg-white p-3">
+                      <h4 className="font-sans text-sm font-semibold text-slate-950">
+                        Excluded Context
+                      </h4>
+                      <ul className="mt-2 space-y-1 text-sm leading-6 text-slate-600">
+                        <li>Internal source notes and package notes</li>
+                        <li>PHI, patient identifiers, encounter text, transcripts, or clinical payloads</li>
+                        <li>Credentials, cookies, tokens, OAuth data, private messages, and raw logs</li>
+                        <li>Media files, uploads, storage buckets, and binary assets</li>
+                        <li>Posting, ad-spend, database, or API mutation instructions</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-white p-3">
+                    <h4 className="font-sans text-sm font-semibold text-slate-950">
+                      Safety Checklist
+                    </h4>
+                    <ul className="mt-2 space-y-1 text-sm leading-6 text-slate-600">
+                      {draftReviewChecklist.map((item) => (
+                        <li key={`ai-${record.contentPackage.id}-${item}`}>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                    {manualAiPromptIssues.length > 0 ? (
+                      <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-800">
+                        Prompt preview blocked by metadata-only validation:{" "}
+                        {manualAiPromptIssues.join("; ")}
+                      </div>
+                    ) : null}
+                  </div>
+                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-slate-950 p-4 text-xs leading-5 text-slate-100">
+                    {manualAiPrompt}
+                  </pre>
+                </div>
+              </details>
 
               <div className="mt-5 grid gap-4">
                 {record.platformDrafts.map((draft) => {
@@ -3204,7 +3501,8 @@ export function ContentPackageBuilder({
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       </section>
     </div>
