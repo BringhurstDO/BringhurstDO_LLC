@@ -6,6 +6,7 @@ import {
   Home,
   FileInput,
   LockKeyhole,
+  LogOut,
   Megaphone,
   NotebookTabs,
   ShieldCheck,
@@ -62,6 +63,15 @@ export function OpsTopNav() {
               {item.label}
             </Link>
           ))}
+          {/* Full-page navigation (not next/link) so the browser handles the
+              Basic Auth re-challenge that backs logout. */}
+          <a
+            href="/ops/logout"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 transition-colors hover:bg-white hover:text-red-900"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />
+            Log out
+          </a>
         </nav>
       </div>
     </header>
