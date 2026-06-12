@@ -6,11 +6,24 @@ schedule, connect OAuth, mutate social accounts, or spend on ads.
 ## Env Vars (server-only)
 
 - `OPS_AI_ENABLED=false|true` — must be `true` to enable generation.
-- `OPENAI_API_KEY` — OpenAI API key (never exposed to the browser).
-- `OPS_AI_MODEL` — optional, defaults to `gpt-4o-mini`.
+- `OPS_AI_PROVIDER=openai|gemini` — selects the provider adapter.
+- `OPENAI_API_KEY` — required when `OPS_AI_PROVIDER=openai`.
+- `GEMINI_API_KEY` — required when `OPS_AI_PROVIDER=gemini`.
+- `OPS_AI_MODEL` — optional. Defaults to `gpt-4o-mini` (OpenAI) or `gemini-2.0-flash` (Gemini).
 
 When disabled or misconfigured, the UI shows a disabled state and
 `POST /ops/api/ai/improve-drafts` returns `503`.
+
+Gemini free tier / Google AI Studio may review prompts to improve services.
+When Gemini is selected, the UI shows a provider warning to send only
+public-safe marketing context from the allowlisted AI preview.
+
+## Allowlisted AI Context
+
+Providers receive only `OpsAiVisibleContext` — the same allowlisted fields
+shown in the AI context preview plus platform draft slots. Raw content package
+JSON, internal notes, credentials, raw logs, and sensitive security findings
+are excluded unless manually rewritten as public-safe marketing language.
 
 ## Endpoints
 

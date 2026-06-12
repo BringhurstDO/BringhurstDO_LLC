@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { buildOpsAiImproveContext } from "@/lib/ops/ai-context";
 import { getOpsAiPublicStatus, requireOpsAiGeneration } from "@/lib/ops/ai-config";
 import { generateOpsAiImprovedDrafts } from "@/lib/ops/ai-improve";
 import { saveOpsAiRunRecord } from "@/lib/ops/ai-runs-db";
@@ -8,13 +7,11 @@ import {
   collectAiSafetyIssues,
   formatAiSafetyIssues,
 } from "@/lib/ops/ai-safety";
-import { validateOpsContentPackageRecords } from "@/lib/ops/persistence-validation";
+import { validateOpsAiVisibleContext } from "@/lib/ops/ai-visible-context";
 import type {
   OpsAiImproveDraftsResponse,
+  OpsAiProvider,
   OpsAiRunRecord,
-  OpsAudienceProfile,
-  OpsBrandProfile,
-  PublicationTarget,
 } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +31,11 @@ function nowId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function configuredProvider(): Exclude<OpsAiProvider, "none"> {
+  const status = getOpsAiPublicStatus();
+  return status.provider === "none" ? "openai" : status.provider;
+}
+
 export async function POST(request: NextRequest) {
   const publicStatus = getOpsAiPublicStatus();
 
@@ -48,21 +50,13 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = (await request.json()) as {
-    audienceProfiles?: OpsAudienceProfile[];
-    brandProfiles?: OpsBrandProfile[];
-    draftReviewChecklist?: string[];
-    publicationTargets?: PublicationTarget[];
-    record?: unknown;
+    aiVisibleContext?: unknown;
   };
 
-  const validation = validateOpsContentPackageRecords(
-    payload.record ? [payload.record] : [],
-    "aiImproveDrafts.record",
-  );
+  const validated = validateOpsAiVisibleContext(payload.aiVisibleContext);
 
-  if (!validation.ok) {
+  if (!validated.context) {
     const runId = `ai-run-${nowId()}`;
-    const safetyIssues = validation.issues;
     const runRecord: OpsAiRunRecord = {
       completionTokens: 0,
       contentPackageId: "unknown",
@@ -71,12 +65,12 @@ export async function POST(request: NextRequest) {
       id: runId,
       inputSafetyResult: "fail",
       model: publicStatus.model ?? "unknown",
-      notes: ["Input rejected before AI provider call."],
+      notes: ["Allowlisted AI context rejected before provider call."],
       outputSafetyResult: "skipped",
       platformCount: 0,
       promptTokens: 0,
-      provider: "openai",
-      safetyIssues,
+      provider: configuredProvider(),
+      safetyIssues: validated.issues,
       sourceBoundary:
         "BringhurstDO Ops metadata-only AI draft improvement request.",
       status: "blocked_input",
@@ -88,51 +82,30 @@ export async function POST(request: NextRequest) {
     return jsonNoStore(
       {
         error: "Ops AI input rejected before generation.",
-        issues: safetyIssues,
+        issues: validated.issues,
         runId,
       },
       400,
     );
   }
 
-  const record = validation.records[0];
-  const brandProfiles = Array.isArray(payload.brandProfiles)
-    ? payload.brandProfiles
-    : [];
-  const audienceProfiles = Array.isArray(payload.audienceProfiles)
-    ? payload.audienceProfiles
-    : [];
-  const publicationTargets = Array.isArray(payload.publicationTargets)
-    ? payload.publicationTargets
-    : [];
-  const draftReviewChecklist = Array.isArray(payload.draftReviewChecklist)
-    ? payload.draftReviewChecklist.filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0,
-      )
-    : [];
-
-  const context = buildOpsAiImproveContext({
-    audienceProfiles,
-    brandProfiles,
-    draftReviewChecklist,
-    publicationTargets,
-    record,
-  });
-  const inputIssues = formatAiSafetyIssues(collectAiSafetyIssues(context, "aiContext"));
+  const context = validated.context;
+  const inputIssues = formatAiSafetyIssues(
+    collectAiSafetyIssues(context, "aiVisibleContext"),
+  );
 
   if (inputIssues.length > 0) {
     const runId = `ai-run-${nowId()}`;
     const runRecord: OpsAiRunRecord = {
-      contentPackageId: record.contentPackage.id,
+      contentPackageId: context.contentPackageId,
       createdAt: new Date().toISOString(),
       id: runId,
       inputSafetyResult: "fail",
       model: publicStatus.model ?? "unknown",
-      notes: ["AI context failed metadata-only safety validation."],
+      notes: ["Allowlisted AI context failed metadata-only safety validation."],
       outputSafetyResult: "skipped",
-      platformCount: record.platformDrafts.length,
-      provider: "openai",
+      platformCount: context.platformDrafts.length,
+      provider: configuredProvider(),
       safetyIssues: inputIssues,
       sourceBoundary:
         "BringhurstDO Ops metadata-only AI draft improvement request.",
@@ -154,11 +127,12 @@ export async function POST(request: NextRequest) {
   const runId = `ai-run-${nowId()}`;
 
   try {
-    const { apiKey, model } = requireOpsAiGeneration();
+    const { apiKey, model, provider } = requireOpsAiGeneration();
     const generated = await generateOpsAiImprovedDrafts({
       apiKey,
       context,
       model,
+      provider,
     });
     const outputIssues = formatAiSafetyIssues(
       collectAiSafetyIssues(generated.proposals, "aiProposals"),
@@ -167,7 +141,7 @@ export async function POST(request: NextRequest) {
     if (outputIssues.length > 0) {
       const runRecord: OpsAiRunRecord = {
         completionTokens: generated.completionTokens,
-        contentPackageId: record.contentPackage.id,
+        contentPackageId: context.contentPackageId,
         createdAt: new Date().toISOString(),
         estimatedCostUsd: generated.estimatedCostUsd,
         id: runId,
@@ -177,7 +151,7 @@ export async function POST(request: NextRequest) {
         outputSafetyResult: "fail",
         platformCount: generated.proposals.length,
         promptTokens: generated.promptTokens,
-        provider: "openai",
+        provider,
         safetyIssues: outputIssues,
         sourceBoundary:
           "BringhurstDO Ops metadata-only AI draft improvement request.",
@@ -199,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     const runRecord: OpsAiRunRecord = {
       completionTokens: generated.completionTokens,
-      contentPackageId: record.contentPackage.id,
+      contentPackageId: context.contentPackageId,
       createdAt: new Date().toISOString(),
       estimatedCostUsd: generated.estimatedCostUsd,
       id: runId,
@@ -211,7 +185,7 @@ export async function POST(request: NextRequest) {
       outputSafetyResult: "pass",
       platformCount: generated.proposals.length,
       promptTokens: generated.promptTokens,
-      provider: "openai",
+      provider,
       safetyIssues: [],
       sourceBoundary:
         "BringhurstDO Ops metadata-only AI draft improvement request.",
@@ -225,7 +199,7 @@ export async function POST(request: NextRequest) {
       manualReviewRequired: true,
       model,
       proposals: generated.proposals,
-      provider: "openai",
+      provider,
       runId,
     };
 
@@ -235,15 +209,15 @@ export async function POST(request: NextRequest) {
       error instanceof Error ? error.message : "Ops AI generation failed.";
 
     const runRecord: OpsAiRunRecord = {
-      contentPackageId: record.contentPackage.id,
+      contentPackageId: context.contentPackageId,
       createdAt: new Date().toISOString(),
       id: runId,
       inputSafetyResult: "pass",
       model: publicStatus.model ?? "unknown",
       notes: [message],
       outputSafetyResult: "skipped",
-      platformCount: record.platformDrafts.length,
-      provider: "openai",
+      platformCount: context.platformDrafts.length,
+      provider: configuredProvider(),
       safetyIssues: [],
       sourceBoundary:
         "BringhurstDO Ops metadata-only AI draft improvement request.",

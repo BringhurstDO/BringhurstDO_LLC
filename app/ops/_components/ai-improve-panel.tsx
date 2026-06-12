@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, RotateCcw, Sparkles } from "lucide-react";
 
+import { buildOpsAiVisibleContextFromRecord } from "@/lib/ops/ai-visible-context";
 import type {
   OpsAiImprovedDraftProposal,
   OpsAiImproveDraftsResponse,
@@ -49,6 +50,24 @@ export function AiImprovePanel({
   const [runId, setRunId] = useState("");
   const [selectedDraftIds, setSelectedDraftIds] = useState<string[]>([]);
 
+  const aiVisibleContext = useMemo(
+    () =>
+      buildOpsAiVisibleContextFromRecord({
+        audienceProfiles,
+        brandProfiles,
+        draftReviewChecklist,
+        publicationTargets,
+        record,
+      }),
+    [
+      audienceProfiles,
+      brandProfiles,
+      draftReviewChecklist,
+      publicationTargets,
+      record,
+    ],
+  );
+
   const proposalMap = useMemo(
     () => new Map(proposals.map((proposal) => [proposal.platformDraftId, proposal])),
     [proposals],
@@ -58,7 +77,7 @@ export function AiImprovePanel({
     if (!aiStatus.enabled) {
       setIssues([
         aiStatus.disabledReason ??
-          "Ops AI is disabled. Configure OPS_AI_ENABLED and OPENAI_API_KEY server-side.",
+          "Ops AI is disabled. Configure OPS_AI_ENABLED, OPS_AI_PROVIDER, and the matching provider API key server-side.",
       ]);
       setMessage("");
       return;
@@ -70,13 +89,7 @@ export function AiImprovePanel({
 
     try {
       const response = await fetch("/ops/api/ai/improve-drafts", {
-        body: JSON.stringify({
-          audienceProfiles,
-          brandProfiles,
-          draftReviewChecklist,
-          publicationTargets,
-          record,
-        }),
+        body: JSON.stringify({ aiVisibleContext }),
         cache: "no-store",
         credentials: "same-origin",
         headers: {
@@ -88,6 +101,7 @@ export function AiImprovePanel({
       const payload = (await response.json()) as OpsAiImproveDraftsResponse & {
         error?: string;
         issues?: string[];
+        runId?: string;
       };
 
       if (!response.ok) {
@@ -107,7 +121,7 @@ export function AiImprovePanel({
       setMessage(
         `Generated ${payload.proposals.length} improved draft proposal${
           payload.proposals.length === 1 ? "" : "s"
-        } for manual review. Nothing was saved automatically.`,
+        } via ${payload.provider} for manual review. Nothing was saved automatically.`,
       );
     } catch {
       setIssues(["Ops AI generation request failed. Try again or use Copy AI Prompt."]);
@@ -219,19 +233,26 @@ export function AiImprovePanel({
         <div className="rounded-md border border-violet-200 bg-white p-3 text-sm leading-6 text-violet-950">
           {aiStatus.enabled ? (
             <>
-              AI provider connected ({aiStatus.provider}, model{" "}
-              {aiStatus.model}). Generated drafts are proposals only. Manual
-              approval is still required before posting, and originals remain
-              available for rollback.
+              AI provider connected ({aiStatus.provider}, model {aiStatus.model}
+              ). Only the allowlisted AI context preview fields are sent to the
+              provider. Generated drafts are proposals only. Manual approval is
+              still required before posting, and originals remain available for
+              rollback.
             </>
           ) : (
             <>
               AI generation is disabled.{" "}
               {aiStatus.disabledReason ??
-                "Configure OPS_AI_ENABLED=true and OPENAI_API_KEY server-side."}
+                "Configure OPS_AI_ENABLED=true, OPS_AI_PROVIDER, and the matching provider API key server-side."}
             </>
           )}
         </div>
+
+        {aiStatus.providerWarning ? (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+            {aiStatus.providerWarning}
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap gap-2">
           <button

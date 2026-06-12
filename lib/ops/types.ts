@@ -407,12 +407,15 @@ export type OpsAiPromptHistoryRecord = {
   notes: SafeOpsText[];
 };
 
+export type OpsAiProvider = "gemini" | "none" | "openai";
+
 export type OpsAiPublicStatus = {
   disabledReason: string | null;
   enabled: boolean;
   manualReviewRequired: true;
   model: string | null;
-  provider: "none" | "openai";
+  provider: OpsAiProvider;
+  providerWarning: string | null;
 };
 
 export type OpsAiRunStatus =
@@ -425,7 +428,7 @@ export type OpsAiRunRecord = {
   id: string;
   contentPackageId: string;
   createdAt: string;
-  provider: "openai";
+  provider: Exclude<OpsAiProvider, "none">;
   model: MetadataOnlyString;
   status: OpsAiRunStatus;
   inputSafetyResult: "fail" | "pass";
@@ -454,7 +457,7 @@ export type OpsAiImproveDraftsResponse = {
   manualReviewRequired: true;
   model: MetadataOnlyString;
   proposals: OpsAiImprovedDraftProposal[];
-  provider: "openai";
+  provider: Exclude<OpsAiProvider, "none">;
   runId: string;
 };
 

@@ -28,6 +28,15 @@ const forbiddenAiClaimPatterns = [
     label: "absolute efficacy claim",
     pattern: /\b(100%|always works|never fails|bulletproof|foolproof)\b/i,
   },
+  {
+    label: "internal security finding language",
+    pattern:
+      /\b(security finding|vulnerability report|penetration test|cve-\d{4}-\d+|zero-day|incident report)\b/i,
+  },
+  {
+    label: "private pilot or customer reference",
+    pattern: /\b(pilot customer|private beta customer|named customer|customer name)\b/i,
+  },
 ] as const;
 
 function collectAiClaimIssues(value: unknown, path = "aiContent"): OpsSafetyIssue[] {

@@ -1551,7 +1551,7 @@ export function ContentPackageBuilder({
       })),
       reviewChecklist: draftReviewChecklist,
       excludedData:
-        "No PHI, patient identifiers, encounter text, transcripts, clinical payloads, credentials, private messages, raw logs, cookies, tokens, OAuth data, or audience exports.",
+        "No PHI, patient identifiers, encounter text, transcripts, clinical payloads, private customer or pilot names, credentials, private messages, raw logs, cookies, tokens, OAuth data, audience exports, secret values, or sensitive internal security findings unless manually rewritten as public-safe marketing language.",
     };
   }, [
     aiPreviewSafetyIssues.length,
@@ -2534,8 +2534,8 @@ export function ContentPackageBuilder({
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
               {aiStatus.enabled
-                ? "AI draft improvement is connected for manual review only. Generated text is not auto-saved or posted."
-                : "AI is disabled. This shows the bounded context that could be sent after OPS_AI_ENABLED=true and OPENAI_API_KEY are configured server-side."}
+                ? `AI draft improvement is connected (${aiStatus.provider}, ${aiStatus.model ?? "model pending"}) for manual review only. Only allowlisted preview fields are sent to the provider.`
+                : "AI is disabled. This shows the bounded context that could be sent after OPS_AI_ENABLED=true, OPS_AI_PROVIDER, and the matching provider API key are configured server-side."}
             </p>
           </div>
           <span
@@ -2546,10 +2546,15 @@ export function ContentPackageBuilder({
             }`}
           >
             {aiStatus.enabled
-              ? "AI connected: manual review required"
+              ? `AI connected (${aiStatus.provider}): manual review required`
               : aiStatus.disabledReason ?? "AI disabled: no API connected"}
           </span>
         </div>
+        {aiStatus.providerWarning ? (
+          <div className="mx-5 mb-5 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+            {aiStatus.providerWarning}
+          </div>
+        ) : null}
         <div className="grid gap-5 p-5">
           <div className="grid gap-4 lg:grid-cols-2">
             {selectedBrandProfiles.length === 0 ? (
