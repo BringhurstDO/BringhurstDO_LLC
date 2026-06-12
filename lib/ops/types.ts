@@ -326,6 +326,10 @@ export type PlatformDraft = {
   generatedUrl: string;
   safetyNotes: SafeOpsText[];
   updatedAt: string;
+  /** Preserved when an AI-improved body replaces a deterministic draft. */
+  originalDeterministicBody?: SafeOpsText;
+  /** Last successful Ops AI run that produced a pending or applied improvement. */
+  lastAiRunId?: string;
 };
 
 export type PublishedPost = {
@@ -403,6 +407,57 @@ export type OpsAiPromptHistoryRecord = {
   notes: SafeOpsText[];
 };
 
+export type OpsAiPublicStatus = {
+  disabledReason: string | null;
+  enabled: boolean;
+  manualReviewRequired: true;
+  model: string | null;
+  provider: "none" | "openai";
+};
+
+export type OpsAiRunStatus =
+  | "blocked_input"
+  | "blocked_output"
+  | "error"
+  | "success";
+
+export type OpsAiRunRecord = {
+  id: string;
+  contentPackageId: string;
+  createdAt: string;
+  provider: "openai";
+  model: MetadataOnlyString;
+  status: OpsAiRunStatus;
+  inputSafetyResult: "fail" | "pass";
+  outputSafetyResult: "fail" | "pass" | "skipped";
+  platformCount: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  estimatedCostUsd?: MetadataOnlyString;
+  safetyIssues: SafeOpsText[];
+  notes: SafeOpsText[];
+  sourceBoundary: MetadataOnlyString;
+};
+
+export type OpsAiImprovedDraftProposal = {
+  platformDraftId: string;
+  platform: PublicationPlatform;
+  accountName: MetadataOnlyString;
+  title: MetadataOnlyString;
+  body: SafeOpsText;
+  mediaNote: SafeOpsText;
+  safetyNotes: SafeOpsText[];
+};
+
+export type OpsAiImproveDraftsResponse = {
+  manualReviewRequired: true;
+  model: MetadataOnlyString;
+  proposals: OpsAiImprovedDraftProposal[];
+  provider: "openai";
+  runId: string;
+};
+
 export type OpsServerRecordMetadata = {
   id: string;
   createdAt: string;
@@ -467,9 +522,15 @@ export type OpsServerAiPromptHistoryRecord = OpsServerRecordMetadata & {
   data: OpsAiPromptHistoryRecord;
 };
 
+export type OpsServerAiRunRecord = OpsServerRecordMetadata & {
+  tableName: "ops_ai_runs";
+  data: OpsAiRunRecord;
+};
+
 export type OpsServerPersistenceRecord =
   | OpsServerAccountRegistryRecord
   | OpsServerAiPromptHistoryRecord
+  | OpsServerAiRunRecord
   | OpsServerAudienceProfileRecord
   | OpsServerBrandRuleRecord
   | OpsServerBusinessOutcomeRecord

@@ -26,6 +26,7 @@ const expectedTables = [
   "ops_platform_drafts",
   "ops_published_posts",
   "ops_source_updates",
+  "ops_ai_runs",
 ];
 
 function loadDatabaseUrl() {

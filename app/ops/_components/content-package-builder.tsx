@@ -21,6 +21,7 @@ import {
   Upload,
 } from "lucide-react";
 
+import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
 import {
   createLocalStorageOpsPersistenceAdapter,
@@ -31,6 +32,8 @@ import type {
   BusinessOutcome,
   ContentPackage,
   ContentPackageStatus,
+  OpsAiImprovedDraftProposal,
+  OpsAiPublicStatus,
   OpsAudienceProfile,
   OpsBrandProfile,
   OpsContentPackageRecord,
@@ -94,6 +97,7 @@ type WeeklyContentQueueRow = {
 type PostedFilter = "all" | "posted" | "not posted";
 
 type ContentPackageBuilderProps = {
+  aiStatus: OpsAiPublicStatus;
   audienceProfiles: OpsAudienceProfile[];
   brandProfiles: OpsBrandProfile[];
   draftReviewChecklist: string[];
@@ -1331,6 +1335,7 @@ function uniqueById<T extends { id: string }>(items: T[]) {
 }
 
 export function ContentPackageBuilder({
+  aiStatus,
   audienceProfiles,
   brandProfiles,
   draftReviewChecklist,
@@ -1378,6 +1383,28 @@ export function ContentPackageBuilder({
   const storageWarning = storageIsDatabase
     ? "Content packages are saved through the protected Ops Postgres adapter. Keep JSON exports as a backup until database backups and restore drills are verified."
     : "Content packages are saved with the localStorage adapter on this device and browser. Export JSON before clearing browser data, switching devices, or testing in another browser.";
+  const saveButtonLabel = storageIsDatabase ? "Save Package" : "Save Locally";
+  const saveButtonHelper = storageIsDatabase
+    ? "Saves to the protected Ops database after metadata-only validation."
+    : "Saves to this browser only after metadata-only validation.";
+  const saveSuccessMessage = storageIsDatabase
+    ? "Content package saved to the Ops database after metadata-only validation."
+    : "Content package saved locally after metadata-only validation.";
+  const savedPackagesTitle = storageIsDatabase
+    ? "Saved Content Packages"
+    : "Saved Local Content Packages";
+  const savedPackagesDescription = storageIsDatabase
+    ? "Track posted/not posted state, post URLs, manual performance snapshots, and business outcomes in the Ops database."
+    : "Track posted/not posted state, post URLs, manual performance snapshots, and business outcomes locally.";
+  const importPackagesDescription = storageIsDatabase
+    ? "Choose the JSON file downloaded by Export Package. Imports are validated before rendering and saved through the Ops database adapter."
+    : "Choose the JSON file downloaded by Export Package. Imports are validated before rendering and saved only to this browser.";
+  const weeklyQueueDescription = storageIsDatabase
+    ? "Derived from saved content packages in the Ops database. It shows what is ready, not posted, posted, and missing manual performance metrics."
+    : "Derived from saved local content packages. It shows what is ready, not posted, posted, and missing manual performance metrics.";
+  const noMediaHistoryMessage = storageIsDatabase
+    ? "No saved media metadata rows match these filters."
+    : "No local media metadata rows match these filters.";
 
   const createPersistenceAdapter = useCallback(() => {
     return storageIsDatabase
@@ -1484,8 +1511,8 @@ export function ContentPackageBuilder({
     const sourceIsSafe = aiPreviewSafetyIssues.length === 0;
 
     return {
-      aiState: "disabled",
-      dataMode: "local/mock-only",
+      aiState: aiStatus.enabled ? "connected-manual-review" : "disabled",
+      dataMode: storageIsDatabase ? "durable-database" : "local-browser",
       sourceUpdate: {
         sourceProjectId: primaryProjectId,
         sourceDate,
@@ -1537,6 +1564,8 @@ export function ContentPackageBuilder({
     sourceSummary,
     sourceTitle,
     sourceType,
+    aiStatus.enabled,
+    storageIsDatabase,
   ]);
 
   const weeklyQueueRows = useMemo(() => buildWeeklyQueueRows(records), [records]);
@@ -2150,7 +2179,7 @@ export function ContentPackageBuilder({
     const nextRecords = [record, ...records];
 
     if (await persistRecords(nextRecords)) {
-      setSaveMessage("Content package saved locally after metadata-only validation.");
+      setSaveMessage(saveSuccessMessage);
     }
   }
 
@@ -2160,6 +2189,98 @@ export function ContentPackageBuilder({
     );
 
     void persistRecords(nextRecords);
+  }
+
+  async function applyAiProposals(
+    record: LocalContentPackageRecord,
+    proposals: OpsAiImprovedDraftProposal[],
+    aiRunId: string,
+  ) {
+    const proposalMap = new Map(
+      proposals.map((proposal) => [proposal.platformDraftId, proposal]),
+    );
+    const nextDrafts = record.platformDrafts.map((draft) => {
+      const proposal = proposalMap.get(draft.id);
+
+      if (!proposal) {
+        return draft;
+      }
+
+      const originalDeterministicBody =
+        draft.originalDeterministicBody ?? draft.body;
+
+      return {
+        ...draft,
+        body: proposal.body,
+        lastAiRunId: aiRunId,
+        originalDeterministicBody,
+        safetyNotes: [
+          ...draft.safetyNotes,
+          "AI-improved draft applied after manual review.",
+          ...proposal.safetyNotes,
+        ],
+        status: "needs review" as PlatformDraftStatus,
+        title: proposal.title,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    const nextRecord: LocalContentPackageRecord = {
+      ...record,
+      contentPackage: {
+        ...record.contentPackage,
+        notes: [
+          ...record.contentPackage.notes,
+          `AI draft improvement run ${aiRunId} applied after manual review.`,
+        ],
+        status: "needs review",
+        updatedAt: new Date().toISOString(),
+      },
+      platformDrafts: nextDrafts,
+    };
+
+    return persistRecords(
+      records.map((item) =>
+        item.contentPackage.id === record.contentPackage.id ? nextRecord : item,
+      ),
+    );
+  }
+
+  async function revertAiDraft(
+    record: LocalContentPackageRecord,
+    draftId: string,
+  ) {
+    const nextDrafts = record.platformDrafts.map((draft) => {
+      if (draft.id !== draftId || !draft.originalDeterministicBody) {
+        return draft;
+      }
+
+      return {
+        ...draft,
+        body: draft.originalDeterministicBody,
+        lastAiRunId: undefined,
+        originalDeterministicBody: undefined,
+        safetyNotes: [
+          ...draft.safetyNotes,
+          "Reverted to original deterministic draft after AI review.",
+        ],
+        status: "drafted" as PlatformDraftStatus,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    const nextRecord: LocalContentPackageRecord = {
+      ...record,
+      contentPackage: {
+        ...record.contentPackage,
+        updatedAt: new Date().toISOString(),
+      },
+      platformDrafts: nextDrafts,
+    };
+
+    return persistRecords(
+      records.map((item) =>
+        item.contentPackage.id === record.contentPackage.id ? nextRecord : item,
+      ),
+    );
   }
 
   function updatePublishedPost(
@@ -2412,13 +2533,21 @@ export function ContentPackageBuilder({
               Brand Rules And AI Context Preview
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              AI is disabled. This shows the bounded context that could be sent
-              later after explicit approval, stronger review gates, and an AI
-              provider decision.
+              {aiStatus.enabled
+                ? "AI draft improvement is connected for manual review only. Generated text is not auto-saved or posted."
+                : "AI is disabled. This shows the bounded context that could be sent after OPS_AI_ENABLED=true and OPENAI_API_KEY are configured server-side."}
             </p>
           </div>
-          <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-            AI disabled: no API connected
+          <span
+            className={`inline-flex rounded-md border px-3 py-1 text-xs font-semibold ${
+              aiStatus.enabled
+                ? "border-violet-200 bg-violet-50 text-violet-800"
+                : "border-amber-200 bg-amber-50 text-amber-800"
+            }`}
+          >
+            {aiStatus.enabled
+              ? "AI connected: manual review required"
+              : aiStatus.disabledReason ?? "AI disabled: no API connected"}
           </span>
         </div>
         <div className="grid gap-5 p-5">
@@ -2530,11 +2659,13 @@ export function ContentPackageBuilder({
                     AI Context Preview
                   </h3>
                   <p className="mt-1 text-xs leading-5 text-slate-300">
-                    Local preview only. Nothing is transmitted.
+                    {aiStatus.enabled
+                      ? "Server-side generation uses this bounded context. Nothing posts automatically."
+                      : "Local preview only. Nothing is transmitted."}
                   </p>
                 </div>
                 <span className="rounded-md border border-slate-700 px-2 py-1 text-xs font-semibold text-slate-300">
-                  local only
+                  {aiStatus.enabled ? "manual review" : "local only"}
                 </span>
               </div>
               {aiPreviewSafetyIssues.length > 0 ? (
@@ -2561,8 +2692,7 @@ export function ContentPackageBuilder({
             Import An Exported Package JSON File
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Choose the JSON file downloaded by Export Package. Imports are
-            validated before rendering and saved only to this browser.
+            {importPackagesDescription}
           </p>
         </div>
         <div className="grid gap-4 p-5">
@@ -2620,8 +2750,7 @@ export function ContentPackageBuilder({
             Weekly Content Queue
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Derived from saved local content packages. It shows what is ready,
-            not posted, posted, and missing manual performance metrics.
+            {weeklyQueueDescription}
           </p>
         </div>
         <div className="grid gap-4 p-5 lg:grid-cols-4">
@@ -2803,7 +2932,7 @@ export function ContentPackageBuilder({
           <div className="grid gap-3">
             {filteredHistoryRows.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
-                No local media metadata rows match these filters.
+                {noMediaHistoryMessage}
               </div>
             ) : (
               filteredHistoryRows.map((row) => (
@@ -3194,10 +3323,10 @@ export function ContentPackageBuilder({
               className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-700"
             >
               <Save className="h-4 w-4" />
-              Save Locally
+              {saveButtonLabel}
             </button>
             <p className="text-sm text-slate-500">
-              Saves to this browser only after metadata-only validation.
+              {saveButtonHelper}
             </p>
           </div>
 
@@ -3227,11 +3356,10 @@ export function ContentPackageBuilder({
       <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-5">
           <h2 className="font-sans text-base font-semibold text-slate-950">
-            Saved Local Content Packages
+            {savedPackagesTitle}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Track posted/not posted state, post URLs, manual performance
-            snapshots, and business outcomes locally.
+            {savedPackagesDescription}
           </p>
         </div>
         <div className="grid gap-5 p-5">
@@ -3330,6 +3458,17 @@ export function ContentPackageBuilder({
                   </select>
                 </div>
               </div>
+
+              <AiImprovePanel
+                aiStatus={aiStatus}
+                audienceProfiles={audienceProfiles}
+                brandProfiles={brandProfiles}
+                draftReviewChecklist={draftReviewChecklist}
+                onApplyProposals={applyAiProposals}
+                onRevertDraft={revertAiDraft}
+                publicationTargets={publicationTargets}
+                record={record}
+              />
 
               <details className="mt-5 rounded-lg border border-amber-200 bg-amber-50/60">
                 <summary className="cursor-pointer p-4 text-sm font-semibold text-amber-950">

@@ -1,15 +1,27 @@
 import { BoundaryPill, OpsPageHeader } from "@/app/ops/_components/ops-ui";
 import { ContentPackageBuilder } from "@/app/ops/_components/content-package-builder";
+import { getOpsAiPublicStatus } from "@/lib/ops/ai-config";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export default function OpsNewContentPackagePage() {
+  const aiStatus = getOpsAiPublicStatus();
   const storageMode =
     process.env.OPS_STORAGE_MODE === "database" && process.env.DATABASE_URL
       ? "database"
       : "local-browser";
+  const storageIsDatabase = storageMode === "database";
+  const pageDescription = storageIsDatabase
+    ? "Enter one metadata-only source update, select products/accounts/platforms, create platform draft slots, save to the Ops database, export/import packages, copy post packets, and track manual posting."
+    : "Enter one metadata-only source update, select products/accounts/platforms, create platform draft slots, save locally, export/import packages, copy post packets, and track manual posting.";
+  const storageBoundaryLabel = storageIsDatabase
+    ? "Durable database save"
+    : "Local browser save only";
+  const workflowDescription = storageIsDatabase
+    ? "Enter One Metadata-Only Update, then Select Products, Accounts, And Platforms. Create Platform-Specific Draft Slots, save them to the Ops database, export or import package JSON, copy post packets for manual review, and manage weekly queue state, public URLs, and aggregate performance metrics."
+    : "Enter One Metadata-Only Update, then Select Products, Accounts, And Platforms. Create Platform-Specific Draft Slots, save them locally, export or import package JSON, copy post packets for manual review, and manage weekly queue state, public URLs, and aggregate performance metrics.";
   const {
     audienceProfiles,
     brandProfiles,
@@ -59,12 +71,12 @@ export default function OpsNewContentPackagePage() {
       <OpsPageHeader
         eyebrow="Source update to content package"
         title="New Content Package"
-        description="Enter one metadata-only source update, select products/accounts/platforms, create platform draft slots, save locally, export/import packages, copy post packets, and track manual posting."
+        description={pageDescription}
       />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-wrap gap-2">
-          <BoundaryPill>Local browser save only</BoundaryPill>
+          <BoundaryPill>{storageBoundaryLabel}</BoundaryPill>
           <BoundaryPill>No AI generation</BoundaryPill>
           <BoundaryPill>No posting API</BoundaryPill>
           <BoundaryPill>No PHI or clinical payloads</BoundaryPill>
@@ -76,15 +88,12 @@ export default function OpsNewContentPackagePage() {
             Content Package Workflow
           </h2>
           <p className="mt-2">
-            Enter One Metadata-Only Update, then Select Products, Accounts, And
-            Platforms. Create Platform-Specific Draft Slots, save them locally,
-            export or import package JSON, copy post packets for manual review,
-            and manage weekly queue state, public URLs, and aggregate
-            performance metrics.
+            {workflowDescription}
           </p>
         </section>
 
         <ContentPackageBuilder
+          aiStatus={aiStatus}
           audienceProfiles={audienceProfiles}
           brandProfiles={brandProfiles}
           draftReviewChecklist={draftReviewChecklist}
