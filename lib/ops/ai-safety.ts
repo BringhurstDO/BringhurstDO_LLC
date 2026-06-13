@@ -3,6 +3,33 @@ import {
   type OpsSafetyIssue,
 } from "@/lib/ops/safety";
 
+/** Safety-instruction fields — skip marketing-claim patterns, keep forbidden-data checks. */
+export const AI_CLAIM_VALIDATION_EXCLUDED_FIELDS = [
+  "reviewChecklist",
+  "prohibitedClaims",
+  "requiredDisclaimers",
+  "requiredNotes",
+  "sourceBoundary",
+  "excludedData",
+  "excludedContext",
+  "providerWarning",
+  "safetyNotes",
+] as const;
+
+const claimValidationExcludedFields = new Set(
+  AI_CLAIM_VALIDATION_EXCLUDED_FIELDS.map((field) =>
+    field.replace(/[\s_-]/g, "").toLowerCase(),
+  ),
+);
+
+function normalizeFieldName(fieldName: string) {
+  return fieldName.replace(/[\s_-]/g, "").toLowerCase();
+}
+
+export function isAiClaimValidationExcludedField(fieldName: string) {
+  return claimValidationExcludedFields.has(normalizeFieldName(fieldName));
+}
+
 const forbiddenAiClaimPatterns = [
   {
     allowIf: /designed to support HIPAA-aligned workflows/i,
@@ -70,7 +97,13 @@ function collectAiClaimIssues(value: unknown, path = "aiContent"): OpsSafetyIssu
   }
 
   return Object.entries(value as Record<string, unknown>).flatMap(
-    ([key, child]) => collectAiClaimIssues(child, `${path}.${key}`),
+    ([key, child]) => {
+      if (isAiClaimValidationExcludedField(key)) {
+        return [];
+      }
+
+      return collectAiClaimIssues(child, `${path}.${key}`);
+    },
   );
 }
 
