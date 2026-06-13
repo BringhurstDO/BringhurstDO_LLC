@@ -1,6 +1,12 @@
 import "server-only";
 
+import {
+  GEMINI_DEFAULT_MODEL,
+  resolveGeminiModel,
+} from "@/lib/ops/ai-gemini-model";
 import type { OpsAiProvider, OpsAiPublicStatus } from "@/lib/ops/types";
+
+export { GEMINI_DEFAULT_MODEL, resolveGeminiModel };
 
 export const GEMINI_FREE_TIER_WARNING =
   "Gemini free tier / Google AI Studio may review prompts to improve services. Only send public-safe marketing context from the allowlisted AI preview.";
@@ -18,11 +24,15 @@ function resolveProvider(): Exclude<OpsAiProvider, "none"> {
 function defaultModel(provider: Exclude<OpsAiProvider, "none">) {
   const configured = process.env.OPS_AI_MODEL?.trim();
 
+  if (provider === "gemini") {
+    return resolveGeminiModel(configured);
+  }
+
   if (configured) {
     return configured;
   }
 
-  return provider === "gemini" ? "gemini-2.0-flash" : "gpt-4o-mini";
+  return "gpt-4o-mini";
 }
 
 function providerApiKey(provider: Exclude<OpsAiProvider, "none">) {

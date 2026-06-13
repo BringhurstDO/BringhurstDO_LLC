@@ -1,4 +1,17 @@
 import { collectAiSafetyIssues } from "../lib/ops/ai-safety";
+import { resolveGeminiModel } from "../lib/ops/ai-gemini-model";
+
+if (resolveGeminiModel("gemini-2.0-flash") !== "gemini-3.5-flash") {
+  throw new Error("Retired gemini-2.0-flash must remap to gemini-3.5-flash.");
+}
+
+if (resolveGeminiModel() !== "gemini-3.5-flash") {
+  throw new Error("Default Gemini model must be gemini-3.5-flash.");
+}
+
+if (resolveGeminiModel("gemini-3.1-flash-lite") !== "gemini-3.1-flash-lite") {
+  throw new Error("Configured Gemini models other than 2.0 flash must pass through.");
+}
 
 const productionReviewChecklist = [
   "Confirm the source update is metadata-only and contains no PHI, credentials, private messages, raw logs, transcripts, or clinical payloads.",

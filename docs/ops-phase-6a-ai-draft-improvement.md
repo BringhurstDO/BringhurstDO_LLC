@@ -9,7 +9,7 @@ schedule, connect OAuth, mutate social accounts, or spend on ads.
 - `OPS_AI_PROVIDER=openai|gemini` — selects the provider adapter.
 - `OPENAI_API_KEY` — required when `OPS_AI_PROVIDER=openai`.
 - `GEMINI_API_KEY` — required when `OPS_AI_PROVIDER=gemini`.
-- `OPS_AI_MODEL` — optional. Defaults to `gpt-4o-mini` (OpenAI) or `gemini-2.0-flash` (Gemini).
+- `OPS_AI_MODEL` — optional. Defaults to `gpt-4o-mini` (OpenAI) or `gemini-3.5-flash` (Gemini). Retired `gemini-2.0-flash*` values are remapped automatically.
 
 When disabled or misconfigured, the UI shows a disabled state and
 `POST /ops/api/ai/improve-drafts` returns `503`.
