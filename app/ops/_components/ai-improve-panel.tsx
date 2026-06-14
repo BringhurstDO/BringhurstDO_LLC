@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, RotateCcw, Sparkles } from "lucide-react";
 
 import { buildOpsAiVisibleContextFromRecord } from "@/lib/ops/ai-visible-context";
+import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import type {
   OpsAiImprovedDraftProposal,
   OpsAiImproveDraftsResponse,
@@ -198,15 +199,15 @@ export function AiImprovePanel({
               Original deterministic draft
             </p>
             <pre className="mt-2 max-h-64 overflow-auto rounded-md border border-slate-200 bg-slate-50 p-3 text-xs leading-5 text-slate-800">
-              {originalBody}
+              {sanitizePublishableBody(originalBody)}
             </pre>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {proposal ? "AI proposal (not saved yet)" : "Current draft"}
+              {proposal ? "AI proposal (publishable preview)" : "Current publishable draft"}
             </p>
             <pre className="mt-2 max-h-64 overflow-auto rounded-md border border-violet-200 bg-violet-50 p-3 text-xs leading-5 text-slate-800">
-              {proposal?.body ?? draft.body}
+              {sanitizePublishableBody(proposal?.body ?? draft.body)}
             </pre>
             {proposal ? (
               <label className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-slate-700">

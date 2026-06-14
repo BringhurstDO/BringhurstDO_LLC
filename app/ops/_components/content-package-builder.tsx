@@ -22,6 +22,23 @@ import {
 } from "lucide-react";
 
 import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
+import {
+  blockedTargetOperatorNotes,
+  draftLooksLikeLegacyGeneratedBody,
+  draftTemplateBody,
+  xDraftBody,
+  xSinglePostLimit,
+} from "@/lib/ops/draft-template";
+import {
+  buildPostPacket,
+  buildPublishableCopy,
+} from "@/lib/ops/post-packet";
+import {
+  DEFAULT_DRAFT_OPERATOR_NOTES,
+  DEFAULT_DRAFT_SAFETY_NOTES,
+  DEFAULT_PACKAGE_OPERATOR_NOTES,
+  sanitizePublishableBody,
+} from "@/lib/ops/publishable-copy";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
 import {
   createLocalStorageOpsPersistenceAdapter,
@@ -109,7 +126,6 @@ type ContentPackageBuilderProps = {
 
 const storageKey = "bringhurstdo.ops.contentPackages.v1";
 const maxPackageImportBytes = 200_000;
-const xSinglePostLimit = 280;
 
 const sourceUpdateTypes: SourceUpdateType[] = [
   "product-update",
@@ -204,54 +220,6 @@ function platformMedium(target: PublicationTarget) {
   return target.platform === "Email" ? "manual" : "organic";
 }
 
-function cleanTemplateInput(value: string, fallback: string) {
-  return value.trim().replace(/\s+/g, " ") || fallback;
-}
-
-function withTerminalPunctuation(value: string) {
-  const normalized = value.trim();
-
-  if (!normalized) {
-    return normalized;
-  }
-
-  return /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
-}
-
-function truncateAtWord(value: string, maxLength: number) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  const clipped = value.slice(0, maxLength - 1);
-  const lastSpace = clipped.lastIndexOf(" ");
-
-  return withTerminalPunctuation(
-    clipped.slice(0, lastSpace > 40 ? lastSpace : clipped.length),
-  );
-}
-
-function sentenceExcerpt(value: string, maxLength: number) {
-  const normalized = cleanTemplateInput(value, "");
-
-  if (normalized.length <= maxLength) {
-    return withTerminalPunctuation(normalized);
-  }
-
-  const clipped = normalized.slice(0, maxLength);
-  const sentenceEnd = Math.max(
-    clipped.lastIndexOf("."),
-    clipped.lastIndexOf("!"),
-    clipped.lastIndexOf("?"),
-  );
-
-  if (sentenceEnd >= 80) {
-    return withTerminalPunctuation(clipped.slice(0, sentenceEnd + 1));
-  }
-
-  return truncateAtWord(normalized, maxLength);
-}
-
 function coerceManualNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -310,113 +278,8 @@ function bodyWithGeneratedUrl(
   }
 
   return collapseRepeatedPunctuation(
-    appendIfMissing ? `${trimmed}\n\nUTM link: ${generatedUrl}` : trimmed,
+    appendIfMissing ? `${trimmed}\n\n${generatedUrl}` : trimmed,
   );
-}
-
-function campaignFromGeneratedUrl(generatedUrl: string, fallback: string) {
-  try {
-    return new URL(generatedUrl).searchParams.get("utm_campaign") ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function cleanXExcerptEnding(value: string) {
-  let next = value.trim().replace(/[,:;\s-]+$/g, "").replace(/[.!?]+$/g, "");
-  const danglingPhrasePatterns = [
-    /\bgiven the length of the$/i,
-    /\bgiven the length of$/i,
-    /\bgiven the length$/i,
-  ];
-  let changed = true;
-
-  while (changed) {
-    changed = false;
-
-    danglingPhrasePatterns.forEach((pattern) => {
-      if (pattern.test(next)) {
-        next = next.replace(pattern, "").trim().replace(/[,:;\s-]+$/g, "");
-        changed = true;
-      }
-    });
-
-    if (/\b(of|the|and|or|to|for|with)$/i.test(next)) {
-      next = next.replace(/\s+\S+$/g, "").trim().replace(/[,:;\s-]+$/g, "");
-      changed = true;
-    }
-  }
-
-  return next;
-}
-
-function xSummaryExcerpt(summary: string, maxLength: number) {
-  const normalized = cleanTemplateInput(summary, "");
-
-  if (normalized.length <= maxLength) {
-    return cleanXExcerptEnding(normalized);
-  }
-
-  const clipped = normalized.slice(0, maxLength);
-  const sentenceEnd = Math.max(
-    clipped.lastIndexOf("."),
-    clipped.lastIndexOf("!"),
-    clipped.lastIndexOf("?"),
-  );
-
-  if (sentenceEnd >= 35) {
-    return cleanXExcerptEnding(clipped.slice(0, sentenceEnd + 1));
-  }
-
-  const phraseEnds = [",", ";", ":", " - ", " -- "]
-    .map((marker) => clipped.lastIndexOf(marker))
-    .filter((index) => index >= 35);
-  const phraseEnd = phraseEnds.length > 0 ? Math.max(...phraseEnds) : -1;
-
-  if (phraseEnd >= 35) {
-    return cleanXExcerptEnding(clipped.slice(0, phraseEnd));
-  }
-
-  const lastSpace = clipped.lastIndexOf(" ");
-  const wordBoundary = lastSpace >= 35 ? lastSpace : clipped.length;
-
-  return cleanXExcerptEnding(clipped.slice(0, wordBoundary));
-}
-
-function xDraftBody(title: string, summary: string, audience: string, url: string) {
-  const cleanTitle = cleanTemplateInput(title, "Product update");
-  const prefix = /[!?]$/.test(cleanTitle) ? `${cleanTitle} ` : `${cleanTitle}: `;
-  const audienceContext = audience === "general" ? "" : ` For ${audience}.`;
-  const suffix = `${audienceContext} ${url}`;
-  const budget = xSinglePostLimit - prefix.length - suffix.length;
-
-  if (budget >= 40) {
-    const summaryLine = xSummaryExcerpt(summary, budget);
-
-    return collapseRepeatedPunctuation(`${prefix}${summaryLine}.${suffix}`);
-  }
-
-  return collapseRepeatedPunctuation(
-    `Thread-ready: ${title}. Manual split required. ${url}`,
-  );
-}
-
-function hashtagValue(value: string) {
-  const tag = value.replace(/^@/, "").replace(/[^a-zA-Z0-9]+/g, "");
-
-  return tag ? `#${tag}` : "";
-}
-
-function productHashtag(target: PublicationTarget) {
-  if (target.projectId === "syncsoap") {
-    return "#SyncSOAP";
-  }
-
-  if (target.projectId === "syncsafety") {
-    return "#SyncSafety";
-  }
-
-  return "#BringhurstDO";
 }
 
 function buildUtmForTarget(
@@ -438,105 +301,6 @@ function targetIsBlocked(target: PublicationTarget) {
     target.accountStatus !== undefined &&
     target.accountStatus !== "active"
   );
-}
-
-function draftTemplateBody({
-  campaign,
-  destinationUrl,
-  sourceSummary,
-  sourceTitle,
-  target,
-}: {
-  campaign: string;
-  destinationUrl: string;
-  sourceSummary: string;
-  sourceTitle: string;
-  target: PublicationTarget;
-}) {
-  const title = cleanTemplateInput(sourceTitle, "Product update");
-  const summary = cleanTemplateInput(
-    sourceSummary,
-    "A metadata-only operator update is ready for manual review.",
-  );
-  const account = target.accountName;
-  const audience = target.audience;
-  const productTag = productHashtag(target);
-  const accountTag = hashtagValue(target.publicHandle);
-
-  if (target.platform === "Facebook" && targetIsBlocked(target)) {
-    return [
-      `Blocked Facebook draft for ${account}.`,
-      "This account is pending Meta trust/Page creation and should not be used for live posting.",
-      "Keep this slot disabled until the account status becomes active.",
-      "Manual approval is still required before any future publishing.",
-    ].join("\n\n");
-  }
-
-  if (target.platform === "LinkedIn") {
-    return [
-      `${title}`,
-      "",
-      `${summary}`,
-      "",
-      `For ${audience}, the useful signal is simple: ${account} is keeping this update practical, reviewable, and tied to a manual operator workflow.`,
-      "",
-      `Campaign: ${campaign}`,
-      `Learn more: ${destinationUrl}`,
-      "",
-      "Manual approval required before posting. No autoposting is connected.",
-    ].join("\n");
-  }
-
-  if (target.platform === "Instagram") {
-    return [
-      `${title}`,
-      "",
-      `${sentenceExcerpt(summary, 180)}`,
-      "",
-      `Built for ${audience}.`,
-      "Manual review before anything goes live.",
-      "",
-      `${destinationUrl}`,
-      "",
-      [productTag, accountTag, "#OperatorNotes", "#BuildInPublic"]
-        .filter(Boolean)
-        .join(" "),
-    ].join("\n");
-  }
-
-  if (target.platform === "X") {
-    return xDraftBody(
-      title,
-      summary,
-      audience,
-      destinationUrl,
-    );
-  }
-
-  if (target.platform === "Facebook") {
-    return [
-      `${title}`,
-      "",
-      `${summary}`,
-      "",
-      `For ${audience}.`,
-      `Learn more: ${destinationUrl}`,
-      "",
-      "Manual approval required before posting. No Meta API is connected.",
-    ].join("\n");
-  }
-
-  return [
-    `${title}`,
-    "",
-    `${summary}`,
-    "",
-    `Target: ${account} / ${target.platform} / ${audience}`,
-    `Campaign: ${campaign}`,
-    `Destination: ${destinationUrl}`,
-    "",
-    "Manual approval required before publishing.",
-  ].join("\n");
 }
 
 function issueText(value: unknown, path: string) {
@@ -637,44 +401,57 @@ function normalizeMediaMetadata(value: unknown): OpsMediaMetadata {
   };
 }
 
+const LEGACY_OPERATOR_NOTE_PATTERN =
+  /manual approval|manual review|posting api|autopost|no ai or posting|local\/mock content package/i;
+
+function migrateDraftInternalNotes(draft: PlatformDraft): PlatformDraft {
+  const combined = [
+    ...(draft.operatorNotes ?? []),
+    ...(draft.safetyNotes ?? []),
+    ...(draft.aiReviewNotes ?? []),
+  ];
+  const operatorNotes = Array.from(
+    new Set([
+      ...DEFAULT_DRAFT_OPERATOR_NOTES,
+      ...combined.filter((note) => LEGACY_OPERATOR_NOTE_PATTERN.test(note)),
+    ]),
+  );
+  const safetyNotes = Array.from(
+    new Set([
+      ...DEFAULT_DRAFT_SAFETY_NOTES,
+      ...combined.filter((note) => !LEGACY_OPERATOR_NOTE_PATTERN.test(note)),
+    ]),
+  );
+
+  return {
+    ...draft,
+    aiReviewNotes: draft.aiReviewNotes ?? [],
+    operatorNotes,
+    safetyNotes,
+  };
+}
+
 function draftLooksGenerated(
   draft: PlatformDraft,
   sourceUpdate: SourceUpdate,
   target: PublicationTarget | undefined,
 ) {
-  const body = draft.body.trim();
-  const title = sourceUpdate.title.trim();
-
-  if (!body) {
-    return true;
-  }
-
-  if (
-    body.includes("useful signal is simple") &&
-    body.includes("Manual approval required before posting")
-  ) {
-    return true;
-  }
-
-  if (
-    body.includes("Manual review before anything goes live") &&
-    body.includes("#OperatorNotes")
-  ) {
+  if (draftLooksLikeLegacyGeneratedBody(draft.body)) {
     return true;
   }
 
   if (
     draft.platform === "X" &&
-    body.startsWith(`${title}:`) &&
+    draft.body.startsWith(`${sourceUpdate.title.trim()}:`) &&
     target &&
-    body.includes(`For ${target.audience}`)
+    /\bfor [a-z ]+[.!?]?$/i.test(draft.body.trim())
   ) {
     return true;
   }
 
   return (
-    body.startsWith(`Manual ${draft.platform} draft for`) &&
-    body.includes("No publishing API is connected")
+    draft.body.startsWith(`Manual ${draft.platform} draft for`) &&
+    draft.body.includes("No publishing API is connected")
   );
 }
 
@@ -690,14 +467,13 @@ function generatedDraftNeedsRepair(
     urls.some((url) => url !== draft.generatedUrl) ||
     (urls.length === 0 && draft.platform !== "X") ||
     (draft.platform === "X" && draft.body.length > xSinglePostLimit) ||
-    (draft.platform === "X" && !draft.body.includes(draft.generatedUrl)) ||
-    (draft.platform === "X" && /For [a-z ]+\.?$/.test(draft.body.trim()))
+    (draft.platform === "X" && !draft.body.includes(draft.generatedUrl))
   );
 }
 
 function draftTooLongNote(draft: PlatformDraft) {
   return draft.platform === "X" && draft.body.length > xSinglePostLimit
-    ? "Manual review: X draft exceeds single-post length; split into a thread or shorten before posting."
+    ? "Internal: X draft exceeds single-post length; split into a thread or shorten before posting."
     : undefined;
 }
 
@@ -715,50 +491,58 @@ function normalizePlatformDraft(
   sourceUpdate: SourceUpdate,
   publicationTargets: PublicationTarget[],
 ) {
+  const migratedDraft = migrateDraftInternalNotes(draft);
   const target = publicationTargets.find(
-    (item) => item.id === draft.publicationTargetId,
+    (item) => item.id === migratedDraft.publicationTargetId,
   );
-  const looksGenerated = draftLooksGenerated(draft, sourceUpdate, target);
-  const needsRepair = generatedDraftNeedsRepair(draft);
+  const looksGenerated = draftLooksGenerated(migratedDraft, sourceUpdate, target);
+  const needsRepair =
+    generatedDraftNeedsRepair(migratedDraft) ||
+    draftLooksLikeLegacyGeneratedBody(migratedDraft.body);
   const canRegenerate = Boolean(looksGenerated && needsRepair && target);
   const repairedBody = canRegenerate
     ? draftTemplateBody({
-        campaign: campaignFromGeneratedUrl(draft.generatedUrl, draft.utmCampaignId),
-        destinationUrl: draft.generatedUrl,
+        destinationUrl: migratedDraft.generatedUrl,
         sourceSummary: sourceUpdate.summary,
         sourceTitle: sourceUpdate.title,
         target: target as PublicationTarget,
       })
-    : bodyWithGeneratedUrl(draft.body, draft.generatedUrl, {
+    : bodyWithGeneratedUrl(migratedDraft.body, migratedDraft.generatedUrl, {
         appendIfMissing: false,
       });
   const safeBody =
-    draft.platform === "X" && repairedBody.length > xSinglePostLimit && canRegenerate
+    migratedDraft.platform === "X" &&
+    repairedBody.length > xSinglePostLimit &&
+    canRegenerate
       ? xDraftBody(
           sourceUpdate.title,
           sourceUpdate.summary,
-          target?.audience ?? "general",
-          draft.generatedUrl,
+          migratedDraft.generatedUrl,
         )
       : repairedBody;
-  const normalizedBody = bodyWithGeneratedUrl(safeBody, draft.generatedUrl, {
-    appendIfMissing: canRegenerate,
-  });
+  const normalizedBody = sanitizePublishableBody(
+    bodyWithGeneratedUrl(safeBody, migratedDraft.generatedUrl, {
+      appendIfMissing: canRegenerate,
+    }),
+  );
   const migrationNote =
     needsRepair && !canRegenerate
-      ? "Migration note: draft body looked manually edited or target metadata was unavailable, so it was not regenerated automatically."
+      ? "Internal: draft body looked manually edited or target metadata was unavailable, so it was not regenerated automatically."
       : undefined;
   const regeneratedNote = canRegenerate
-    ? "Migration note: recognized generated draft body was regenerated to current deterministic template."
+    ? "Internal: legacy generated draft body was regenerated to the current publishable template."
     : undefined;
+  const blockedNotes =
+    target && targetIsBlocked(target) ? blockedTargetOperatorNotes(target) : [];
 
   return {
-    ...draft,
+    ...migratedDraft,
     body: normalizedBody,
-    safetyNotes: appendUniqueNotes(draft.safetyNotes, [
+    operatorNotes: appendUniqueNotes(migratedDraft.operatorNotes ?? [], [
+      ...blockedNotes,
       migrationNote,
       regeneratedNote,
-      draftTooLongNote({ ...draft, body: normalizedBody }),
+      draftTooLongNote({ ...migratedDraft, body: normalizedBody }),
     ]),
   };
 }
@@ -992,54 +776,6 @@ function buildWeeklyQueueRows(records: LocalContentPackageRecord[]) {
   );
 }
 
-function buildPostPacket(record: LocalContentPackageRecord) {
-  const draftSections = record.platformDrafts
-    .map((draft) => {
-      const post = record.publishedPosts.find(
-        (item) => item.platformDraftId === draft.id,
-      );
-
-      return `## ${draft.accountName} / ${draft.platform}
-
-Status: ${draft.status}
-Posted: ${post?.status ?? "not posted"}
-Title: ${draft.title}
-Source project: ${draft.sourceProjectId}
-Publishing project: ${draft.publishingProjectId}
-UTM URL: ${draft.generatedUrl}
-Published URL: ${post?.postedUrl ?? post?.postUrl ?? "Not posted"}
-Posted at: ${post?.postedAt ?? post?.postedManuallyAt ?? "Not posted"}
-Media type: ${draft.media.mediaType}
-Media summary: ${draft.media.mediaSummary}
-Visual hook: ${draft.media.visualHook}
-Creative angle: ${draft.media.creativeAngle}
-Production effort: ${draft.media.productionEffort}
-Asset reference: ${draft.media.assetLocation ?? "None"}
-Reuse status: ${draft.media.reuseStatus}
-
-${draft.body}
-
-Safety notes:
-${draft.safetyNotes.map((note) => `- ${note}`).join("\n")}`;
-    })
-    .join("\n\n");
-
-  return `# Post Packet: ${record.contentPackage.title}
-
-Source update: ${record.sourceUpdate.title}
-Source project: ${record.sourceUpdate.sourceProjectId}
-Source date: ${record.sourceUpdate.sourceDate}
-Publishing projects: ${record.contentPackage.publishingProjectIds.join(", ")}
-Approval required: ${record.contentPackage.approvalRequired ? "Yes" : "No"}
-Boundary: metadata-only, no PHI, no credentials, no private messages, no raw logs.
-Manual rule: post manually only after approval. No autoposting or spend mutation is connected.
-
-${record.sourceUpdate.summary}
-
-${draftSections}
-`;
-}
-
 function formatPromptList(items: string[]) {
   return items.length > 0
     ? items.map((item) => `- ${item}`).join("\n")
@@ -1149,7 +885,7 @@ Reuse status: ${draft.media.reuseStatus}`,
 Draft status: ${draft.status}
 Draft title: ${draft.title}
 Starting draft:
-${draft.body}`,
+${sanitizePublishableBody(draft.body)}`,
     )
     .join("\n\n");
 
@@ -1792,6 +1528,30 @@ export function ContentPackageBuilder({
     setPacketMessage(`Exported ${record.contentPackage.title} as JSON.`);
   }
 
+  async function copyPublishableCopy(record: LocalContentPackageRecord) {
+    const publishable = buildPublishableCopy(record);
+    const issues = issueText(publishable, "publishableCopy");
+
+    if (issues.length > 0) {
+      setSaveIssues(issues);
+      setPacketMessage("");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(publishable);
+      setPacketMessage(
+        `Copied publishable social copy for ${record.contentPackage.title}.`,
+      );
+      setSaveIssues([]);
+    } catch {
+      setSaveIssues([
+        "Clipboard copy failed. Use Copy Post Packet or Export Package JSON instead.",
+      ]);
+      setPacketMessage("");
+    }
+  }
+
   async function copyPostPacket(record: LocalContentPackageRecord) {
     const packet = buildPostPacket(record);
     const issues = issueText(packet, "postPacket");
@@ -1804,7 +1564,9 @@ export function ContentPackageBuilder({
 
     try {
       await navigator.clipboard.writeText(packet);
-      setPacketMessage(`Copied post packet for ${record.contentPackage.title}.`);
+      setPacketMessage(
+        `Copied operator post packet for ${record.contentPackage.title}.`,
+      );
       setSaveIssues([]);
     } catch {
       setSaveIssues([
@@ -2054,11 +1816,7 @@ export function ContentPackageBuilder({
       approvalRequired: true,
       createdAt,
       id: contentPackageId,
-      notes: [
-        "Local/mock content package",
-        "Manual approval required before posting",
-        "No AI or posting API is connected",
-      ],
+      notes: [...DEFAULT_PACKAGE_OPERATOR_NOTES],
       projectIds: selectedProjectIds,
       publishingProjectIds: uniqueProjectIds(
         selectedTargets.map((target) => target.projectId),
@@ -2107,11 +1865,13 @@ export function ContentPackageBuilder({
         projectId: publishingProjectId,
         publicationTargetId: target.id,
         publishingProjectId,
-        safetyNotes: [
-          "Manual approval required before posting",
-          "No PHI, private identifiers, credentials, or raw logs",
-          "No posting API is connected",
-        ],
+        operatorNotes: targetIsBlocked(target)
+          ? [
+              ...DEFAULT_DRAFT_OPERATOR_NOTES,
+              ...blockedTargetOperatorNotes(target),
+            ]
+          : [...DEFAULT_DRAFT_OPERATOR_NOTES],
+        safetyNotes: [...DEFAULT_DRAFT_SAFETY_NOTES],
         sourceUpdateId,
         sourceProjectId: primaryProjectId,
         status: slot.status,
@@ -2211,14 +1971,13 @@ export function ContentPackageBuilder({
 
       return {
         ...draft,
-        body: proposal.body,
+        aiReviewNotes: proposal.safetyNotes,
+        body: sanitizePublishableBody(proposal.body),
         lastAiRunId: aiRunId,
         originalDeterministicBody,
-        safetyNotes: [
-          ...draft.safetyNotes,
-          "AI-improved draft applied after manual review.",
-          ...proposal.safetyNotes,
-        ],
+        operatorNotes: appendUniqueNotes(draft.operatorNotes ?? [
+          ...DEFAULT_DRAFT_OPERATOR_NOTES,
+        ], [`Internal: AI run ${aiRunId} applied after manual review.`]),
         status: "needs review" as PlatformDraftStatus,
         title: proposal.title,
         updatedAt: new Date().toISOString(),
@@ -2228,10 +1987,9 @@ export function ContentPackageBuilder({
       ...record,
       contentPackage: {
         ...record.contentPackage,
-        notes: [
-          ...record.contentPackage.notes,
-          `AI draft improvement run ${aiRunId} applied after manual review.`,
-        ],
+        notes: appendUniqueNotes(record.contentPackage.notes, [
+          `Internal: AI draft improvement run ${aiRunId} applied after manual review.`,
+        ]),
         status: "needs review",
         updatedAt: new Date().toISOString(),
       },
@@ -2256,13 +2014,13 @@ export function ContentPackageBuilder({
 
       return {
         ...draft,
-        body: draft.originalDeterministicBody,
+        aiReviewNotes: [],
+        body: sanitizePublishableBody(draft.originalDeterministicBody),
         lastAiRunId: undefined,
         originalDeterministicBody: undefined,
-        safetyNotes: [
-          ...draft.safetyNotes,
-          "Reverted to original deterministic draft after AI review.",
-        ],
+        operatorNotes: appendUniqueNotes(draft.operatorNotes ?? [], [
+          "Internal: reverted to original deterministic draft after AI review.",
+        ]),
         status: "drafted" as PlatformDraftStatus,
         updatedAt: new Date().toISOString(),
       };
@@ -2378,7 +2136,7 @@ export function ContentPackageBuilder({
 
       return (
         draft.body !== original.body ||
-        draft.safetyNotes.length !== original.safetyNotes.length
+        (draft.operatorNotes?.length ?? 0) !== (original.operatorNotes?.length ?? 0)
       );
     }).length;
 
@@ -2393,7 +2151,7 @@ export function ContentPackageBuilder({
       contentPackage: {
         ...record.contentPackage,
         notes: appendUniqueNotes(record.contentPackage.notes, [
-          "Generated draft repair reviewed locally; manual approval still required before posting.",
+          "Internal: generated draft repair reviewed locally before posting.",
         ]),
         updatedAt: new Date().toISOString(),
       },
@@ -3420,11 +3178,19 @@ export function ContentPackageBuilder({
                   </button>
                   <button
                     type="button"
+                    onClick={() => void copyPublishableCopy(record)}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copy Publishable Copy
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => void copyPostPacket(record)}
                     className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     <Copy className="h-4 w-4" />
-                    Copy Post Packet
+                    Copy Operator Packet
                   </button>
                   <button
                     type="button"

@@ -325,6 +325,10 @@ export type PlatformDraft = {
   utmCampaignId: string;
   generatedUrl: string;
   safetyNotes: SafeOpsText[];
+  /** Internal operator/workflow notes — never paste to social platforms. */
+  operatorNotes?: SafeOpsText[];
+  /** Internal AI review reminders from the last apply run — not public copy. */
+  aiReviewNotes?: SafeOpsText[];
   updatedAt: string;
   /** Preserved when an AI-improved body replaces a deterministic draft. */
   originalDeterministicBody?: SafeOpsText;

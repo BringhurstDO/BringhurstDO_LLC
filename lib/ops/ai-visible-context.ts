@@ -1,3 +1,7 @@
+import {
+  sanitizePublishableBody,
+  stripTemplateArtifacts,
+} from "@/lib/ops/publishable-copy";
 import type {
   OpsAccountProjectId,
   OpsAudienceProfile,
@@ -185,7 +189,11 @@ export function buildOpsAiVisibleContextFromRecord({
     manualReviewRequired: true,
     platformDrafts: record.platformDrafts.map((draft) => ({
       accountName: draft.accountName,
-      body: draft.originalDeterministicBody ?? draft.body,
+      body: sanitizePublishableBody(
+        stripTemplateArtifacts(
+          draft.originalDeterministicBody ?? draft.body,
+        ),
+      ),
       generatedUrl: draft.generatedUrl,
       id: draft.id,
       media: {

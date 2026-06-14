@@ -10,6 +10,7 @@ import {
   parseAiPayload,
   type AiGenerationUsage,
 } from "@/lib/ops/ai-prompt";
+import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 
 type OpenAiResponse = {
   choices?: Array<{ message?: { content?: string } }>;
@@ -58,7 +59,7 @@ function mapProposals(
 
       return {
         accountName: draft.accountName ?? sourceDraft?.accountName ?? "Unknown",
-        body: draft.body.trim(),
+        body: sanitizePublishableBody(draft.body.trim()),
         mediaNote:
           typeof draft.mediaNote === "string" && draft.mediaNote.trim()
             ? draft.mediaNote.trim()

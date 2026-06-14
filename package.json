@@ -15,7 +15,8 @@
     "db:verify": "node db/verify.mjs",
     "ops:hash-password": "node scripts/hash-ops-password.mjs",
     "ops:verify-deploy": "node scripts/verify-deploy.mjs",
-    "ops:check-ai-safety": "npx tsx scripts/check-ai-safety.ts"
+    "ops:check-ai-safety": "npx tsx scripts/check-ai-safety.ts",
+    "ops:check-publishable-copy": "npx tsx scripts/check-publishable-copy.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
