@@ -243,7 +243,7 @@ export function LinkedInConnectPanel({
           <p className="text-sm text-slate-500">Loading status…</p>
         ) : null}
 
-        {!loading && !configured && status?.disabledReason ? (
+        {!loading && status?.disabledReason ? (
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
             <p className="font-semibold text-slate-900">Integration not ready</p>
             <p className="mt-1">{status.disabledReason}</p>
