@@ -1,5 +1,6 @@
 import { BadgeCheck, Ban, ClipboardList, ExternalLink } from "lucide-react";
 
+import { LinkedInConnectPanel } from "@/app/ops/_components/linkedin-connect-panel";
 import {
   BoundaryPill,
   OpsPageHeader,
@@ -72,7 +73,18 @@ function AccountFieldList({ account }: { account: OpsAccountRegistryEntry }) {
   );
 }
 
-export default function OpsAccountsPage() {
+export default async function OpsAccountsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const connectResult =
+    typeof params.linkedin === "string" ? params.linkedin : undefined;
+  const connectError =
+    typeof params.linkedin_error === "string"
+      ? params.linkedin_error
+      : undefined;
   const { accountRegistry, socialMetricPlaceholders } = opsDashboardData;
   const projectAccounts = accountRegistry.filter((account) => account.kind === "project");
   const founderAccounts = accountRegistry.filter((account) => account.kind === "founder");
@@ -98,6 +110,11 @@ export default function OpsAccountsPage() {
           <BoundaryPill>Manual approval before publishing</BoundaryPill>
           <BoundaryPill>Manual approval before spending</BoundaryPill>
         </div>
+
+        <LinkedInConnectPanel
+          connectResult={connectResult}
+          connectError={connectError}
+        />
 
         <OpsPanel title="Account Status Labels" eyebrow="Basic labels">
           <div className="flex flex-wrap gap-2">

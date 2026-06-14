@@ -453,3 +453,47 @@ or private user information.
 Manual approval requirement: link generation is local/mock-only until approved.
 Publishing, scheduling, paid promotion, or campaign spend requires explicit
 manual approval.
+
+## Phase 7A/7B Approved Exception: LinkedIn Publishing + Amplification
+
+Phase 7A is the first explicitly approved exception to the historical
+"no OAuth / no posting API / no autoposting" boundary. Phase 7B extends it to
+multiple connected accounts and founder-first native reshare. Both are narrowly
+scoped and fail-closed. See `docs/ops-phase-7a-linkedin-publish.md` for detail.
+
+Newly allowed (LinkedIn only):
+
+- Server-only LinkedIn OAuth 2.0 connect/disconnect, per account.
+- Multiple concurrent connections (founder member account + brand org pages),
+  declared in the `LINKEDIN_ACCOUNTS` allowlist.
+- Encrypted-at-rest storage of access/refresh tokens in Postgres
+  (AES-256-GCM via `OPS_SOCIAL_TOKEN_SECRET`).
+- Operator-approved, per-draft publishing to the LinkedIn Posts API, posting as
+  the account tied to the draft's publication target.
+- Operator-approved native reshare (`reshareContext.parent`) of a published post
+  from another connected account (founder-first amplification).
+- A metadata-only publish/reshare audit log (`ops_social_publish_log`).
+
+Still forbidden, even with Phase 7A/7B enabled:
+
+- Scheduling, queued autoposting, or bulk posting. Every publish and every
+  reshare is a single, explicit, operator-confirmed action.
+- Returning tokens, refresh tokens, or client secrets to the browser. Only
+  public connection status (configured/connected/expired, masked author id,
+  expiry, scopes) is exposed.
+- Ad spend, budget control, OAuth for any other platform, or media upload.
+- Sending PHI, patient identifiers, encounter text, transcripts, clinical
+  payloads, private messages, raw logs, or secret values to LinkedIn.
+
+Guardrails:
+
+- The integration is disabled unless `OPS_LINKEDIN_ENABLED=true` and all required
+  config is present. It also requires durable database storage.
+- Publishable bodies (and reshare commentary) are re-sanitized server-side and
+  rejected if they still contain internal workflow/operator artifacts.
+- Connection rows are keyed by `(platform, accountId)`, so each account is an
+  isolated, separately approved connection.
+
+Manual approval requirement: connecting an account does not grant blanket posting
+approval. Each post and each reshare remains individually
+manual-approval-required and is logged.

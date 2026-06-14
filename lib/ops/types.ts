@@ -348,6 +348,8 @@ export type PublishedPost = {
   postedUrl?: string;
   postedManuallyAt?: string;
   postUrl?: string;
+  /** Platform post id/URN returned by the publishing API (enables reshares). */
+  platformPostId?: MetadataOnlyString;
   manualNotes: SafeOpsText[];
 };
 
@@ -625,4 +627,148 @@ export type OpsDashboardData = {
   performanceSnapshots: PerformanceSnapshot[];
   businessOutcomes: BusinessOutcome[];
   projectHealthSnapshots: ProjectHealthSnapshot[];
+};
+
+// --- Phase 7A: Social account connection + manual-approved publishing ---
+//
+// These models support an explicitly approved, server-only OAuth connection for
+// one platform at a time (LinkedIn first). Tokens never reach the browser; only
+// public connection status and post results are returned to the client. Every
+// publish remains operator-approved on a per-draft basis.
+
+export type SocialConnectionPlatform = "LinkedIn";
+
+export type SocialAuthorType = "organization" | "member";
+
+/**
+ * Public, browser-safe connection status. Never includes tokens, refresh
+ * tokens, client secrets, or any credential material.
+ */
+export type SocialConnectionPublicStatus = {
+  platform: SocialConnectionPlatform;
+  /** Ops account id this connection maps to (e.g. account-founder-linkedin). */
+  accountId: string;
+  /** Configured display label for this account. */
+  configuredLabel: MetadataOnlyString;
+  /** Intended author type for this account (member vs organization). */
+  configuredAuthorType: SocialAuthorType;
+  /** Integration is enabled by env flag and required config is present. */
+  configured: boolean;
+  /** A stored, non-expired connection exists for this account. */
+  connected: boolean;
+  /** Why the integration is unavailable, when configured is false. */
+  disabledReason: string | null;
+  authorType: SocialAuthorType | null;
+  /** Public display label for the connected author (e.g. account name). */
+  accountLabel: MetadataOnlyString | null;
+  /** Public handle/URN suffix is omitted; only a masked author id is shown. */
+  authorIdMasked: string | null;
+  /** ISO timestamp when the stored access token expires. */
+  expiresAt: string | null;
+  /** True when the stored token is expired or about to expire. */
+  expired: boolean;
+  scopes: string[];
+  connectedAt: string | null;
+  /** Manual approval is always required before any publish. */
+  manualApprovalRequired: true;
+};
+
+/** Multi-account status response listing every configured account. */
+export type SocialConnectionsStatusResponse = {
+  platform: SocialConnectionPlatform;
+  configured: boolean;
+  disabledReason: string | null;
+  accounts: SocialConnectionPublicStatus[];
+};
+
+/**
+ * Server-only stored connection record. Token fields are encrypted at rest and
+ * must never be serialized into client props, exports, logs, or screenshots.
+ */
+export type SocialConnectionRecord = {
+  id: string;
+  platform: SocialConnectionPlatform;
+  accountId: string;
+  authorType: SocialAuthorType;
+  authorUrn: string;
+  accountLabel: MetadataOnlyString;
+  /** AES-256-GCM ciphertext of the access token. */
+  accessTokenCipher: string;
+  /** AES-256-GCM ciphertext of the refresh token, when provided. */
+  refreshTokenCipher: string | null;
+  scopes: string[];
+  expiresAt: string;
+  refreshTokenExpiresAt: string | null;
+  connectedAt: string;
+  updatedAt: string;
+  sourceBoundary: MetadataOnlyString;
+};
+
+export type SocialPublishRequest = {
+  platform: SocialConnectionPlatform;
+  contentPackageId: string;
+  platformDraftId: string;
+  publicationTargetId: string;
+  accountId: string;
+  title: MetadataOnlyString;
+  body: SafeOpsText;
+  linkUrl?: string;
+  /** Operator must explicitly confirm the draft is approved for posting. */
+  confirmApproved: true;
+};
+
+export type SocialPublishResult = {
+  platform: SocialConnectionPlatform;
+  accountId: string;
+  platformDraftId: string;
+  publicationTargetId: string;
+  platformPostId: string;
+  postUrl: string;
+  postedAt: string;
+  publishLogId: string;
+};
+
+/** Reshare an already-published post from another connected account. */
+export type SocialReshareRequest = {
+  platform: SocialConnectionPlatform;
+  accountId: string;
+  contentPackageId: string;
+  sourcePlatformDraftId: string;
+  sourcePostUrn: string;
+  commentary?: SafeOpsText;
+  /** Operator must explicitly confirm the amplification. */
+  confirmApproved: true;
+};
+
+export type SocialReshareResult = {
+  platform: SocialConnectionPlatform;
+  accountId: string;
+  sourcePlatformDraftId: string;
+  platformPostId: string;
+  postUrl: string;
+  postedAt: string;
+  publishLogId: string;
+};
+
+export type SocialPublishLogStatus = "success" | "blocked" | "error";
+
+/**
+ * Server-only audit row for every publish attempt. Metadata only: it records
+ * what was posted where and the outcome, never the access token.
+ */
+export type SocialPublishLogRecord = {
+  id: string;
+  platform: SocialConnectionPlatform;
+  contentPackageId: string;
+  platformDraftId: string;
+  publicationTargetId: string;
+  accountId: string;
+  authorUrn: string;
+  status: SocialPublishLogStatus;
+  platformPostId: string | null;
+  postUrl: string | null;
+  bodyPreview: SafeOpsText;
+  notes: SafeOpsText[];
+  createdAt: string;
+  sourceBoundary: MetadataOnlyString;
 };

@@ -46,6 +46,13 @@ yarn-error.log*
 # These can contain cookies, login databases, cache files, or other private state.
 /scripts/edge-og-temp*/
 
+# Local ops export fixtures and OG/social-header capture scratch files.
+/ops_export/
+/scripts/og-capture*.html
+/scripts/og-test*.png
+/scripts/live-social-header.png
+/public/bringhurstdo-social-header-source.svg
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

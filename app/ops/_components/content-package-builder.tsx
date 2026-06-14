@@ -16,12 +16,14 @@ import {
   Download,
   FilePlus2,
   Link2,
+  Megaphone,
   Plus,
   Save,
   Upload,
 } from "lucide-react";
 
 import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
+import { StatusPill } from "@/app/ops/_components/ops-ui";
 import {
   blockedTargetOperatorNotes,
   draftLooksLikeLegacyGeneratedBody,
@@ -68,6 +70,10 @@ import type {
   PublicationTarget,
   PublishedPost,
   PublishedPostStatus,
+  SocialConnectionPublicStatus,
+  SocialConnectionsStatusResponse,
+  SocialPublishResult,
+  SocialReshareResult,
   SourceUpdate,
   SourceUpdateType,
 } from "@/lib/ops/types";
@@ -1099,6 +1105,14 @@ export function ContentPackageBuilder({
   const [packetMessage, setPacketMessage] = useState("");
   const [aiPromptMessage, setAiPromptMessage] = useState("");
   const [storageMessage, setStorageMessage] = useState("");
+  const [linkedinStatus, setLinkedinStatus] =
+    useState<SocialConnectionsStatusResponse | null>(null);
+  const [publishingDraftId, setPublishingDraftId] = useState<string | null>(
+    null,
+  );
+  const [resharingKey, setResharingKey] = useState<string | null>(null);
+  const [publishMessage, setPublishMessage] = useState("");
+  const [publishError, setPublishError] = useState("");
   const [historyMediaType, setHistoryMediaType] = useState<"all" | OpsMediaType>(
     "all",
   );
@@ -1196,6 +1210,49 @@ export function ContentPackageBuilder({
       isMounted = false;
     };
   }, [createPersistenceAdapter, publicationTargets]);
+
+  const refreshLinkedInStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/ops/api/social/linkedin/status", {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as SocialConnectionsStatusResponse;
+      setLinkedinStatus(data);
+    } catch {
+      setLinkedinStatus(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshLinkedInStatus();
+  }, [refreshLinkedInStatus]);
+
+  const targetAccountIdById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const target of publicationTargets) {
+      map.set(target.id, target.accountId);
+    }
+    return map;
+  }, [publicationTargets]);
+
+  const linkedInAccountStatus = useCallback(
+    (accountId: string | undefined): SocialConnectionPublicStatus | null => {
+      if (!accountId || !linkedinStatus) {
+        return null;
+      }
+      return (
+        linkedinStatus.accounts.find(
+          (account) => account.accountId === accountId,
+        ) ?? null
+      );
+    },
+    [linkedinStatus],
+  );
+
+  const connectedLinkedInAccounts = useMemo(
+    () => linkedinStatus?.accounts.filter((account) => account.connected) ?? [],
+    [linkedinStatus],
+  );
 
   const selectedTargets = useMemo(
     () =>
@@ -2085,6 +2142,206 @@ export function ContentPackageBuilder({
     }
 
     updateRecord(record.contentPackage.id, { publishedPosts: nextPosts });
+  }
+
+  function mergeLinkedInPublishResult(
+    record: LocalContentPackageRecord,
+    draft: PlatformDraft,
+    result: SocialPublishResult,
+  ): LocalContentPackageRecord[] {
+    const existingPost = record.publishedPosts.find(
+      (post) => post.platformDraftId === draft.id,
+    );
+    const publishNote = `Published to LinkedIn via Ops. Post id: ${result.platformPostId}`;
+
+    const nextPost: PublishedPost = existingPost
+      ? {
+          ...existingPost,
+          manualNotes: Array.from(
+            new Set([...existingPost.manualNotes, publishNote]),
+          ),
+          platformPostId: result.platformPostId,
+          postUrl: result.postUrl,
+          postedAt: result.postedAt,
+          postedManuallyAt: result.postedAt,
+          postedUrl: result.postUrl,
+          status: "posted",
+        }
+      : {
+          accountName: draft.accountName,
+          id: `published-${draft.id}`,
+          manualNotes: [publishNote],
+          platform: draft.platform,
+          platformDraftId: draft.id,
+          platformPostId: result.platformPostId,
+          postUrl: result.postUrl,
+          postedAt: result.postedAt,
+          postedManuallyAt: result.postedAt,
+          postedUrl: result.postUrl,
+          projectId: draft.publishingProjectId ?? draft.projectId,
+          publicationTargetId: draft.publicationTargetId,
+          status: "posted",
+        };
+
+    const nextPublishedPosts = existingPost
+      ? record.publishedPosts.map((post) =>
+          post.id === nextPost.id ? nextPost : post,
+        )
+      : [...record.publishedPosts, nextPost];
+
+    const nextDrafts = record.platformDrafts.map((item) =>
+      item.id === draft.id ? { ...item, status: "posted" as const } : item,
+    );
+
+    const nextRecord: LocalContentPackageRecord = {
+      ...record,
+      platformDrafts: nextDrafts,
+      publishedPosts: nextPublishedPosts,
+    };
+
+    return records.map((item) =>
+      item.contentPackage.id === record.contentPackage.id ? nextRecord : item,
+    );
+  }
+
+  async function publishDraftToLinkedIn(
+    record: LocalContentPackageRecord,
+    draft: PlatformDraft,
+  ) {
+    setPublishError("");
+    setPublishMessage("");
+
+    if (draft.platform !== "LinkedIn") {
+      return;
+    }
+
+    const accountId = targetAccountIdById.get(draft.publicationTargetId);
+    const accountStatus = linkedInAccountStatus(accountId);
+
+    if (!accountStatus?.connected) {
+      setPublishError(
+        "This draft's LinkedIn account is not connected. Connect it on the Accounts page first.",
+      );
+      return;
+    }
+
+    if (draft.status !== "approved") {
+      setPublishError(
+        "Set this draft's status to approved before publishing to LinkedIn.",
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Publish this approved draft to LinkedIn as ${accountStatus.accountLabel ?? draft.accountName}? This posts publicly and cannot be undone from Ops.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPublishingDraftId(draft.id);
+
+    try {
+      const response = await fetch("/ops/api/social/linkedin/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId,
+          body: sanitizePublishableBody(draft.body),
+          confirmApproved: true,
+          contentPackageId: record.contentPackage.id,
+          linkUrl: draft.generatedUrl,
+          platformDraftId: draft.id,
+          publicationTargetId: draft.publicationTargetId,
+          title: draft.title,
+        }),
+      });
+
+      const data = (await response.json()) as
+        | SocialPublishResult
+        | { error?: string };
+
+      if (!response.ok || !("postUrl" in data)) {
+        const message =
+          "error" in data && data.error ? data.error : "LinkedIn publish failed.";
+        throw new Error(message);
+      }
+
+      const result = data as SocialPublishResult;
+      const nextRecords = mergeLinkedInPublishResult(record, draft, result);
+
+      if (await persistRecords(nextRecords)) {
+        setPublishMessage(
+          `Published ${draft.platform} draft for ${draft.accountName}. Public post URL saved.`,
+        );
+      }
+    } catch (error) {
+      setPublishError(
+        error instanceof Error ? error.message : "LinkedIn publish failed.",
+      );
+    } finally {
+      setPublishingDraftId(null);
+    }
+  }
+
+  async function reshareDraftToLinkedIn(
+    record: LocalContentPackageRecord,
+    draft: PlatformDraft,
+    sourcePostUrn: string,
+    amplifierAccountId: string,
+    amplifierLabel: string,
+  ) {
+    setPublishError("");
+    setPublishMessage("");
+
+    const reshareKey = `${draft.id}:${amplifierAccountId}`;
+
+    const confirmed = window.confirm(
+      `Reshare this post to LinkedIn as ${amplifierLabel}? This amplifies the original public post and cannot be undone from Ops.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setResharingKey(reshareKey);
+
+    try {
+      const response = await fetch("/ops/api/social/linkedin/reshare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: amplifierAccountId,
+          confirmApproved: true,
+          contentPackageId: record.contentPackage.id,
+          sourcePlatformDraftId: draft.id,
+          sourcePostUrn,
+        }),
+      });
+
+      const data = (await response.json()) as
+        | SocialReshareResult
+        | { error?: string };
+
+      if (!response.ok || !("postUrl" in data)) {
+        const message =
+          "error" in data && data.error ? data.error : "LinkedIn reshare failed.";
+        throw new Error(message);
+      }
+
+      setPublishMessage(
+        `Reshared to LinkedIn as ${amplifierLabel}. Amplification post URL: ${
+          (data as SocialReshareResult).postUrl
+        }`,
+      );
+    } catch (error) {
+      setPublishError(
+        error instanceof Error ? error.message : "LinkedIn reshare failed.",
+      );
+    } finally {
+      setResharingKey(null);
+    }
   }
 
   function updatePerformanceSnapshot(
@@ -3133,6 +3390,20 @@ export function ContentPackageBuilder({
             </div>
           ) : null}
 
+          {publishMessage ? (
+            <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-800">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              {publishMessage}
+            </div>
+          ) : null}
+
+          {publishError ? (
+            <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium leading-6 text-red-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+              {publishError}
+            </div>
+          ) : null}
+
           {aiPromptMessage ? (
             <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-800">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
@@ -3425,6 +3696,136 @@ export function ContentPackageBuilder({
                               />
                             </label>
                           </div>
+
+                          {draft.platform === "LinkedIn"
+                            ? (() => {
+                                const draftAccountId = targetAccountIdById.get(
+                                  draft.publicationTargetId,
+                                );
+                                const draftAccount =
+                                  linkedInAccountStatus(draftAccountId);
+                                const sourcePostUrn = post?.platformPostId ?? "";
+                                const amplifierAccounts =
+                                  connectedLinkedInAccounts.filter(
+                                    (account) =>
+                                      account.accountId !== draftAccountId,
+                                  );
+
+                                return (
+                                  <div className="rounded-md border border-[#0a66c2]/30 bg-[#0a66c2]/5 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className="text-sm font-semibold text-slate-900">
+                                        Publish to LinkedIn
+                                      </p>
+                                      {post?.status === "posted" ? (
+                                        <StatusPill tone="good">
+                                          Posted
+                                        </StatusPill>
+                                      ) : null}
+                                    </div>
+                                    {draftAccount?.connected ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            void publishDraftToLinkedIn(
+                                              record,
+                                              draft,
+                                            )
+                                          }
+                                          disabled={
+                                            publishingDraftId === draft.id ||
+                                            draft.status !== "approved"
+                                          }
+                                          className="mt-2 inline-flex h-9 items-center gap-2 rounded-md bg-[#0a66c2] px-3 text-sm font-semibold text-white transition-colors hover:bg-[#0954a0] disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                          <Megaphone
+                                            className="h-4 w-4"
+                                            aria-hidden
+                                          />
+                                          {publishingDraftId === draft.id
+                                            ? "Publishing…"
+                                            : post?.status === "posted"
+                                              ? "Publish again"
+                                              : "Publish approved draft"}
+                                        </button>
+                                        {draft.status !== "approved" ? (
+                                          <p className="mt-2 text-xs leading-5 text-slate-600">
+                                            Set this draft&apos;s status to
+                                            approved to enable publishing.
+                                          </p>
+                                        ) : (
+                                          <p className="mt-2 text-xs leading-5 text-slate-600">
+                                            Posts publicly as{" "}
+                                            {draftAccount.accountLabel ??
+                                              draftAccount.configuredLabel}
+                                            . Body is re-sanitized before
+                                            posting.
+                                          </p>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <p className="mt-2 text-xs leading-5 text-slate-600">
+                                        Connect{" "}
+                                        {draftAccount?.configuredLabel ??
+                                          "this account"}{" "}
+                                        on the Accounts page to enable one-click
+                                        publishing.
+                                      </p>
+                                    )}
+
+                                    {post?.status === "posted" &&
+                                    sourcePostUrn &&
+                                    amplifierAccounts.length > 0 ? (
+                                      <div className="mt-3 border-t border-[#0a66c2]/20 pt-3">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                          Amplify (founder-first reshare)
+                                        </p>
+                                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                                          Reshare this published post from your
+                                          brand pages. Each reshare is a separate
+                                          approved action.
+                                        </p>
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                          {amplifierAccounts.map((account) => {
+                                            const key = `${draft.id}:${account.accountId}`;
+                                            return (
+                                              <button
+                                                key={account.accountId}
+                                                type="button"
+                                                onClick={() =>
+                                                  void reshareDraftToLinkedIn(
+                                                    record,
+                                                    draft,
+                                                    sourcePostUrn,
+                                                    account.accountId,
+                                                    account.accountLabel ??
+                                                      account.configuredLabel,
+                                                  )
+                                                }
+                                                disabled={resharingKey === key}
+                                                className="inline-flex h-8 items-center gap-2 rounded-md border border-[#0a66c2]/40 bg-white px-3 text-xs font-semibold text-[#0a66c2] transition-colors hover:bg-[#0a66c2]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                              >
+                                                <Megaphone
+                                                  className="h-3.5 w-3.5"
+                                                  aria-hidden
+                                                />
+                                                {resharingKey === key
+                                                  ? "Resharing…"
+                                                  : `Reshare as ${
+                                                      account.accountLabel ??
+                                                      account.configuredLabel
+                                                    }`}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                );
+                              })()
+                            : null}
 
                           {snapshot ? (
                             <div className="grid gap-3 sm:grid-cols-5">
