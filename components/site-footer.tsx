@@ -121,9 +121,19 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} BringhurstDO LLC. All rights reserved.
-        </p>
+        <div className="flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <Link
+              href="/privacy"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Privacy Policy
+            </Link>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} BringhurstDO LLC. All rights reserved.
+          </p>
+        </div>
       </div>
     </footer>
   );
