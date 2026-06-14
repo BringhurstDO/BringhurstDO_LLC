@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, CircleDollarSign, ListChecks } from "lucide-react";
 
 import { ExportButtons } from "@/app/ops/_components/export-buttons";
-import { OpsPageHeader, OpsPanel, StatusPill } from "@/app/ops/_components/ops-ui";
+import { OpsPageHeader, OpsPanel, opsShellClass, StatusPill } from "@/app/ops/_components/ops-ui";
 import {
   jsonExportFile,
   markdownExportFile,
@@ -32,7 +32,7 @@ export default function OpsReportsPage() {
         description="Mock weekly review for project status, wins, risks, cost notes, marketing output, and next actions."
       />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className={`${opsShellClass} grid gap-6 py-6`}>
         <OpsPanel
           title="Weekly Report Export"
           eyebrow={`${weeklyReport.weekStart} to ${weeklyReport.weekEnd}`}

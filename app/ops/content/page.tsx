@@ -6,6 +6,7 @@ import {
   BoundaryPill,
   OpsPageHeader,
   OpsPanel,
+  opsShellClass,
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
 import {
@@ -60,7 +61,7 @@ export default function OpsContentPage() {
         description="Local-only idea bank, draft queue, manual posted tracking, and UTM helper links. Nothing here posts externally."
       />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className={`${opsShellClass} grid gap-6 py-6`}>
         <div className="flex flex-wrap gap-2">
           <BoundaryPill>Manual posted tracking only</BoundaryPill>
           <BoundaryPill>No publishing API</BoundaryPill>

@@ -1,4 +1,4 @@
-import { BoundaryPill, OpsPageHeader, OpsPanel } from "@/app/ops/_components/ops-ui";
+import { BoundaryPill, OpsPageHeader, OpsPanel, opsShellClass } from "@/app/ops/_components/ops-ui";
 import { ImportJsonPanel } from "@/app/ops/_components/import-json-panel";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export default function OpsImportPage() {
         description="Paste local JSON exports for metadata-only validation and preview. This page does not save, publish, or call external services."
       />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className={`${opsShellClass} grid gap-6 py-6`}>
         <div className="flex flex-wrap gap-2">
           <BoundaryPill>Browser-local validation</BoundaryPill>
           <BoundaryPill>No storage or database writes</BoundaryPill>

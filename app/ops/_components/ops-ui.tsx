@@ -39,10 +39,15 @@ export const toneDotClasses: Record<OpsTone, string> = {
   neutral: "bg-slate-400",
 };
 
+/** Ops pages use a slightly narrower shell than site marketing pages for readability. */
+export const opsShellClass = "mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8";
+
 export function OpsTopNav() {
   return (
     <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+      <div
+        className={`${opsShellClass} flex flex-col gap-4 py-4 lg:flex-row lg:items-center lg:justify-between`}
+      >
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
             <LockKeyhole className="h-4 w-4" aria-hidden />
@@ -115,7 +120,7 @@ export function OpsPageHeader({
 }) {
   return (
     <section className="border-b border-slate-200 bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className={`${opsShellClass} py-6`}>
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
           <BarChart3 className="h-4 w-4" aria-hidden />
           {eyebrow}

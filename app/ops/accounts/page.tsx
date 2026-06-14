@@ -4,6 +4,7 @@ import {
   BoundaryPill,
   OpsPageHeader,
   OpsPanel,
+  opsShellClass,
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
 import { opsDashboardData } from "@/lib/ops/mock-data";
@@ -90,7 +91,7 @@ export default function OpsAccountsPage() {
         description="Manual registry for project and founder accounts. This stores public account context only, not credentials or private platform data."
       />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className={`${opsShellClass} grid gap-6 py-6`}>
         <div className="flex flex-wrap gap-2">
           <BoundaryPill>No credentials or login state</BoundaryPill>
           <BoundaryPill>No private messages or audience exports</BoundaryPill>

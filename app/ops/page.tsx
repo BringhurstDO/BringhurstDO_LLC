@@ -7,6 +7,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { opsShellClass } from "@/app/ops/_components/ops-ui";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 import type { OpsAccountStatus, OpsTone } from "@/lib/ops/types";
 
@@ -72,7 +73,7 @@ export default function OpsPage() {
   return (
     <main className="min-h-dvh">
       <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+        <div className={`${opsShellClass} flex flex-col gap-6 py-6`}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
@@ -107,7 +108,7 @@ export default function OpsPage() {
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className={`${opsShellClass} grid gap-6 py-6`}>
         <section aria-labelledby="weekly-scorecard-heading">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2

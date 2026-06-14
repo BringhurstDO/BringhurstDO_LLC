@@ -1,7 +1,7 @@
 import { Activity, ClipboardCheck, DollarSign } from "lucide-react";
 
 import { ExportButtons } from "@/app/ops/_components/export-buttons";
-import { OpsPageHeader, OpsPanel, StatusPill } from "@/app/ops/_components/ops-ui";
+import { OpsPageHeader, OpsPanel, opsShellClass, StatusPill } from "@/app/ops/_components/ops-ui";
 import {
   jsonExportFile,
   markdownExportFile,
@@ -31,7 +31,7 @@ export default function OpsProjectsPage() {
         description="Mock health details for SyncSOAP, SyncSafety, and BringhurstDO. No live project APIs are connected."
       />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className={`${opsShellClass} grid gap-6 py-6`}>
         <OpsPanel
           title="Project Health Snapshot Export"
           eyebrow={`${projectHealthSnapshots.length} mock snapshots`}

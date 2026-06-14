@@ -14,6 +14,7 @@ import {
   BoundaryPill,
   OpsPageHeader,
   OpsPanel,
+  opsShellClass,
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
 import { opsDashboardData } from "@/lib/ops/mock-data";
@@ -48,7 +49,7 @@ export default function OpsMetricsPage() {
         description="Manual/local scorecard for content and business metrics. Social metrics are placeholders for future read-only aggregate sources."
       />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className={`${opsShellClass} grid gap-6 py-6`}>
         <div className="flex flex-wrap gap-2">
           <BoundaryPill>Manual entry/import first</BoundaryPill>
           <BoundaryPill>Read-only social placeholders</BoundaryPill>
