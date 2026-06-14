@@ -334,6 +334,14 @@ export type PlatformDraft = {
   originalDeterministicBody?: SafeOpsText;
   /** Last successful Ops AI run that produced a pending or applied improvement. */
   lastAiRunId?: string;
+  /** Content series this draft belongs to (Phase 8A). */
+  seriesId?: string;
+  /** 1-based position within the target's series schedule. */
+  seriesIndex?: number;
+  /** Suggested calendar day for manual posting (YYYY-MM-DD). Shown on 8B calendar; autoposted when 8C enabled. */
+  suggestedScheduledFor?: string;
+  /** Explicit operator opt-in for Phase 8C scheduled LinkedIn autopublish on suggestedScheduledFor. */
+  autopublishEnabled?: boolean;
 };
 
 export type PublishedPost = {
@@ -467,6 +475,93 @@ export type OpsAiImproveDraftsResponse = {
   runId: string;
 };
 
+export type ContentSeriesMetadata = {
+  id: string;
+  postsPerWeek: number;
+  seriesStartDate: string;
+  updateType: SourceUpdateType;
+  weekCount: number;
+  /** When true, saved series drafts default autopublishEnabled on (still require approve). */
+  autopublishSeries?: boolean;
+};
+
+export type OpsAiSeriesSplitProposal = {
+  accountName: MetadataOnlyString;
+  body: SafeOpsText;
+  mediaNote: SafeOpsText;
+  platform: PublicationPlatform;
+  proposalId: string;
+  publicationTargetId: string;
+  safetyNotes: SafeOpsText[];
+  seriesIndex: number;
+  suggestedScheduledFor: string;
+  title: MetadataOnlyString;
+};
+
+export type OpsAiSeriesSplitResponse = {
+  manualReviewRequired: true;
+  model: MetadataOnlyString;
+  proposals: OpsAiSeriesSplitProposal[];
+  provider: Exclude<OpsAiProvider, "none">;
+  runId: string;
+  seriesId: string;
+};
+
+export type OpsAutopublishDraftResultStatus = "error" | "published" | "skipped";
+
+export type OpsAutopublishDraftResult = {
+  accountName: MetadataOnlyString;
+  contentPackageId: string;
+  platform: PublicationPlatform;
+  platformDraftId: string;
+  postUrl?: string;
+  reason?: SafeOpsText;
+  status: OpsAutopublishDraftResultStatus;
+};
+
+export type OpsAutopublishRunStatus = "error" | "partial" | "success";
+
+export type OpsAutopublishRunTrigger = "cron" | "manual";
+
+export type OpsAutopublishRunRecord = {
+  createdAt: string;
+  draftResults: OpsAutopublishDraftResult[];
+  errorCount: number;
+  id: string;
+  notes: SafeOpsText[];
+  publishedCount: number;
+  runDate: string;
+  skippedCount: number;
+  sourceBoundary: MetadataOnlyString;
+  status: OpsAutopublishRunStatus;
+  timeZone: MetadataOnlyString;
+  trigger: OpsAutopublishRunTrigger;
+};
+
+export type OpsAutopublishPublicStatus = {
+  cronConfigured: boolean;
+  disabledReason: string | null;
+  enabled: boolean;
+  linkedInOnly: true;
+  manualReviewRequired: false;
+  platform: "LinkedIn";
+  requiresDraftOptIn: true;
+  requiresDraftStatus: "approved";
+  timeZone: MetadataOnlyString;
+};
+
+export type OpsAutopublishRunResponse = {
+  draftResults: OpsAutopublishDraftResult[];
+  errorCount: number;
+  publishedCount: number;
+  runDate: string;
+  runId: string;
+  skippedCount: number;
+  status: OpsAutopublishRunStatus;
+  timeZone: MetadataOnlyString;
+  trigger: OpsAutopublishRunTrigger;
+};
+
 export type OpsServerRecordMetadata = {
   id: string;
   createdAt: string;
@@ -567,6 +662,8 @@ export type ContentPackage = {
   createdAt: string;
   updatedAt: string;
   notes: SafeOpsText[];
+  /** Present when the package was created from a weekly summary series split. */
+  series?: ContentSeriesMetadata;
 };
 
 export type ProjectHealthSnapshot = {

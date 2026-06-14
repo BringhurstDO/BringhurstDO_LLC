@@ -497,3 +497,67 @@ Guardrails:
 Manual approval requirement: connecting an account does not grant blanket posting
 approval. Each post and each reshare remains individually
 manual-approval-required and is logged.
+
+## Phase 8A Approved Exception: AI Weekly Summary Series Split
+
+Phase 8A adds server-side AI that splits one metadata-only weekly summary into
+multiple platform-specific draft proposals with suggested publish dates. See
+`docs/ops-phase-8a-content-series.md` for detail.
+
+Newly allowed:
+
+- `POST /ops/api/ai/split-series` with the same Ops AI provider config as
+  improve-drafts.
+- Suggested calendar dates on drafts (`suggestedScheduledFor`) and series metadata
+  on content packages — metadata only, not autopost triggers.
+
+Still forbidden:
+
+- Autopost scheduling, queued publishing, or calendar API writes.
+- Auto-saving AI output without explicit operator review and save.
+- Any expansion of OAuth or posting APIs beyond Phase 7A LinkedIn.
+
+Manual approval requirement: every series draft remains `needs review` until a
+human approves and posts manually (or via the existing LinkedIn publish button).
+
+## Phase 8B Approved Exception: Publish Calendar (Manual Publish)
+
+Phase 8B adds a calendar queue at `/ops/content/calendar` for drafts with
+`suggestedScheduledFor` dates. See `docs/ops-phase-8b-publish-calendar.md` and
+`docs/ops-roadmap.md`.
+
+Newly allowed:
+
+- Calendar grouping: today, overdue, upcoming, unscheduled
+- Operator approve and reschedule actions on persisted drafts
+- LinkedIn publish from the calendar (same 7A API, same confirm gate)
+
+Still forbidden:
+
+- Autopost at scheduled time (Phase 8C — requires new boundary approval)
+- Background cron or queue workers
+- Publishing without per-draft operator confirmation
+
+Manual approval requirement unchanged: suggested dates are reminders only.
+
+## Phase 8C Approved Exception: Scheduled LinkedIn Autopublish
+
+Phase 8C adds a daily Vercel cron that publishes approved, autopublish-opt-in
+LinkedIn drafts on their `suggestedScheduledFor` date. See
+`docs/ops-phase-8c-scheduled-autopublish.md`.
+
+Newly allowed:
+
+- `GET/POST /api/cron/ops-autopublish` (CRON_SECRET Bearer auth, outside Basic Auth)
+- `POST /ops/api/autopublish/run` (manual test from calendar)
+- Per-draft `autopublishEnabled` opt-in on persisted packages
+
+Still forbidden:
+
+- Autopublish without `autopublishEnabled=true` on the draft
+- Autopublish without `status=approved`
+- Autopublish for non-LinkedIn platforms
+- Autopublish from browser localStorage (Postgres only)
+
+Manual approval requirement: operators must approve each draft before autopublish
+can run. Opt-in autopublish is not blanket series approval.

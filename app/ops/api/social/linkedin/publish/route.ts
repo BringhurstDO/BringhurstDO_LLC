@@ -1,37 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { getReadyLinkedInConnection } from "@/lib/ops/linkedin-connection";
-import { publishLinkedInPost } from "@/lib/ops/linkedin-client";
-import {
-  findLinkedInAccount,
-  resolveLinkedInConfig,
-} from "@/lib/ops/linkedin-config";
-import {
-  containsPublishableArtifact,
-  sanitizePublishableBody,
-} from "@/lib/ops/publishable-copy";
-import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
-import type {
-  SocialPublishLogRecord,
-  SocialPublishResult,
-} from "@/lib/ops/types";
+import { publishLinkedInDraft } from "@/lib/ops/linkedin-publish-service";
+import { resolveLinkedInConfig } from "@/lib/ops/linkedin-config";
+import type { SocialPublishResult } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
-
-const PUBLISH_BOUNDARY =
-  "BringhurstDO Ops manual-approved LinkedIn publish. Metadata-only audit row; no tokens stored.";
 
 function jsonNoStore(body: unknown, status = 200) {
   return NextResponse.json(body, {
     headers: { "Cache-Control": "no-store" },
     status,
   });
-}
-
-function nowId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 type PublishBody = {
@@ -92,102 +73,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const account = findLinkedInAccount(config.config, requestedAccountId);
+  const published = await publishLinkedInDraft({
+    accountId: requestedAccountId,
+    body: rawBody,
+    contentPackageId,
+    linkUrl: linkUrl || undefined,
+    platformDraftId,
+    publicationTargetId,
+    title: title || undefined,
+    trigger: "manual",
+  });
 
-  if (!account) {
-    return jsonNoStore(
-      { error: `Unknown LinkedIn account: ${requestedAccountId}` },
-      400,
-    );
+  if (!published.ok) {
+    const httpStatus =
+      published.error.code === "connection"
+        ? published.error.message.includes("not connected")
+          ? 409
+          : 502
+        : published.error.code === "not_found"
+          ? 400
+          : published.error.code === "body_invalid"
+            ? 400
+            : 502;
+
+    return jsonNoStore({ error: published.error.message }, httpStatus);
   }
 
-  const body = sanitizePublishableBody(rawBody);
-
-  if (containsPublishableArtifact(body)) {
-    return jsonNoStore(
-      {
-        error:
-          "Body still contains internal workflow/operator language after sanitizing. Clean the draft before publishing.",
-      },
-      400,
-    );
-  }
-
-  const ready = await getReadyLinkedInConnection(config.config, account);
-
-  if (!ready.ok) {
-    const httpStatus = ready.error.code === "load_failed" ? 502 : 409;
-    return jsonNoStore({ error: ready.error.message }, httpStatus);
-  }
-
-  const publishLogId = `social-publish-${nowId()}`;
-  const bodyPreview = body.slice(0, 280);
-
-  try {
-    const published = await publishLinkedInPost({
-      accessToken: ready.value.accessToken,
-      authorUrn: ready.value.authorUrn,
-      commentary: body,
-      config: config.config,
-      linkUrl: linkUrl || undefined,
-      title: title || undefined,
-    });
-
-    const postedAt = new Date().toISOString();
-    const logRecord: SocialPublishLogRecord = {
-      accountId: account.accountId,
-      authorUrn: ready.value.authorUrn,
-      bodyPreview,
-      contentPackageId,
-      createdAt: postedAt,
-      id: publishLogId,
-      notes: [`Operator-approved manual publish to LinkedIn as ${account.label}.`],
-      platform: "LinkedIn",
-      platformDraftId,
-      platformPostId: published.platformPostId,
-      postUrl: published.postUrl,
-      publicationTargetId,
-      sourceBoundary: PUBLISH_BOUNDARY,
-      status: "success",
-    };
-
-    await saveSocialPublishLog(logRecord).catch(() => undefined);
-
-    const result: SocialPublishResult = {
-      accountId: account.accountId,
-      platform: "LinkedIn",
-      platformDraftId,
-      platformPostId: published.platformPostId,
-      postUrl: published.postUrl,
-      postedAt,
-      publicationTargetId,
-      publishLogId,
-    };
-
-    return jsonNoStore(result);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "LinkedIn publish failed.";
-
-    const logRecord: SocialPublishLogRecord = {
-      accountId: account.accountId,
-      authorUrn: ready.value.authorUrn,
-      bodyPreview,
-      contentPackageId,
-      createdAt: new Date().toISOString(),
-      id: publishLogId,
-      notes: [message],
-      platform: "LinkedIn",
-      platformDraftId,
-      platformPostId: null,
-      postUrl: null,
-      publicationTargetId,
-      sourceBoundary: PUBLISH_BOUNDARY,
-      status: "error",
-    };
-
-    await saveSocialPublishLog(logRecord).catch(() => undefined);
-
-    return jsonNoStore({ error: message, publishLogId }, 502);
-  }
+  return jsonNoStore(published.result satisfies SocialPublishResult);
 }

@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/ops-autopublish",
+      "schedule": "0 14 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

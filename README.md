@@ -32,8 +32,9 @@ Required local environment variables are listed in `.env.example`:
 - `OPS_BASIC_AUTH_PASSWORD_SHA256`
 - `CRON_SECRET`
 
-`CRON_SECRET` is reserved for a future cron endpoint. Keep phase 2 local/mock-only
-until the production env vars and Vercel protection plan are verified.
+`CRON_SECRET` secures the Phase 8C autopublish cron route (`/api/cron/ops-autopublish`).
+Set `OPS_AUTOPUBLISH_ENABLED=true` only with database storage, LinkedIn configured,
+and `CRON_SECRET` in Vercel project settings.
 
 ### Generate the Ops Password Hash
 

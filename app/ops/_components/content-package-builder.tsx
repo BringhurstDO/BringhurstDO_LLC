@@ -3597,6 +3597,14 @@ export function ContentPackageBuilder({
                             <h4 className="font-sans text-base font-semibold text-slate-950">
                               {draft.accountName} / {draft.platform}
                             </h4>
+                            {draft.suggestedScheduledFor ? (
+                              <StatusPill tone="neutral">
+                                {draft.suggestedScheduledFor}
+                                {draft.seriesIndex
+                                  ? ` · #${draft.seriesIndex}`
+                                  : ""}
+                              </StatusPill>
+                            ) : null}
                           </div>
                           <p className="mt-2 text-sm leading-6 text-slate-700">
                             {draft.body}

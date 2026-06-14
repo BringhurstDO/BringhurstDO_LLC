@@ -4,6 +4,17 @@ This workflow turns one metadata-only source update into a local content package
 It does not use AI APIs, posting APIs, social APIs, databases, live credentials,
 or paid services.
 
+For the full phased plan (including series split, publish calendar, and LinkedIn),
+see **`docs/ops-roadmap.md`**.
+
+## Related workflows
+
+| Workflow | Doc | Route |
+|----------|-----|-------|
+| Series split (8A) | `ops-phase-8a-content-series.md` | `/ops/content/series` |
+| Publish calendar (8B) | `ops-phase-8b-publish-calendar.md` | `/ops/content/calendar` |
+| LinkedIn publish (7A) | `ops-phase-7a-linkedin-publish.md` | `/ops/accounts`, builder |
+
 ## Models
 
 - `SourceUpdate`: one approved business/product/operator update.

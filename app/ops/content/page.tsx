@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FilePlus2, Link2, Megaphone, PencilLine } from "lucide-react";
+import { CalendarDays, FilePlus2, Link2, Megaphone, PencilLine } from "lucide-react";
 
 import { ExportButtons } from "@/app/ops/_components/export-buttons";
 import {
@@ -68,6 +68,48 @@ export default function OpsContentPage() {
           <BoundaryPill>No audience lists or private identifiers</BoundaryPill>
           <BoundaryPill>Every post gets a UTM link</BoundaryPill>
         </div>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-sans text-base font-semibold text-slate-950">
+                Publish Calendar
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Review today&apos;s drafts, overdue items, and upcoming schedule.
+                Approve and publish manually — dates are reminders only.
+              </p>
+            </div>
+            <Link
+              href="/ops/content/calendar"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+            >
+              <CalendarDays className="h-4 w-4" aria-hidden />
+              Open Calendar
+            </Link>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-sans text-base font-semibold text-slate-950">
+                Weekly Summary To Content Series
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Paste a metadata-only weekly summary and let AI split it into
+                platform posts with suggested publish dates over one or more weeks.
+              </p>
+            </div>
+            <Link
+              href="/ops/content/series"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-violet-300 bg-violet-50 px-4 text-sm font-semibold text-violet-900 hover:bg-violet-100"
+            >
+              <Megaphone className="h-4 w-4" aria-hidden />
+              Split Series
+            </Link>
+          </div>
+        </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
