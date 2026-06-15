@@ -16,6 +16,7 @@
     "ops:hash-password": "node scripts/hash-ops-password.mjs",
     "ops:verify-deploy": "node scripts/verify-deploy.mjs",
     "ops:check-ai-safety": "npx tsx scripts/check-ai-safety.ts",
+    "ops:check-ai-series-output": "npx tsx scripts/check-ai-series-output.ts",
     "ops:check-publishable-copy": "npx tsx scripts/check-publishable-copy.ts"
   },
   "dependencies": {
@@ -40,6 +41,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.14",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }

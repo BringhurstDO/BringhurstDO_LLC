@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getOpsAiPublicStatus, requireOpsAiGeneration } from "@/lib/ops/ai-config";
 import { validateSeriesSplitRequest } from "@/lib/ops/ai-series-context";
 import { generateOpsAiSeriesSplit } from "@/lib/ops/ai-series-split";
+import { validateSeriesSplitOutput } from "@/lib/ops/ai-series-output-validation";
 import { saveOpsAiRunRecord } from "@/lib/ops/ai-runs-db";
 import {
   collectAiSafetyIssues,
@@ -144,8 +145,13 @@ export async function POST(request: NextRequest) {
     const outputIssues = formatAiSafetyIssues(
       collectAiSafetyIssues(generated.proposals, "aiSeriesProposals"),
     );
+    const outputValidationIssues = validateSeriesSplitOutput({
+      context,
+      proposals: generated.proposals,
+    });
+    const allOutputIssues = [...outputIssues, ...outputValidationIssues];
 
-    if (outputIssues.length > 0) {
+    if (allOutputIssues.length > 0) {
       const runRecord: OpsAiRunRecord = {
         completionTokens: generated.completionTokens,
         contentPackageId: context.series.id,
@@ -159,7 +165,7 @@ export async function POST(request: NextRequest) {
         platformCount: generated.proposals.length,
         promptTokens: generated.promptTokens,
         provider,
-        safetyIssues: outputIssues,
+        safetyIssues: allOutputIssues,
         sourceBoundary:
           "BringhurstDO Ops metadata-only AI weekly summary series split request.",
         status: "blocked_output",
@@ -171,7 +177,7 @@ export async function POST(request: NextRequest) {
       return jsonNoStore(
         {
           error: "Ops AI series output failed safety validation.",
-          issues: outputIssues,
+          issues: allOutputIssues,
           runId,
         },
         400,

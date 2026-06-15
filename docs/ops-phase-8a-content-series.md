@@ -31,6 +31,11 @@ schedule or autopost anything.
 - Same metadata-only boundary as Phase 6 AI improve: no PHI, credentials, tokens,
   clinical payloads, or raw logs in input or output.
 - Input and output pass `collectAiSafetyIssues` before and after the provider call.
+- Output proposals are validated against the selected server-side slots before
+  they are returned to the operator. The splitter blocks proposals that do not
+  match a selected slot, change the platform or publication target, have an empty
+  body after sanitization, or exceed that platform's configured character limit
+  (`X` remains capped at one 280-character post).
 - AI runs are logged in `ops_ai_runs` with `contentPackageId` set to the series id.
 - Proposals are not auto-saved; the operator must explicitly save the package.
 

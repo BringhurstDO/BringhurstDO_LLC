@@ -28,15 +28,25 @@ export const OPS_AUTOPUBLISH_CRON_UTC_HOUR = 14;
 export function autopublishRunTimeLabel(
   timeZone: string,
   utcHour = OPS_AUTOPUBLISH_CRON_UTC_HOUR,
+  reference = new Date(),
 ) {
-  const reference = new Date(Date.UTC(2026, 0, 1, utcHour, 0, 0));
+  const runReference = new Date(
+    Date.UTC(
+      reference.getUTCFullYear(),
+      reference.getUTCMonth(),
+      reference.getUTCDate(),
+      utcHour,
+      0,
+      0,
+    ),
+  );
 
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
     timeZone,
     timeZoneName: "short",
-  }).format(reference);
+  }).format(runReference);
 }
 
 export function resolveAutopublishConfig() {
