@@ -13,7 +13,6 @@ import {
 
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import {
-  bodyWithGeneratedUrl,
   buildUtmForTarget,
   campaignName,
   currentCaptureDate,
@@ -25,8 +24,13 @@ import {
   DEFAULT_DRAFT_OPERATOR_NOTES,
   DEFAULT_DRAFT_SAFETY_NOTES,
   DEFAULT_PACKAGE_OPERATOR_NOTES,
+  prepareSeriesPublishableBody,
   sanitizePublishableBody,
 } from "@/lib/ops/publishable-copy";
+import {
+  countRebalancedDrafts,
+  rebalanceContentPackageSchedules,
+} from "@/lib/ops/schedule-rebalance";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
 import {
   createLocalStorageOpsPersistenceAdapter,
@@ -38,6 +42,8 @@ import type {
   BusinessOutcome,
   ContentPackage,
   OpsAiPublicStatus,
+  OpsAiSeriesPlan,
+  OpsAiSeriesPlanResponse,
   OpsAiSeriesSplitProposal,
   OpsAiSeriesSplitResponse,
   OpsContentPackageRecord,
@@ -126,6 +132,8 @@ export function ContentSeriesBuilder({
   const [saving, setSaving] = useState(false);
   const [seriesAutopublish, setSeriesAutopublish] = useState(false);
   const [summaryFileName, setSummaryFileName] = useState("");
+  const [planLoading, setPlanLoading] = useState(false);
+  const [schedulePlan, setSchedulePlan] = useState<OpsAiSeriesPlan | null>(null);
   const summaryFileInputRef = useRef<HTMLInputElement>(null);
 
   function openSummaryFilePicker() {
@@ -239,6 +247,76 @@ export function ContentSeriesBuilder({
     setIssues([]);
   }
 
+  async function suggestSchedule() {
+    if (!seriesSummary.trim()) {
+      setIssues(["Paste a weekly summary before suggesting a schedule."]);
+      return;
+    }
+
+    if (selectedTargets.length === 0) {
+      setIssues(["Select at least one publication target first."]);
+      return;
+    }
+
+    setPlanLoading(true);
+    setIssues([]);
+    setSchedulePlan(null);
+
+    try {
+      const response = await fetch("/ops/api/ai/plan-series", {
+        body: JSON.stringify({
+          publicationTargetIds: selectedTargetIds,
+          seriesSummary,
+          seriesTitle,
+          updateType,
+        }),
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      const payload = (await response.json()) as OpsAiSeriesPlanResponse & {
+        error?: string;
+        issues?: string[];
+      };
+
+      if (!response.ok) {
+        setIssues(
+          payload.issues?.length
+            ? payload.issues
+            : [payload.error ?? `Schedule suggestion failed with ${response.status}.`],
+        );
+        return;
+      }
+
+      setSchedulePlan(payload.plan);
+      setMessage(
+        payload.plan.source === "ai"
+          ? "AI suggested a schedule below. Apply it or adjust manually."
+          : "Heuristic schedule suggested below (AI unavailable). Apply or adjust manually.",
+      );
+    } catch {
+      setIssues(["Schedule suggestion request failed. Check network and try again."]);
+    } finally {
+      setPlanLoading(false);
+    }
+  }
+
+  function applySchedulePlan() {
+    if (!schedulePlan) {
+      return;
+    }
+
+    setPostsPerWeek(schedulePlan.postsPerWeek);
+    setWeekCount(schedulePlan.weekCount);
+    setMessage(
+      `Applied ${schedulePlan.totalPosts} posts at ${schedulePlan.postsPerWeek}/week over ${schedulePlan.weekCount} week${schedulePlan.weekCount === 1 ? "" : "s"}.`,
+    );
+  }
+
   async function splitSeries() {
     if (!aiStatus.enabled) {
       setIssues([
@@ -265,6 +343,7 @@ export function ContentSeriesBuilder({
           seriesSummary,
           seriesTitle,
           sourceProjectId: primaryProjectId,
+          totalPosts: schedulePlan?.totalPosts,
           updateType,
           weekCount,
         }),
@@ -436,7 +515,7 @@ export function ContentSeriesBuilder({
       const campaign = `${campaignName(seriesTitle, target)}-s${proposal.seriesIndex}`;
       const content = `${target.id}_series_${proposal.seriesIndex}`;
       const generatedUrl = buildUtmForTarget(target, campaign, content);
-      const body = bodyWithGeneratedUrl(proposal.body.trim(), generatedUrl);
+      const body = prepareSeriesPublishableBody(proposal.body.trim());
       const publishingProjectId = target.projectId ?? primaryProjectId;
 
       return {
@@ -541,7 +620,21 @@ export function ContentSeriesBuilder({
     };
 
     try {
-      await persistRecords([record, ...records]);
+      const mergedRecords = [record, ...records];
+      const rebalancedRecords = rebalanceContentPackageSchedules(mergedRecords, {
+        postsPerWeek,
+      });
+      const changedCount = countRebalancedDrafts(mergedRecords, rebalancedRecords);
+
+      await persistRecords(rebalancedRecords);
+
+      if (changedCount > 0) {
+        setMessage((current) =>
+          current
+            ? `${current} Rebalanced ${changedCount} pending draft date${changedCount === 1 ? "" : "s"} on the publish calendar.`
+            : `Rebalanced ${changedCount} pending draft date${changedCount === 1 ? "" : "s"} on the publish calendar.`,
+        );
+      }
     } finally {
       setSaving(false);
     }
@@ -704,6 +797,47 @@ export function ContentSeriesBuilder({
             />
           </label>
         </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={planLoading || !seriesSummary.trim() || selectedTargets.length === 0}
+            onClick={() => void suggestSchedule()}
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-violet-300 bg-violet-50 px-3 text-sm font-semibold text-violet-900 hover:bg-violet-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden />
+            {planLoading ? "Suggesting…" : "Suggest schedule with AI"}
+          </button>
+          {schedulePlan ? (
+            <button
+              type="button"
+              onClick={applySchedulePlan}
+              className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+            >
+              Apply suggestion
+            </button>
+          ) : null}
+        </div>
+
+        {schedulePlan ? (
+          <div className="mt-4 rounded-md border border-violet-200 bg-violet-50 p-4 text-sm leading-6 text-violet-950">
+            <p className="font-semibold">
+              Suggested: {schedulePlan.totalPosts} post
+              {schedulePlan.totalPosts === 1 ? "" : "s"} at {schedulePlan.postsPerWeek}
+              /week over {schedulePlan.weekCount} week
+              {schedulePlan.weekCount === 1 ? "" : "s"}
+              {schedulePlan.source === "heuristic" ? " (heuristic)" : ""}
+            </p>
+            <p className="mt-1 text-violet-900">{schedulePlan.reasoning}</p>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm leading-6 text-slate-600">
+            AI can recommend post count and spread based on your summary so posts
+            do not repeat themselves. Saving a new series rebalances all pending
+            calendar dates — recent updates get near-term slots without jumping
+            ahead of older series.
+          </p>
+        )}
 
         {schedulePreview.length > 0 && selectedTargets.length > 0 ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-slate-600">

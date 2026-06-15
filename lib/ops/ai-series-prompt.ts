@@ -9,9 +9,9 @@ Hard rules:
 - Vary hooks across the series. Progress from insight → story → lesson → update → soft CTA when multiple posts exist for one target.
 - Respect bodyMaxChars for each slot. LinkedIn posts should stay under bodyMaxChars characters.
 - For X, keep each body within bodyMaxChars (single post, not a numbered thread label).
-- Never include manual approval, autoposting, OAuth/API, campaign labels, draft IDs, operator workflow, metadata-only language, or internal routing in "body".
+- Never include URLs, links, or http/https in "body". Social platforms (especially LinkedIn) penalize link-in-post copy. The operator adds links manually when posting if needed.
 - "safetyNotes" and "mediaNote" are internal only — never repeat them in "body".
-- Preserve exact destination URLs when you include a link. If a slot has destinationUrl, include that exact URL once in the body when a CTA link is appropriate (not every post needs a link).
+- Never include manual approval, autoposting, OAuth/API, campaign labels, draft IDs, operator workflow, metadata-only language, or internal routing in "body".
 
 Return JSON only:
 {

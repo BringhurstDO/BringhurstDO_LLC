@@ -42,11 +42,9 @@ function formatLocalDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function startOfWeekMonday(date: Date) {
+function addCalendarDays(date: Date, days: number) {
   const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = copy.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  copy.setDate(copy.getDate() + diff);
+  copy.setDate(copy.getDate() + days);
   return copy;
 }
 
@@ -58,16 +56,21 @@ export function buildSeriesSchedule(input: {
   const postsPerWeek = Math.min(7, Math.max(1, input.postsPerWeek));
   const weekCount = Math.min(8, Math.max(1, input.weekCount));
   const offsets = WEEKDAY_OFFSETS[postsPerWeek] ?? WEEKDAY_OFFSETS[3];
-  const weekStart = startOfWeekMonday(parseLocalDate(input.seriesStartDate));
+  const anchor = parseLocalDate(input.seriesStartDate);
+  const anchorDate = input.seriesStartDate.trim();
   const dates: string[] = [];
 
   for (let week = 0; week < weekCount; week += 1) {
     for (let index = 0; index < postsPerWeek; index += 1) {
-      const slotDate = new Date(weekStart);
-      slotDate.setDate(
-        weekStart.getDate() + week * 7 + (offsets[index] ?? index),
+      const slotDate = addCalendarDays(
+        anchor,
+        week * 7 + (offsets[index] ?? index),
       );
-      dates.push(formatLocalDate(slotDate));
+      const formatted = formatLocalDate(slotDate);
+
+      if (formatted >= anchorDate) {
+        dates.push(formatted);
+      }
     }
   }
 

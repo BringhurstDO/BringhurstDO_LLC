@@ -507,6 +507,22 @@ export type OpsAiSeriesSplitResponse = {
   seriesId: string;
 };
 
+export type OpsAiSeriesPlan = {
+  postsPerWeek: number;
+  reasoning: MetadataOnlyString;
+  source: "ai" | "heuristic";
+  totalPosts: number;
+  weekCount: number;
+};
+
+export type OpsAiSeriesPlanResponse = {
+  manualReviewRequired: true;
+  model: MetadataOnlyString;
+  plan: OpsAiSeriesPlan;
+  provider: Exclude<OpsAiProvider, "none"> | "none";
+  warning?: MetadataOnlyString;
+};
+
 export type OpsAutopublishDraftResultStatus = "error" | "published" | "skipped";
 
 export type OpsAutopublishDraftResult = {

@@ -44,7 +44,6 @@ export type OpsAiSeriesSplitContext = {
   slots: Array<{
     accountName: string;
     bodyMaxChars: number;
-    destinationUrl: string;
     platform: PublicationPlatform;
     publicationTargetId: string;
     seriesIndex: number;
@@ -165,6 +164,13 @@ export function validateSeriesSplitRequest({
     issues,
     { max: 8, min: 1 },
   );
+  const totalPostsCap = requirePositiveInt(
+    request.totalPosts ?? 0,
+    "totalPosts",
+    issues,
+    { max: 12, min: 0 },
+  );
+  const effectiveTotalPosts = totalPostsCap > 0 ? totalPostsCap : undefined;
 
   const rawTargetIds = request.publicationTargetIds;
   const publicationTargetIds = Array.isArray(rawTargetIds)
@@ -208,6 +214,10 @@ export function validateSeriesSplitRequest({
       seriesStartDate,
       weekCount,
     });
+
+    if (effectiveTotalPosts) {
+      scheduleDates = scheduleDates.slice(0, effectiveTotalPosts);
+    }
   } catch (error) {
     return {
       context: null,
@@ -233,7 +243,6 @@ export function validateSeriesSplitRequest({
     scheduleDates.map((suggestedScheduledFor, index) => ({
       accountName: target.accountName,
       bodyMaxChars: platformBodyMaxChars(target.platform),
-      destinationUrl: target.defaultDestinationUrl,
       platform: target.platform,
       publicationTargetId: target.id,
       seriesIndex: index + 1,

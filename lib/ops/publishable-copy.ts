@@ -87,6 +87,19 @@ export function stripTemplateArtifacts(body: string) {
     .trim();
 }
 
+export function stripPublicUrlsFromBody(body: string) {
+  return body
+    .replace(/\r\n/g, "\n")
+    .replace(/https?:\/\/[^\s)\]>]+/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+export function prepareSeriesPublishableBody(body: string) {
+  return sanitizePublishableBody(stripPublicUrlsFromBody(body));
+}
+
 export function sanitizePublishableBody(body: string) {
   let next = stripTemplateArtifacts(body);
 
