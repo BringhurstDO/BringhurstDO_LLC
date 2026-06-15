@@ -1,3 +1,5 @@
+import { parseAiJsonResponse } from "@/lib/ops/parse-ai-json";
+
 export const OPS_AI_SYSTEM_PROMPT = `You improve public marketing and social draft text for BringhurstDO Ops.
 
 Hard rules:
@@ -48,12 +50,7 @@ export type ParsedAiPayload = {
 };
 
 export function parseAiPayload(raw: string): ParsedAiPayload {
-  const trimmed = raw.trim();
-  const jsonText = trimmed.startsWith("```")
-    ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")
-    : trimmed;
-
-  return JSON.parse(jsonText) as ParsedAiPayload;
+  return parseAiJsonResponse<ParsedAiPayload>(raw);
 }
 
 export type AiGenerationUsage = {
