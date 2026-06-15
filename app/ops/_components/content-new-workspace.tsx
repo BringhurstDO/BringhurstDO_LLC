@@ -33,7 +33,7 @@ export function ContentNewWorkspace(props: ContentNewWorkspaceProps) {
   const [mode, setMode] = useState<CreateMode>("series");
 
   return (
-    <div className="grid min-w-0 gap-6">
+    <div className="grid min-w-0 max-w-full gap-6 overflow-x-clip">
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="font-sans text-base font-semibold text-slate-950">
           What are you creating?
@@ -87,7 +87,7 @@ export function ContentNewWorkspace(props: ContentNewWorkspaceProps) {
           storageMode={props.storageMode}
         />
       ) : (
-        <ContentPackageBuilder {...props} />
+        <ContentPackageBuilder {...props} focus="create" />
       )}
     </div>
   );

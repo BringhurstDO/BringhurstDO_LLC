@@ -62,7 +62,7 @@ export default function OpsNewContentPackagePage() {
       <OpsPageHeader
         eyebrow="Content creation"
         title="New Content"
-        description="Split a weekly summary into platform posts with AI, or build a single source update into draft slots. Manage saved packages, posting, and metrics below."
+        description="Split a weekly summary into platform posts with AI, or build one source update into draft slots. Use the publish calendar to schedule and post."
       />
 
       <div className={`${opsShellClass} grid min-w-0 gap-6 py-6`}>

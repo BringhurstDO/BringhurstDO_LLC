@@ -2551,7 +2551,9 @@ export function ContentPackageBuilder({
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      {!isCreateFocus ? (
+      <>
+      <section className="min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-200 p-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -3035,8 +3037,10 @@ export function ContentPackageBuilder({
           </div>
         </div>
       </section>
+      </>
+      ) : null}
 
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section className="min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-5">
           <h2 className="font-sans text-base font-semibold text-slate-950">
             Select Products, Accounts, And Platforms
@@ -3614,7 +3618,7 @@ export function ContentPackageBuilder({
                               </StatusPill>
                             ) : null}
                           </div>
-                          <p className="mt-2 text-sm leading-6 text-slate-700">
+                          <p className="mt-2 break-words text-sm leading-6 text-slate-700">
                             {draft.body}
                           </p>
                           <p className="mt-3 break-all font-mono text-xs leading-5 text-slate-500">
