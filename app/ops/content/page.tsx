@@ -133,6 +133,12 @@ export default function OpsContentPage() {
         </section>
 
         <OpsPanel title="Idea Bank" eyebrow={`${contentIdeas.length} local ideas`}>
+          {contentIdeas.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+              No ideas yet. Future AI suggestions will appear here for your review
+              and approval before they become drafts.
+            </div>
+          ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {contentIdeas.map((idea) => (
               <article
@@ -187,13 +193,23 @@ export default function OpsContentPage() {
               </article>
             ))}
           </div>
+          )}
         </OpsPanel>
 
         <OpsPanel
           title="Draft Post Queue"
           eyebrow={`${draftPosts.length} draft rows`}
-          actions={<ExportButtons files={draftExportFiles} />}
+          actions={
+            draftPosts.length > 0 ? <ExportButtons files={draftExportFiles} /> : undefined
+          }
         >
+          {draftPosts.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+              No draft queue rows yet. Split a weekly summary or create a content
+              package to generate platform drafts.
+            </div>
+          ) : (
+          <>
           <div className="grid gap-3 md:hidden">
             {draftPosts.map((draft) => (
               <article
@@ -295,12 +311,18 @@ export default function OpsContentPage() {
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </OpsPanel>
 
         <OpsPanel
           title="UTM Campaign Helper"
           eyebrow="Generated locally"
-          actions={<ExportButtons files={utmExportFiles} />}
+          actions={
+            utmCampaignLinks.length > 0 ? (
+              <ExportButtons files={utmExportFiles} />
+            ) : undefined
+          }
         >
           <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
             <div className="flex items-center gap-2 font-semibold text-slate-950">
@@ -314,6 +336,12 @@ export default function OpsContentPage() {
             </p>
           </div>
 
+          {utmCampaignLinks.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+              No UTM helper links yet. They are created automatically when you save
+              content packages with platform draft slots.
+            </div>
+          ) : (
           <div className="grid gap-4">
             {utmCampaignLinks.map((link) => (
               <article
@@ -357,6 +385,7 @@ export default function OpsContentPage() {
               </article>
             ))}
           </div>
+          )}
         </OpsPanel>
       </div>
     </main>

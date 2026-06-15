@@ -563,6 +563,7 @@ export type OpsAutopublishPublicStatus = {
   platform: "LinkedIn";
   requiresDraftOptIn: true;
   requiresDraftStatus: "approved";
+  runTimeLabel: MetadataOnlyString;
   timeZone: MetadataOnlyString;
 };
 

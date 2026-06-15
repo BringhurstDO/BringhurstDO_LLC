@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -102,6 +102,21 @@ function defaultSeriesStartDate() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function isContentPackageRecord(value: unknown): value is OpsContentPackageRecord {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as OpsContentPackageRecord;
+
+  return (
+    Boolean(record.contentPackage?.id) &&
+    Array.isArray(record.platformDrafts) &&
+    Array.isArray(record.publishedPosts) &&
+    Boolean(record.sourceUpdate?.id)
+  );
 }
 
 export function ContentSeriesBuilder({
@@ -228,6 +243,40 @@ export function ContentSeriesBuilder({
           storageKey,
         });
   }, [storageIsDatabase]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const adapter = createPersistenceAdapter();
+
+    async function loadStoredPackages() {
+      try {
+        const loaded = await adapter.loadContentPackages();
+
+        if (loaded.contentPackages.length === 0) {
+          if (isMounted) {
+            setRecords([]);
+          }
+          return;
+        }
+
+        const migratedRecords = loaded.contentPackages.filter(isContentPackageRecord);
+
+        if (isMounted && migratedRecords.length > 0) {
+          setRecords(migratedRecords);
+        }
+      } catch {
+        if (isMounted) {
+          setIssues(["Stored content packages could not be loaded."]);
+        }
+      }
+    }
+
+    void loadStoredPackages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [createPersistenceAdapter]);
 
   function toggleTarget(targetId: string) {
     const target = publicationTargets.find((item) => item.id === targetId);
@@ -846,6 +895,9 @@ export function ContentSeriesBuilder({
             {selectedTargets.length} target
             {selectedTargets.length === 1 ? "" : "s"} on{" "}
             {schedulePreview.join(", ")}.
+            {" "}
+            Dates are calendar days — manual posts any time that day; LinkedIn
+            autopublish runs once daily (~9:00 AM Eastern by default).
           </p>
         ) : null}
 

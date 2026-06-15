@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock3,
   Megaphone,
+  Trash2,
 } from "lucide-react";
 
 import { StatusPill } from "@/app/ops/_components/ops-ui";
@@ -20,11 +21,13 @@ import {
 import {
   buildPublishCalendarRows,
   filterPublishCalendarRows,
+  formatScheduledPublishLabel,
   groupPublishCalendarRows,
   localCalendarDate,
   type PublishCalendarRow,
   type PublishCalendarTiming,
 } from "@/lib/ops/publish-calendar";
+import { removeDraftFromRecords } from "@/lib/ops/content-package-mutations";
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import type {
   OpsContentPackageRecord,
@@ -98,6 +101,7 @@ export function PublishCalendarPanel({
     disabledReason: string | null;
     enabled: boolean;
     runDateToday: string;
+    runTimeLabel: string;
     timeZone: string;
   } | null>(null);
   const [runningAutopublish, setRunningAutopublish] = useState(false);
@@ -122,6 +126,9 @@ export function PublishCalendarPanel({
         const loaded = await adapter.loadContentPackages();
 
         if (loaded.contentPackages.length === 0) {
+          if (isMounted) {
+            setRecords([]);
+          }
           return;
         }
 
@@ -388,6 +395,27 @@ export function PublishCalendarPanel({
     );
   }
 
+  async function removeScheduledDraft(row: PublishCalendarRow) {
+    if (row.postStatus === "posted") {
+      setIssues(["Posted drafts cannot be removed from the calendar."]);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remove "${row.title}" from the calendar? This deletes the draft slot and cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const nextRecords = removeDraftFromRecords(records, row.draftId);
+
+    if (await persistRecords(nextRecords)) {
+      setMessage(`Removed ${row.title} from the publish calendar.`);
+    }
+  }
+
   function mergeLinkedInPublishResult(
     record: OpsContentPackageRecord,
     draft: PlatformDraft,
@@ -550,6 +578,13 @@ export function PublishCalendarPanel({
             <p className="mt-1 text-xs text-slate-500">
               {row.packageTitle} · {row.title}
             </p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+              <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {formatScheduledPublishLabel(row.suggestedScheduledFor, {
+                autopublishEnabled: row.autopublishEnabled,
+                runTimeLabel: autopublishStatus?.runTimeLabel,
+              })}
+            </p>
             <p className="mt-2 text-sm leading-6 text-slate-700">{row.bodyPreview}</p>
           </div>
         </div>
@@ -600,6 +635,17 @@ export function PublishCalendarPanel({
             Autopublish on schedule
           </label>
 
+          {row.postStatus !== "posted" ? (
+            <button
+              type="button"
+              onClick={() => void removeScheduledDraft(row)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-800 hover:bg-red-100"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+              Remove
+            </button>
+          ) : null}
+
           <Link
             href="/ops/content/new"
             className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 hover:bg-slate-50"
@@ -626,6 +672,13 @@ export function PublishCalendarPanel({
             <p className="mt-1 text-sm leading-6 text-slate-600">
               Drafts with suggested dates from series splits and packages. Approve,
               optionally enable autopublish, or publish manually from here.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Dates are calendar days only. Manual posts can go out any time that day.
+              LinkedIn autopublish runs once daily around{" "}
+              {autopublishStatus?.runTimeLabel ?? "9:00 AM ET"} (
+              {autopublishStatus?.timeZone ?? "America/New_York"}) on the scheduled
+              date when a draft is approved and opted in.
             </p>
             {autopublishStatus ? (
               <p className="mt-2 text-xs text-slate-500">

@@ -4,6 +4,7 @@ import { neon } from "@neondatabase/serverless";
 
 import type { OpsPersistenceAdapter } from "@/lib/ops/persistence";
 import { validateOpsContentPackageRecords } from "@/lib/ops/persistence-validation";
+import { collectContentPackageRecordIds } from "@/lib/ops/content-package-mutations";
 import type {
   BusinessOutcome,
   ContentPackage,
@@ -117,6 +118,32 @@ async function upsertJsonRecord<T extends { id: string }>({
       data = excluded.data`,
     [data.id, now, sourceBoundary, JSON.stringify(data)],
   );
+}
+
+async function deleteRowsNotInIds(tableName: OpsTableName, keptIds: string[]) {
+  assertAllowedTable(tableName);
+  const sql = queryClient();
+
+  if (keptIds.length === 0) {
+    await sql.query(`delete from ${tableName}`);
+    return;
+  }
+
+  await sql.query(`delete from ${tableName} where not (id = any($1::text[]))`, [
+    keptIds,
+  ]);
+}
+
+async function pruneContentPackageRecords(records: OpsContentPackageRecord[]) {
+  const ids = collectContentPackageRecordIds(records);
+
+  await deleteRowsNotInIds("ops_source_updates", ids.sourceUpdateIds);
+  await deleteRowsNotInIds("ops_content_packages", ids.contentPackageIds);
+  await deleteRowsNotInIds("ops_platform_drafts", ids.draftIds);
+  await deleteRowsNotInIds("ops_media_metadata", ids.mediaMetadataIds);
+  await deleteRowsNotInIds("ops_published_posts", ids.publishedPostIds);
+  await deleteRowsNotInIds("ops_performance_snapshots", ids.performanceSnapshotIds);
+  await deleteRowsNotInIds("ops_business_outcomes", ids.businessOutcomeIds);
 }
 
 async function readJsonRows<T>(tableName: OpsTableName) {
@@ -278,6 +305,8 @@ export function createDatabaseOpsPersistenceAdapter(): OpsPersistenceAdapter {
           tableName: "ops_business_outcomes",
         });
       }
+
+      await pruneContentPackageRecords(validation.records);
 
       return {
         mode: "database",

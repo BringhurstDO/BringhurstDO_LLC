@@ -19,11 +19,13 @@ import {
   Megaphone,
   Plus,
   Save,
+  Trash2,
   Upload,
 } from "lucide-react";
 
 import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
+import { removePackageFromRecords } from "@/lib/ops/content-package-mutations";
 import {
   blockedTargetOperatorNotes,
   draftLooksLikeLegacyGeneratedBody,
@@ -1178,6 +1180,9 @@ export function ContentPackageBuilder({
         const loaded = await adapter.loadContentPackages();
 
         if (loaded.contentPackages.length === 0) {
+          if (isMounted) {
+            setRecords([]);
+          }
           return;
         }
 
@@ -2388,6 +2393,25 @@ export function ContentPackageBuilder({
     });
   }
 
+  async function deletePackageRecord(record: LocalContentPackageRecord) {
+    const confirmed = window.confirm(
+      `Delete "${record.contentPackage.title}" and all ${record.platformDrafts.length} draft slot(s)? This cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const nextRecords = removePackageFromRecords(
+      records,
+      record.contentPackage.id,
+    );
+
+    if (await persistRecords(nextRecords)) {
+      setPacketMessage(`Deleted package ${record.contentPackage.title}.`);
+    }
+  }
+
   function repairGeneratedDraftBodies(record: LocalContentPackageRecord) {
     const repairedDrafts = record.platformDrafts.map((draft) =>
       normalizePlatformDraft(draft, record.sourceUpdate, publicationTargets),
@@ -3423,6 +3447,13 @@ export function ContentPackageBuilder({
             </div>
           ) : null}
 
+          {records.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
+              No saved packages yet. Create one above or split a weekly summary,
+              then return here to review, approve, and publish.
+            </div>
+          ) : null}
+
           {records.map((record) => {
             const manualAiPrompt = buildManualAiPrompt({
               audienceProfiles,
@@ -3490,6 +3521,14 @@ export function ContentPackageBuilder({
                   >
                     <ClipboardCheck className="h-4 w-4" />
                     Repair Generated Drafts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deletePackageRecord(record)}
+                    className="inline-flex h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-800 hover:bg-red-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Package
                   </button>
                   <select
                     value={record.contentPackage.status}

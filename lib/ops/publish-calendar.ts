@@ -204,3 +204,24 @@ export function filterPublishCalendarRows(
     return true;
   });
 }
+
+export function formatScheduledPublishLabel(
+  suggestedScheduledFor: string | undefined,
+  {
+    autopublishEnabled = false,
+    runTimeLabel,
+  }: {
+    autopublishEnabled?: boolean;
+    runTimeLabel?: string;
+  } = {},
+) {
+  if (!suggestedScheduledFor) {
+    return "No suggested date";
+  }
+
+  if (autopublishEnabled && runTimeLabel) {
+    return `${suggestedScheduledFor} · LinkedIn autopublish ~${runTimeLabel}`;
+  }
+
+  return `${suggestedScheduledFor} · manual post (any time that day)`;
+}

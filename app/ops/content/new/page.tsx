@@ -16,46 +16,10 @@ export default function OpsNewContentPackagePage() {
   const {
     audienceProfiles,
     brandProfiles,
-    businessOutcomes,
-    contentPackages,
     draftReviewChecklist,
-    performanceSnapshots,
-    platformDrafts,
     projects,
     publicationTargets,
-    publishedPosts,
-    sourceUpdates,
   } = opsDashboardData;
-  const initialRecords = contentPackages.map((contentPackage) => {
-    const sourceUpdate = sourceUpdates.find(
-      (item) => item.id === contentPackage.sourceUpdateId,
-    );
-    const packageDrafts = platformDrafts.filter(
-      (draft) => draft.contentPackageId === contentPackage.id,
-    );
-    const packagePublishedPosts = publishedPosts.filter((post) =>
-      packageDrafts.some((draft) => draft.id === post.platformDraftId),
-    );
-    const packagePerformanceSnapshots = performanceSnapshots.filter((snapshot) =>
-      packagePublishedPosts.some((post) => post.id === snapshot.publishedPostId),
-    );
-    const businessOutcome = businessOutcomes.find(
-      (outcome) => outcome.contentPackageId === contentPackage.id,
-    );
-
-    if (!sourceUpdate || !businessOutcome) {
-      throw new Error(`Mock content package ${contentPackage.id} is incomplete.`);
-    }
-
-    return {
-      businessOutcome,
-      contentPackage,
-      performanceSnapshots: packagePerformanceSnapshots,
-      platformDrafts: packageDrafts,
-      publishedPosts: packagePublishedPosts,
-      sourceUpdate,
-    };
-  });
 
   return (
     <main className="min-w-0">
@@ -82,7 +46,7 @@ export default function OpsNewContentPackagePage() {
           audienceProfiles={audienceProfiles}
           brandProfiles={brandProfiles}
           draftReviewChecklist={draftReviewChecklist}
-          initialRecords={initialRecords}
+          initialRecords={[]}
           projects={projects}
           publicationTargets={publicationTargets}
           storageMode={storageMode}
