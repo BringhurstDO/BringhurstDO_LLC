@@ -25,6 +25,7 @@ clinical data into Ops.
 | 8A | Weekly summary → AI series split + suggested dates | `/ops/content/series` |
 | 8B | Publish calendar, approve/reschedule, manual LinkedIn publish | `/ops/content/calendar` |
 | 8C | Scheduled LinkedIn autopublish (opt-in per draft, approved only) | Vercel cron + calendar |
+| 8D | Platform default schedule buckets as planning data only | series + calendar guidance |
 
 **Production notes (2026-06):**
 
@@ -51,6 +52,7 @@ Alternative path: single source update → platform slots → AI improve → sam
 
 - Instagram, Facebook, X OAuth or publish APIs
 - Autopublish for non-LinkedIn platforms
+- Per-draft scheduled times or time-window enforcement
 - Read-only social metrics sync into scorecard
 - Dashboard pages reading live persisted data (still mock on `/ops`, `/ops/metrics`, etc.)
 - Email or push “post today” reminders
@@ -89,6 +91,8 @@ Full detail: `docs/ops-security-boundaries.md`.
 - **8A exception:** AI series split, proposals not auto-saved.
 - **8B exception:** Calendar view + reschedule metadata; manual publish from calendar.
 - **8C exception:** Daily cron LinkedIn autopublish for approved + opt-in drafts only.
+- **8D planning data:** Platform default buckets exist as UI guidance only; they do not
+  change cron behavior or publish timing.
 
 ## Key env vars
 
@@ -131,5 +135,6 @@ When continuing in a new agent session:
 |------|----------|
 | 2026-06 | 8A/8B before Instagram/Facebook/X |
 | 2026-06 | 8C = LinkedIn autopublish with per-draft opt-in + approve gate |
+| 2026-06 | 8D = platform default schedule buckets as planning data only |
 | 2026-06 | Kyle founder LinkedIn first; brand org pages when API approved |
 | 2026-06 | Single LinkedIn Developer app for all pages; connect in Ops UI |

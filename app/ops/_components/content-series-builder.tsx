@@ -32,6 +32,7 @@ import {
   rebalanceContentPackageSchedules,
 } from "@/lib/ops/schedule-rebalance";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
+import { formatPlatformScheduleDefault } from "@/lib/ops/platform-schedule-defaults";
 import {
   createLocalStorageOpsPersistenceAdapter,
   createRemoteOpsPersistenceAdapter,
@@ -234,6 +235,13 @@ export function ContentSeriesBuilder({
     schedulePreview.length > 0
       ? schedulePreview.length * selectedTargets.length
       : 0;
+  const selectedPlatformScheduleDefaults = useMemo(
+    () =>
+      Array.from(new Set(selectedTargets.map((target) => target.platform))).map(
+        (platform) => formatPlatformScheduleDefault(platform),
+      ),
+    [selectedTargets],
+  );
 
   const createPersistenceAdapter = useCallback(() => {
     return storageIsDatabase
@@ -898,6 +906,14 @@ export function ContentSeriesBuilder({
             {" "}
             Dates are calendar days — manual posts any time that day; LinkedIn
             autopublish runs once daily (~9:00 AM Eastern by default).
+          </p>
+        ) : null}
+
+        {selectedPlatformScheduleDefaults.length > 0 ? (
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Planning buckets only, not saved per draft yet:{" "}
+            {selectedPlatformScheduleDefaults.join("; ")}. Future manual
+            overrides should stay within configured cron buckets.
           </p>
         ) : null}
 

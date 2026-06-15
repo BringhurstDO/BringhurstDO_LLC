@@ -28,6 +28,7 @@ import {
   type PublishCalendarTiming,
 } from "@/lib/ops/publish-calendar";
 import { removeDraftFromRecords } from "@/lib/ops/content-package-mutations";
+import { formatPlatformScheduleDefault } from "@/lib/ops/platform-schedule-defaults";
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import type {
   OpsContentPackageRecord,
@@ -238,6 +239,10 @@ export function PublishCalendarPanel({
     () =>
       Array.from(new Set(buildPublishCalendarRows(records).map((row) => row.platform))).sort(),
     [records],
+  );
+  const platformScheduleDefaults = useMemo(
+    () => platforms.map((platform) => formatPlatformScheduleDefault(platform)),
+    [platforms],
   );
 
   async function persistRecords(nextRecords: OpsContentPackageRecord[]) {
@@ -680,6 +685,13 @@ export function PublishCalendarPanel({
               {autopublishStatus?.timeZone ?? "America/New_York"}) on the scheduled
               date when a draft is approved and opted in.
             </p>
+            {platformScheduleDefaults.length > 0 ? (
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                Planning buckets only, not saved per draft yet:{" "}
+                {platformScheduleDefaults.join("; ")}. Future manual overrides
+                should stay within configured cron buckets.
+              </p>
+            ) : null}
             {autopublishStatus ? (
               <p className="mt-2 text-xs text-slate-500">
                 Autopublish:{" "}
