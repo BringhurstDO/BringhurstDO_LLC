@@ -18,7 +18,7 @@ export default function OpsLayout({
   // TODO: Basic Auth is temporary. Before adding mutation features, use
   // Vercel Deployment Protection/SSO or a real auth provider with audit trails.
   return (
-    <div className="min-h-dvh bg-[#f5f7fa] text-slate-950">
+    <div className="min-h-dvh overflow-x-clip bg-[#f5f7fa] text-slate-950">
       <OpsTopNav />
       {children}
     </div>

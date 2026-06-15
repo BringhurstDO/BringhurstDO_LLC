@@ -124,6 +124,8 @@ type ContentPackageBuilderProps = {
   audienceProfiles: OpsAudienceProfile[];
   brandProfiles: OpsBrandProfile[];
   draftReviewChecklist: string[];
+  /** When "create", hides queue/history noise and collapses saved packages. */
+  focus?: "create" | "full";
   initialRecords: LocalContentPackageRecord[];
   projects: OpsProjectSummary[];
   publicationTargets: PublicationTarget[];
@@ -1081,11 +1083,13 @@ export function ContentPackageBuilder({
   audienceProfiles,
   brandProfiles,
   draftReviewChecklist,
+  focus = "full",
   initialRecords,
   projects,
   publicationTargets,
   storageMode,
 }: ContentPackageBuilderProps) {
+  const isCreateFocus = focus === "create";
   const [primaryProjectId, setPrimaryProjectId] =
     useState<OpsProjectId>("syncsoap");
   const [sourceTitle, setSourceTitle] = useState("");
@@ -2422,7 +2426,7 @@ export function ContentPackageBuilder({
   }
 
   return (
-    <div className="grid min-w-0 gap-6">
+    <div className="grid min-w-0 max-w-full gap-6 overflow-x-clip">
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -2518,6 +2522,15 @@ export function ContentPackageBuilder({
 
           <label className="grid gap-2 text-sm font-semibold text-slate-700">
             Source update summary
+            {isCreateFocus ? (
+              <span className="text-xs font-normal leading-5 text-slate-500">
+                One update only — does not split into multiple posts. Use{" "}
+                <strong className="font-semibold text-slate-700">
+                  Split weekly summary
+                </strong>{" "}
+                for AI multi-post series.
+              </span>
+            ) : null}
             <textarea
               value={sourceSummary}
               onChange={(event) => setSourceSummary(event.target.value)}
