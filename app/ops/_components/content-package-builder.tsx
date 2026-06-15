@@ -2422,7 +2422,7 @@ export function ContentPackageBuilder({
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -2570,8 +2570,8 @@ export function ContentPackageBuilder({
             {aiStatus.providerWarning}
           </div>
         ) : null}
-        <div className="grid gap-5 p-5">
-          <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid min-w-0 gap-5 p-5">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
             {selectedBrandProfiles.length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
                 Select a source product or publication target to preview brand
@@ -2672,32 +2672,27 @@ export function ContentPackageBuilder({
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-slate-950 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-sans text-sm font-semibold text-white">
-                    AI Context Preview
-                  </h3>
-                  <p className="mt-1 text-xs leading-5 text-slate-300">
-                    {aiStatus.enabled
-                      ? "Server-side generation uses this bounded context. Nothing posts automatically."
-                      : "Local preview only. Nothing is transmitted."}
-                  </p>
-                </div>
-                <span className="rounded-md border border-slate-700 px-2 py-1 text-xs font-semibold text-slate-300">
-                  {aiStatus.enabled ? "manual review" : "local only"}
-                </span>
+            <details className="min-w-0 rounded-lg border border-slate-700 bg-slate-950">
+              <summary className="cursor-pointer p-4 text-sm font-semibold text-white">
+                AI context preview (advanced)
+              </summary>
+              <div className="border-t border-slate-800 p-4">
+                <p className="text-xs leading-5 text-slate-300">
+                  {aiStatus.enabled
+                    ? "Server-side generation uses this bounded context. Nothing posts automatically."
+                    : "Local preview only. Nothing is transmitted."}
+                </p>
+                {aiPreviewSafetyIssues.length > 0 ? (
+                  <div className="mt-4 rounded-md border border-amber-400/40 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">
+                    Source text was excluded from this preview because it needs
+                    metadata-only review: {aiPreviewSafetyIssues.join("; ")}
+                  </div>
+                ) : null}
+                <pre className="mt-4 max-h-80 min-w-0 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-900 p-3 text-xs leading-5 text-slate-100">
+                  {JSON.stringify(aiContextPreview, null, 2)}
+                </pre>
               </div>
-              {aiPreviewSafetyIssues.length > 0 ? (
-                <div className="mt-4 rounded-md border border-amber-400/40 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">
-                  Source text was excluded from this preview because it needs
-                  metadata-only review: {aiPreviewSafetyIssues.join("; ")}
-                </div>
-              ) : null}
-              <pre className="mt-4 max-h-[34rem] overflow-auto rounded-md bg-slate-900 p-3 text-xs leading-5 text-slate-100">
-                {JSON.stringify(aiContextPreview, null, 2)}
-              </pre>
-            </div>
+            </details>
           </div>
         </div>
       </section>
@@ -3568,7 +3563,7 @@ export function ContentPackageBuilder({
                       </div>
                     ) : null}
                   </div>
-                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-slate-950 p-4 text-xs leading-5 text-slate-100">
+                  <pre className="max-h-80 min-w-0 overflow-auto whitespace-pre-wrap break-words rounded-md bg-slate-950 p-4 text-xs leading-5 text-slate-100">
                     {manualAiPrompt}
                   </pre>
                 </div>

@@ -1,5 +1,5 @@
 import { BoundaryPill, OpsPageHeader, opsShellClass } from "@/app/ops/_components/ops-ui";
-import { ContentPackageBuilder } from "@/app/ops/_components/content-package-builder";
+import { ContentNewWorkspace } from "@/app/ops/_components/content-new-workspace";
 import { getOpsAiPublicStatus } from "@/lib/ops/ai-config";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 
@@ -13,15 +13,6 @@ export default function OpsNewContentPackagePage() {
       ? "database"
       : "local-browser";
   const storageIsDatabase = storageMode === "database";
-  const pageDescription = storageIsDatabase
-    ? "Enter one metadata-only source update, select products/accounts/platforms, create platform draft slots, save to the Ops database, export/import packages, copy post packets, and track manual posting."
-    : "Enter one metadata-only source update, select products/accounts/platforms, create platform draft slots, save locally, export/import packages, copy post packets, and track manual posting.";
-  const storageBoundaryLabel = storageIsDatabase
-    ? "Durable database save"
-    : "Local browser save only";
-  const workflowDescription = storageIsDatabase
-    ? "Enter One Metadata-Only Update, then Select Products, Accounts, And Platforms. Create Platform-Specific Draft Slots, save them to the Ops database, export or import package JSON, copy post packets for manual review, and manage weekly queue state, public URLs, and aggregate performance metrics."
-    : "Enter One Metadata-Only Update, then Select Products, Accounts, And Platforms. Create Platform-Specific Draft Slots, save them locally, export or import package JSON, copy post packets for manual review, and manage weekly queue state, public URLs, and aggregate performance metrics.";
   const {
     audienceProfiles,
     brandProfiles,
@@ -67,32 +58,26 @@ export default function OpsNewContentPackagePage() {
   });
 
   return (
-    <main>
+    <main className="min-w-0">
       <OpsPageHeader
-        eyebrow="Source update to content package"
-        title="New Content Package"
-        description={pageDescription}
+        eyebrow="Content creation"
+        title="New Content"
+        description="Split a weekly summary into platform posts with AI, or build a single source update into draft slots. Manage saved packages, posting, and metrics below."
       />
 
-      <div className={`${opsShellClass} grid gap-6 py-6`}>
+      <div className={`${opsShellClass} grid min-w-0 gap-6 py-6`}>
         <div className="flex flex-wrap gap-2">
-          <BoundaryPill>{storageBoundaryLabel}</BoundaryPill>
-          <BoundaryPill>No AI generation</BoundaryPill>
-          <BoundaryPill>No posting API</BoundaryPill>
+          <BoundaryPill>
+            {storageIsDatabase ? "Durable database save" : "Local browser save"}
+          </BoundaryPill>
+          <BoundaryPill>
+            {aiStatus.enabled ? "AI split + improve enabled" : "AI disabled"}
+          </BoundaryPill>
+          <BoundaryPill>Manual approval before posting</BoundaryPill>
           <BoundaryPill>No PHI or clinical payloads</BoundaryPill>
-          <BoundaryPill>Manual approval before posting or spend</BoundaryPill>
         </div>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-700 shadow-sm">
-          <h2 className="font-sans text-base font-semibold text-slate-950">
-            Content Package Workflow
-          </h2>
-          <p className="mt-2">
-            {workflowDescription}
-          </p>
-        </section>
-
-        <ContentPackageBuilder
+        <ContentNewWorkspace
           aiStatus={aiStatus}
           audienceProfiles={audienceProfiles}
           brandProfiles={brandProfiles}

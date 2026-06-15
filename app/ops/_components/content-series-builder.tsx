@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
   Save,
   Sparkles,
+  Upload,
 } from "lucide-react";
 
 import { StatusPill } from "@/app/ops/_components/ops-ui";
@@ -60,6 +61,7 @@ type ContentSeriesBuilderProps = {
 };
 
 const storageKey = "bringhurstdo.ops.contentPackages.v1";
+const maxSummaryImportBytes = 100_000;
 
 const sourceUpdateTypes: SourceUpdateType[] = [
   "product-update",
@@ -123,6 +125,67 @@ export function ContentSeriesBuilder({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [seriesAutopublish, setSeriesAutopublish] = useState(false);
+  const [summaryFileName, setSummaryFileName] = useState("");
+  const summaryFileInputRef = useRef<HTMLInputElement>(null);
+
+  function openSummaryFilePicker() {
+    summaryFileInputRef.current?.click();
+  }
+
+  async function handleSummaryFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setSummaryFileName(file.name);
+    setIssues([]);
+
+    const allowed =
+      file.type === "text/plain" ||
+      file.type === "text/markdown" ||
+      file.name.toLowerCase().endsWith(".txt") ||
+      file.name.toLowerCase().endsWith(".md");
+
+    if (!allowed) {
+      setIssues(["Upload a .txt or .md metadata-only summary file."]);
+      return;
+    }
+
+    if (file.size > maxSummaryImportBytes) {
+      setIssues(["Summary files must be 100 KB or smaller."]);
+      return;
+    }
+
+    try {
+      const text = (await file.text()).trim();
+
+      if (!text) {
+        setIssues(["Selected summary file is empty."]);
+        return;
+      }
+
+      if (text.length > 12_000) {
+        setIssues(["Summary must be 12,000 characters or fewer."]);
+        return;
+      }
+
+      setSeriesSummary(text);
+
+      if (!seriesTitle.trim()) {
+        const baseName = file.name.replace(/\.(txt|md)$/i, "").trim();
+        if (baseName) {
+          setSeriesTitle(baseName);
+        }
+      }
+
+      setMessage(`Loaded summary from ${file.name}.`);
+    } catch {
+      setIssues([`Could not read ${file.name}.`]);
+    }
+  }
 
   const selectedTargets = useMemo(
     () =>
@@ -498,7 +561,7 @@ export function ContentSeriesBuilder({
   }, [proposals]);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="font-sans text-base font-semibold text-slate-950">
           Weekly Summary
@@ -554,16 +617,42 @@ export function ContentSeriesBuilder({
             />
           </label>
 
-          <label className="grid gap-2 text-sm font-semibold text-slate-700 lg:col-span-2">
-            Weekly summary
-            <textarea
-              value={seriesSummary}
-              onChange={(event) => setSeriesSummary(event.target.value)}
-              rows={8}
-              placeholder="Paste your metadata-only weekly summary here..."
-              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-900"
-            />
-          </label>
+          <div className="lg:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="grid flex-1 gap-2 text-sm font-semibold text-slate-700">
+                Weekly summary
+                <textarea
+                  value={seriesSummary}
+                  onChange={(event) => setSeriesSummary(event.target.value)}
+                  rows={8}
+                  placeholder="Paste or upload your metadata-only weekly summary here..."
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-900"
+                />
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <input
+                ref={summaryFileInputRef}
+                type="file"
+                accept=".txt,.md,text/plain,text/markdown"
+                className="hidden"
+                onChange={(event) => void handleSummaryFileChange(event)}
+              />
+              <button
+                type="button"
+                onClick={openSummaryFilePicker}
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+              >
+                <Upload className="h-4 w-4" aria-hidden />
+                Upload .txt or .md
+              </button>
+              {summaryFileName ? (
+                <span className="text-xs text-slate-500">
+                  Last file: {summaryFileName}
+                </span>
+              ) : null}
+            </div>
+          </div>
         </div>
       </section>
 
