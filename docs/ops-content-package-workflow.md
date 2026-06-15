@@ -4,6 +4,12 @@ This workflow turns one metadata-only source update into a local content package
 It does not use AI APIs, posting APIs, social APIs, databases, live credentials,
 or paid services.
 
+Status note: this document describes the original manual package workflow.
+Later approved exceptions add Postgres persistence, AI draft improvement/series
+split, LinkedIn publish/reshare, the publish calendar, and LinkedIn-only
+autopublish. Use `docs/ops-roadmap.md` as the current source of truth when this
+manual workflow appears to conflict with a later phase doc.
+
 For the full phased plan (including series split, publish calendar, and LinkedIn),
 see **`docs/ops-roadmap.md`**.
 

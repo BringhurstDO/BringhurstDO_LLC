@@ -26,6 +26,7 @@ clinical data into Ops.
 | 8B | Publish calendar, approve/reschedule, manual LinkedIn publish | `/ops/content/calendar` |
 | 8C | Scheduled LinkedIn autopublish (opt-in per draft, approved only) | Vercel cron + calendar |
 | 8D | Platform default schedule buckets as planning data only | series + calendar guidance |
+| 8E | Platform connection readiness preflight | `/ops/accounts` |
 
 **Production notes (2026-06):**
 
@@ -93,6 +94,8 @@ Full detail: `docs/ops-security-boundaries.md`.
 - **8C exception:** Daily cron LinkedIn autopublish for approved + opt-in drafts only.
 - **8D planning data:** Platform default buckets exist as UI guidance only; they do not
   change cron behavior or publish timing.
+- **8E preflight:** Connection readiness is static guidance only; it does not read
+  tokens, start OAuth, call social APIs, or change posting permissions.
 
 ## Key env vars
 
@@ -136,5 +139,6 @@ When continuing in a new agent session:
 | 2026-06 | 8A/8B before Instagram/Facebook/X |
 | 2026-06 | 8C = LinkedIn autopublish with per-draft opt-in + approve gate |
 | 2026-06 | 8D = platform default schedule buckets as planning data only |
+| 2026-06 | 8E = platform connection readiness preflight without new integrations |
 | 2026-06 | Kyle founder LinkedIn first; brand org pages when API approved |
 | 2026-06 | Single LinkedIn Developer app for all pages; connect in Ops UI |

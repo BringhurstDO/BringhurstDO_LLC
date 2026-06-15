@@ -3,6 +3,12 @@
 This workflow is local/manual only. It does not use AI APIs, social APIs, AWS,
 GA4, Meta, Vercel tokens, Stripe, databases, paid services, or posting APIs.
 
+Status note: this document preserves the original manual workflow. Later
+approved exceptions add Postgres persistence, AI draft improvement/series split,
+LinkedIn publish/reshare, the publish calendar, and LinkedIn-only autopublish.
+Use `docs/ops-roadmap.md` and `docs/ops-security-boundaries.md` as the current
+source of truth for approved exceptions.
+
 ## Boundaries
 
 - `/ops/*` must stay protected.

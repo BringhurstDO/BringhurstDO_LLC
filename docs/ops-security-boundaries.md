@@ -561,3 +561,53 @@ Still forbidden:
 
 Manual approval requirement: operators must approve each draft before autopublish
 can run. Opt-in autopublish is not blanket series approval.
+
+## Phase 8D Planning Data: Platform Schedule Buckets
+
+Phase 8D adds platform default schedule buckets as operator-facing guidance only.
+It does not add per-draft scheduled times, new cron schedules, OAuth, social API
+calls, or publishing behavior.
+
+Newly allowed:
+
+- Static platform schedule defaults such as LinkedIn/X morning and
+  Instagram/Facebook evening.
+- UI guidance on `/ops/content/series` and `/ops/content/calendar` explaining
+  the default planning windows.
+
+Still forbidden:
+
+- Treating schedule buckets as active autopublish times.
+- Autopublish for Instagram, Facebook, X, Blog, or Email.
+- Arbitrary minute-level scheduling that cannot be served by the configured cron
+  cadence.
+- Any platform connection, social API call, ad spend mutation, or external write
+  based on bucket metadata alone.
+
+Manual approval requirement unchanged: schedule buckets are planning hints only.
+Draft approval and platform-specific posting boundaries still apply.
+
+## Phase 8E Planning Data: Platform Connection Readiness
+
+Phase 8E adds a read-only platform connection readiness panel on `/ops/accounts`.
+It helps the operator see what is currently allowed, what is blocked, and what
+manual setup is required later. It does not connect accounts or inspect secret
+state.
+
+Newly allowed:
+
+- Static readiness notes for LinkedIn, X, Instagram, Facebook, Blog, and Email.
+- Operator-facing lists of allowed-now workflows, blockers, and next manual
+  actions.
+
+Still forbidden:
+
+- Reading, rendering, exporting, or inferring OAuth tokens, cookies, credentials,
+  private messages, audience exports, or raw platform logs.
+- Starting OAuth or posting flows from the readiness panel.
+- Treating readiness notes as permission to publish, autopublish, spend, or
+  mutate an external platform.
+
+Manual approval requirement unchanged: every connection, publish, reshare,
+autopublish opt-in, spend action, or external mutation still requires the
+separate approved workflow for that platform.

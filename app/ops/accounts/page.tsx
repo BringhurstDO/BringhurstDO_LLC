@@ -9,6 +9,7 @@ import {
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
 import { opsDashboardData } from "@/lib/ops/mock-data";
+import { OPS_PLATFORM_READINESS } from "@/lib/ops/platform-readiness";
 import type {
   OpsAccountRegistryEntry,
   OpsAccountStatus,
@@ -115,6 +116,64 @@ export default async function OpsAccountsPage({
           connectResult={connectResult}
           connectError={connectError}
         />
+
+        <OpsPanel title="Connection Readiness" eyebrow="Preflight">
+          <p className="text-sm leading-6 text-slate-600">
+            Read-only checklist for future platform connections. This panel does
+            not read tokens, start OAuth, call social APIs, or imply posting is
+            available.
+          </p>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {OPS_PLATFORM_READINESS.map((item) => (
+              <article
+                key={item.platform}
+                className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-sans text-base font-semibold text-slate-950">
+                      {item.platform}
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {item.statusLabel}
+                    </p>
+                  </div>
+                  <StatusPill tone={item.tone}>{item.status}</StatusPill>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-md border border-emerald-100 bg-white p-3">
+                    <p className="text-sm font-semibold text-slate-950">
+                      Allowed now
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-sm leading-6 text-slate-600">
+                      {item.allowedNow.map((entry) => (
+                        <li key={entry}>{entry}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="rounded-md border border-amber-100 bg-white p-3">
+                    <p className="text-sm font-semibold text-slate-950">
+                      Blocked by
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-sm leading-6 text-slate-600">
+                      {item.blockedBy.map((entry) => (
+                        <li key={entry}>{entry}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <p className="mt-4 text-sm leading-6 text-slate-700">
+                  <span className="font-semibold text-slate-950">
+                    Next operator action:
+                  </span>{" "}
+                  {item.nextOperatorAction}
+                </p>
+              </article>
+            ))}
+          </div>
+        </OpsPanel>
 
         <OpsPanel title="Account Status Labels" eyebrow="Basic labels">
           <div className="flex flex-wrap gap-2">
