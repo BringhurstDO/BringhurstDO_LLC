@@ -7,6 +7,11 @@ import {
   resolveLinkedInConfig,
 } from "@/lib/ops/linkedin-config";
 import {
+  containsLinkedInPublishUrl,
+  LINKEDIN_TEXT_ONLY_BODY_URL_ERROR,
+  LINKEDIN_TEXT_ONLY_LINK_CARD_ERROR,
+} from "@/lib/ops/linkedin-publish-rules";
+import {
   containsPublishableArtifact,
   sanitizePublishableBody,
 } from "@/lib/ops/publishable-copy";
@@ -140,6 +145,16 @@ export async function publishLinkedInDraft(
 
   const body = sanitizePublishableBody(input.body);
 
+  if (input.linkUrl?.trim()) {
+    return {
+      ok: false,
+      error: {
+        code: "body_invalid",
+        message: LINKEDIN_TEXT_ONLY_LINK_CARD_ERROR,
+      },
+    };
+  }
+
   if (!body.trim()) {
     return {
       ok: false,
@@ -157,6 +172,16 @@ export async function publishLinkedInDraft(
         code: "body_invalid",
         message:
           "Body still contains internal workflow/operator language after sanitizing.",
+      },
+    };
+  }
+
+  if (containsLinkedInPublishUrl(body)) {
+    return {
+      ok: false,
+      error: {
+        code: "body_invalid",
+        message: LINKEDIN_TEXT_ONLY_BODY_URL_ERROR,
       },
     };
   }
@@ -182,8 +207,6 @@ export async function publishLinkedInDraft(
       authorUrn: ready.value.authorUrn,
       commentary: body,
       config: config.config,
-      linkUrl: input.linkUrl || undefined,
-      title: input.title || undefined,
     });
 
     const postedAt = new Date().toISOString();

@@ -15,7 +15,7 @@ In scope:
 - Server-only LinkedIn OAuth 2.0 connect flow with CSRF-protected state.
 - Encrypted token storage in Postgres (AES-256-GCM at rest).
 - A manual, per-draft, operator-confirmed publish action using the LinkedIn
-  Posts API (`POST https://api.linkedin.com/rest/posts`).
+  Posts API (`POST https://api.linkedin.com/rest/posts`) for text-only posts.
 - A metadata-only publish audit log.
 - Connection status + connect/disconnect UI on `/ops/accounts`.
 
@@ -37,6 +37,8 @@ Out of scope (later phases):
   a specific draft. There is no bulk or automatic posting.
 - Publishable body is re-sanitized server-side with `sanitizePublishableBody`
   and rejected if it still contains internal workflow/operator artifacts.
+- LinkedIn posts are text-only. The publish API rejects visible URLs in the body
+  and rejects attached link cards or `linkUrl` payloads.
 - No PHI, patient identifiers, encounter text, transcripts, clinical payloads,
   private messages, raw logs, or secret values are sent to LinkedIn.
 - Connecting requires durable database storage (`OPS_STORAGE_MODE=database`).
@@ -132,12 +134,14 @@ All routes are under the Basic-Auth-protected `/ops` matcher.
   "platformDraftId": "...",
   "publicationTargetId": "...",
   "accountId": "account-bringhurstdo-linkedin",
-  "title": "Optional link card title",
   "body": "Publishable social copy only",
-  "linkUrl": "https://www.bringhurstdo.com/?utm_...",
   "confirmApproved": true
 }
 ```
+
+Do not include `linkUrl`, article content, or visible URLs in `body`. Saved UTM
+URLs remain useful for manual tracking/copy packets, but Ops LinkedIn publishing
+does not send them to LinkedIn.
 
 The client merges the returned result into the package's `PublishedPost` record
 (public post URL, posted timestamp, posted status) using the existing

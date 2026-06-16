@@ -21,6 +21,8 @@ Autopublish runs only when **all** are true:
 | Draft | `suggestedScheduledFor` equals today's calendar date |
 | Draft | Not already posted |
 | Body | Passes publishable-copy sanitization |
+| Body | Contains no visible URLs |
+| Link card | No attached URL/article content is sent to LinkedIn |
 
 Skipped drafts and errors are logged in `ops_autopublish_runs`. LinkedIn publish
 attempts also appear in `ops_social_publish_log`.
@@ -79,6 +81,7 @@ npm run db:migrate
 - Autopublish for Instagram, Facebook, or X
 - Autopublish without per-draft `autopublishEnabled`
 - Autopublish for non-approved drafts
+- Autopublish with visible URLs or attached link cards
 - Browser localStorage packages (cron reads Postgres only)
 
 See `docs/ops-roadmap.md` for what comes next (Phase 9+).

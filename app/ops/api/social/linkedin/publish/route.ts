@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { publishLinkedInDraft } from "@/lib/ops/linkedin-publish-service";
 import { resolveLinkedInConfig } from "@/lib/ops/linkedin-config";
+import { LINKEDIN_TEXT_ONLY_LINK_CARD_ERROR } from "@/lib/ops/linkedin-publish-rules";
 import type { SocialPublishResult } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
@@ -73,11 +74,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (linkUrl) {
+    return jsonNoStore(
+      {
+        error: LINKEDIN_TEXT_ONLY_LINK_CARD_ERROR,
+      },
+      400,
+    );
+  }
+
   const published = await publishLinkedInDraft({
     accountId: requestedAccountId,
     body: rawBody,
     contentPackageId,
-    linkUrl: linkUrl || undefined,
     platformDraftId,
     publicationTargetId,
     title: title || undefined,

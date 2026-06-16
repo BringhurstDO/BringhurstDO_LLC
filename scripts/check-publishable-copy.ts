@@ -9,6 +9,7 @@ import {
   containsPublishableArtifact,
   sanitizePublishableBody,
 } from "../lib/ops/publishable-copy";
+import { containsLinkedInPublishUrl } from "../lib/ops/linkedin-publish-rules";
 import type {
   OpsContentPackageRecord,
   PublicationTarget,
@@ -197,6 +198,18 @@ if (!packet.includes("Operator / safety notes:")) {
 }
 if (packet.includes("Manual approval required before posting")) {
   throw new Error("Operator packet leaked manual approval phrase into publishable section.");
+}
+
+if (!containsLinkedInPublishUrl("Read more at https://www.bringhurstdo.com")) {
+  throw new Error("LinkedIn publish URL detector missed an https URL.");
+}
+
+if (!containsLinkedInPublishUrl("Read more at www.bringhurstdo.com")) {
+  throw new Error("LinkedIn publish URL detector missed a www URL.");
+}
+
+if (containsLinkedInPublishUrl("Clean text-only LinkedIn post.")) {
+  throw new Error("LinkedIn publish URL detector blocked clean text.");
 }
 
 console.log("Publishable copy checks passed.");

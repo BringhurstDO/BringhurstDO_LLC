@@ -469,7 +469,8 @@ Newly allowed (LinkedIn only):
 - Encrypted-at-rest storage of access/refresh tokens in Postgres
   (AES-256-GCM via `OPS_SOCIAL_TOKEN_SECRET`).
 - Operator-approved, per-draft publishing to the LinkedIn Posts API, posting as
-  the account tied to the draft's publication target.
+  the account tied to the draft's publication target. LinkedIn publish is
+  text-only: no visible URLs and no attached article/link-card payload.
 - Operator-approved native reshare (`reshareContext.parent`) of a published post
   from another connected account (founder-first amplification).
 - A metadata-only publish/reshare audit log (`ops_social_publish_log`).
@@ -482,6 +483,7 @@ Still forbidden, even with Phase 7A/7B enabled:
   public connection status (configured/connected/expired, masked author id,
   expiry, scopes) is exposed.
 - Ad spend, budget control, OAuth for any other platform, or media upload.
+- Link cards, attached URLs, or visible URLs in LinkedIn publish bodies.
 - Sending PHI, patient identifiers, encounter text, transcripts, clinical
   payloads, private messages, raw logs, or secret values to LinkedIn.
 
@@ -557,6 +559,7 @@ Still forbidden:
 - Autopublish without `autopublishEnabled=true` on the draft
 - Autopublish without `status=approved`
 - Autopublish for non-LinkedIn platforms
+- Autopublish with visible URLs or attached link cards
 - Autopublish from browser localStorage (Postgres only)
 
 Manual approval requirement: operators must approve each draft before autopublish

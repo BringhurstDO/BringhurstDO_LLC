@@ -826,7 +826,6 @@ export type SocialPublishRequest = {
   accountId: string;
   title: MetadataOnlyString;
   body: SafeOpsText;
-  linkUrl?: string;
   /** Operator must explicitly confirm the draft is approved for posting. */
   confirmApproved: true;
 };

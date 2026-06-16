@@ -147,7 +147,6 @@ export async function runScheduledAutopublish(
         accountId,
         body: draft.body,
         contentPackageId: record.contentPackage.id,
-        linkUrl: draft.generatedUrl,
         platformDraftId: draft.id,
         publicationTargetId: draft.publicationTargetId,
         title: draft.title,

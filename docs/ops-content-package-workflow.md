@@ -89,8 +89,10 @@ New package exports distinguish source scope from publishing scope:
   a professional founder/product update, Instagram receives a shorter caption
   with line breaks and hashtags, and X receives concise copy kept under platform
   length limits.
-- Draft bodies must use the exact `generatedUrl` saved on the draft. The JSON
-  export and Copy Post Packet should not disagree about the UTM link.
+- Draft bodies that include a URL must use the exact `generatedUrl` saved on the
+  draft. LinkedIn publishing is stricter: Ops rejects visible URLs and attached
+  link cards when posting to LinkedIn, even though the generated UTM URL remains
+  available for manual tracking/copy packets.
 - Older exported packages are migrated on import to add explicit source and
   publishing project fields, numeric metric mirrors, and corrected capture
   dates where older exports used the source date.

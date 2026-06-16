@@ -2260,7 +2260,6 @@ export function ContentPackageBuilder({
           body: sanitizePublishableBody(draft.body),
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
-          linkUrl: draft.generatedUrl,
           platformDraftId: draft.id,
           publicationTargetId: draft.publicationTargetId,
           title: draft.title,

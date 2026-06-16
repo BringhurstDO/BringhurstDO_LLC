@@ -162,8 +162,6 @@ export type PublishLinkedInPostInput = {
   accessToken: string;
   authorUrn: string;
   commentary: string;
-  title?: string;
-  linkUrl?: string;
 };
 
 export type PublishLinkedInPostResult = {
@@ -226,15 +224,6 @@ export async function publishLinkedInPost(
     lifecycleState: "PUBLISHED",
     isReshareDisabledByAuthor: false,
   };
-
-  if (input.linkUrl) {
-    body.content = {
-      article: {
-        source: input.linkUrl,
-        title: input.title?.slice(0, 400) || input.linkUrl,
-      },
-    };
-  }
 
   return sendLinkedInPost(
     input.config,
