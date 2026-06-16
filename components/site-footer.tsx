@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { America250FooterMark } from "@/components/america-250-mark";
 import { isPendingHref } from "@/lib/pending-link";
 
 /** Set each URL when ready. Empty string = bright red “pending” chip (not a link). */
@@ -35,40 +36,6 @@ const socialItems = [
   { key: "instagram" as const, label: "Instagram" },
   { key: "doximity" as const, label: "Doximity" },
 ];
-
-// Temporary America 250 accent. Remove after July 2026.
-function America250FooterMark() {
-  return (
-    <div
-      className="flex w-full flex-col gap-3 rounded-md border border-red-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-      aria-label="Celebrating America's 250th birthday"
-    >
-      <div className="flex items-center gap-3">
-        <div
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-[#1d4ed8] text-white ring-2 ring-red-600/80"
-          aria-hidden
-        >
-          <svg viewBox="0 0 20 20" className="h-5 w-5 fill-current">
-            <path d="m10 1.8 2.3 5 5.5.6-4.1 3.7 1.1 5.4-4.8-2.7-4.8 2.7 1.1-5.4-4.1-3.7 5.5-.6L10 1.8Z" />
-          </svg>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-900">
-            Celebrating America&apos;s 250th Birthday
-          </p>
-          <p className="text-xs text-muted-foreground">
-            1776-2026 commemorative site accent
-          </p>
-        </div>
-      </div>
-      <div className="flex h-8 overflow-hidden rounded-md border border-slate-200 sm:w-28">
-        <span className="flex-1 bg-[#b91c1c]" aria-hidden />
-        <span className="flex-1 bg-white" aria-hidden />
-        <span className="flex-1 bg-[#1d4ed8]" aria-hidden />
-      </div>
-    </div>
-  );
-}
 
 function SocialNavItem({
   label,

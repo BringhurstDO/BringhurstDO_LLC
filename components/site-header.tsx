@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
+import { America250HeaderBanner } from "@/components/america-250-mark";
+
 const navItems = [
   { href: "/syncsoap", label: "SyncSOAP" },
   { href: "/syncsafety", label: "SyncSafety" },
@@ -11,31 +13,6 @@ const navItems = [
   { href: "/founder", label: "Founder" },
   { href: "/innovation", label: "Innovation" },
 ] as const;
-
-// Temporary America 250 accent. Remove after July 2026.
-function America250HeaderMark() {
-  return (
-    <div
-      className="hidden h-8 shrink-0 items-center gap-2 rounded-md border border-red-200 bg-white px-2.5 text-xs font-semibold text-slate-900 shadow-sm sm:flex"
-      aria-label="Celebrating America's 250th birthday"
-    >
-      <span
-        className="grid h-5 w-5 place-items-center rounded-full bg-[#1d4ed8] text-[10px] leading-none text-white ring-2 ring-red-600/80"
-        aria-hidden
-      >
-        <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 fill-current">
-          <path d="m10 1.8 2.3 5 5.5.6-4.1 3.7 1.1 5.4-4.8-2.7-4.8 2.7 1.1-5.4-4.1-3.7 5.5-.6L10 1.8Z" />
-        </svg>
-      </span>
-      <span className="whitespace-nowrap">
-        America <span className="text-red-700">250</span>
-      </span>
-      <span className="hidden whitespace-nowrap text-[10px] font-medium text-muted-foreground lg:inline">
-        1776-2026
-      </span>
-    </div>
-  );
-}
 
 export function SiteHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -62,8 +39,6 @@ export function SiteHeader() {
           />
           BringhurstDO
         </Link>
-
-        <America250HeaderMark />
 
         <button
           type="button"
@@ -99,6 +74,7 @@ export function SiteHeader() {
           ))}
         </nav>
       </div>
+      <America250HeaderBanner />
 
       <div
         id="mobile-primary-nav"
