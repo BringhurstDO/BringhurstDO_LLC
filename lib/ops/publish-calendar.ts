@@ -22,6 +22,8 @@ export type PublishCalendarTiming =
 export type PublishCalendarRow = {
   accountName: string;
   autopublishEnabled: boolean;
+  /** Full draft body for review on the calendar. */
+  body: string;
   bodyPreview: string;
   contentPackageId: string;
   draftId: string;
@@ -89,6 +91,7 @@ export function buildPublishCalendarRows(
       return {
         accountName: draft.accountName,
         autopublishEnabled: Boolean(draft.autopublishEnabled),
+        body: draft.body,
         bodyPreview,
         contentPackageId: record.contentPackage.id,
         draftId: draft.id,

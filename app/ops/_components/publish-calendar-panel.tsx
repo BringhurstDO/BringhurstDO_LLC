@@ -71,6 +71,43 @@ const timingTone: Record<
   upcoming: "neutral",
 };
 
+const CALENDAR_BODY_PREVIEW_CHARS = 160;
+
+function CalendarDraftBody({ body, platform }: { body: string; platform: PublicationPlatform }) {
+  const [expanded, setExpanded] = useState(false);
+  const trimmed = body.trim();
+  const isLong = trimmed.length > CALENDAR_BODY_PREVIEW_CHARS;
+  const preview = isLong
+    ? `${trimmed.slice(0, CALENDAR_BODY_PREVIEW_CHARS).trim()}…`
+    : trimmed;
+  const charLabel =
+    platform === "X" ? `${trimmed.length}/280 characters` : `${trimmed.length} characters`;
+
+  return (
+    <div className="mt-2 w-full min-w-0">
+      <div
+        className={`max-w-full rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-800 whitespace-pre-wrap break-words ${
+          expanded ? "max-h-96 overflow-y-auto" : ""
+        }`}
+      >
+        {expanded || !isLong ? trimmed : preview}
+      </div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-3">
+        <span className="text-xs text-slate-500">{charLabel}</span>
+        {isLong ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            className="text-xs font-semibold text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-950"
+          >
+            {expanded ? "Show less" : "Show full post"}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function issueText(value: unknown, path: string) {
   return collectMetadataOnlyIssues(value, path).map(
     (issue) => `${issue.path}: ${issue.message}`,
@@ -729,7 +766,7 @@ export function PublishCalendarPanel({
     return (
       <article className="rounded-lg border border-slate-200 bg-white p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-sans text-sm font-semibold text-slate-950">
                 {row.accountName} / {row.platform}
@@ -755,7 +792,7 @@ export function PublishCalendarPanel({
                 scheduleBucketId: row.suggestedScheduleBucketId,
               })}
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">{row.bodyPreview}</p>
+            <CalendarDraftBody body={row.body} platform={row.platform} />
             {row.scheduleWarnings.length > 0 ? (
               <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
                 {row.scheduleWarnings.map((warning) => (
