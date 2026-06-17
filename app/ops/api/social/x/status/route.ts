@@ -27,6 +27,8 @@ export async function GET() {
       configured: false,
       disabledReason: config.reason,
       oauthImplemented: true,
+      oauthRedirectUri: null,
+      oauthScopes: [],
       platform: "X",
     };
     return jsonNoStore(response);
@@ -45,6 +47,8 @@ export async function GET() {
       configured: true,
       disabledReason: null,
       oauthImplemented: true,
+      oauthRedirectUri: config.config.redirectUri,
+      oauthScopes: config.config.accounts[0]?.scopes ?? [],
       platform: "X",
     };
     return jsonNoStore(response);
@@ -56,6 +60,8 @@ export async function GET() {
       configured: true,
       disabledReason: message,
       oauthImplemented: true,
+      oauthRedirectUri: config.config.redirectUri,
+      oauthScopes: config.config.accounts[0]?.scopes ?? [],
       platform: "X",
     };
     return jsonNoStore(response);

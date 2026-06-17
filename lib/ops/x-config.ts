@@ -7,7 +7,7 @@ import type { SocialAuthorType } from "@/lib/ops/types";
 // Phase 9: X (Twitter) OAuth 2.0 + manual-approved posting. Fail-closed until
 // explicitly enabled and every required value is present.
 
-export const X_AUTHORIZATION_URL = "https://twitter.com/i/oauth2/authorize";
+export const X_AUTHORIZATION_URL = "https://x.com/i/oauth2/authorize";
 export const X_TOKEN_URL = "https://api.twitter.com/2/oauth2/token";
 export const X_TWEETS_URL = "https://api.twitter.com/2/tweets";
 export const X_USERS_ME_URL = "https://api.twitter.com/2/users/me";

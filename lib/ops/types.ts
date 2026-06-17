@@ -794,6 +794,10 @@ export type SocialConnectionsStatusResponse = {
   disabledReason: string | null;
   /** False when env is ready but OAuth callback/publish is not implemented yet. */
   oauthImplemented?: boolean;
+  /** OAuth callback URL registered in env (safe to show operators for portal setup). */
+  oauthRedirectUri?: string | null;
+  /** OAuth scopes requested during connect (for portal verification). */
+  oauthScopes?: string[];
   accounts: SocialConnectionPublicStatus[];
 };
 

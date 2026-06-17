@@ -33,15 +33,23 @@ export function buildAuthorizationUrl(
   state: string,
   codeChallenge: string,
 ) {
-  const url = new URL(X_AUTHORIZATION_URL);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", config.clientId);
-  url.searchParams.set("redirect_uri", config.redirectUri);
-  url.searchParams.set("scope", account.scopes.join(" "));
-  url.searchParams.set("state", state);
-  url.searchParams.set("code_challenge", codeChallenge);
-  url.searchParams.set("code_challenge_method", "S256");
-  return url.toString();
+  // encodeURIComponent keeps scope spaces as %20; URLSearchParams uses "+" which
+  // some OAuth providers reject.
+  const params: Array<[string, string]> = [
+    ["response_type", "code"],
+    ["client_id", config.clientId],
+    ["redirect_uri", config.redirectUri],
+    ["scope", account.scopes.join(" ")],
+    ["state", state],
+    ["code_challenge", codeChallenge],
+    ["code_challenge_method", "S256"],
+  ];
+
+  const query = params
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&");
+
+  return `${X_AUTHORIZATION_URL}?${query}`;
 }
 
 async function requestToken(
