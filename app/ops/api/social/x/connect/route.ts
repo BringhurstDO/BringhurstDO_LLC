@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { oauthCookieOptions } from "@/lib/ops/oauth-cookie-options";
+import { redirectToCanonicalOpsOrigin } from "@/lib/ops/ops-public-origin";
 import { buildAuthorizationUrl } from "@/lib/ops/x-client";
 import { findXAccount, resolveXConfig } from "@/lib/ops/x-config";
 import {
@@ -24,6 +26,11 @@ function accountsRedirect(request: NextRequest, params: Record<string, string>) 
 }
 
 export async function GET(request: NextRequest) {
+  const canonicalRedirect = redirectToCanonicalOpsOrigin(request);
+  if (canonicalRedirect) {
+    return NextResponse.redirect(canonicalRedirect, 307);
+  }
+
   const status = resolveXConfig();
 
   if (!status.ok) {
@@ -56,13 +63,10 @@ export async function GET(request: NextRequest) {
   );
 
   const response = NextResponse.redirect(authorizationUrl);
-  const cookieOptions = {
-    httpOnly: true,
-    maxAge: X_OAUTH_STATE_MAX_AGE_SECONDS,
-    path: "/ops",
-    sameSite: "lax" as const,
-    secure: request.nextUrl.protocol === "https:",
-  };
+  const cookieOptions = oauthCookieOptions(
+    request,
+    X_OAUTH_STATE_MAX_AGE_SECONDS,
+  );
   response.cookies.set(X_OAUTH_STATE_COOKIE, state, cookieOptions);
   response.cookies.set(X_OAUTH_ACCOUNT_COOKIE, account.accountId, cookieOptions);
   response.cookies.set(X_OAUTH_PKCE_COOKIE, codeVerifier, cookieOptions);

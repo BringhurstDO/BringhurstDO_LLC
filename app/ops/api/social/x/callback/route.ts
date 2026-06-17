@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { oauthCookieOptions } from "@/lib/ops/oauth-cookie-options";
 import { saveSocialConnection } from "@/lib/ops/social-connections-db";
 import {
   exchangeCodeForToken,
@@ -25,13 +26,14 @@ function accountsRedirect(request: NextRequest, params: Record<string, string>) 
   return url;
 }
 
-function clearOAuthCookies(response: NextResponse) {
+function clearOAuthCookies(response: NextResponse, request: NextRequest) {
+  const clearOptions = { ...oauthCookieOptions(request, 0), maxAge: 0 };
   for (const name of [
     X_OAUTH_STATE_COOKIE,
     X_OAUTH_ACCOUNT_COOKIE,
     X_OAUTH_PKCE_COOKIE,
   ]) {
-    response.cookies.set(name, "", { httpOnly: true, maxAge: 0, path: "/ops" });
+    response.cookies.set(name, "", clearOptions);
   }
 
   return response;
@@ -45,6 +47,7 @@ export async function GET(request: NextRequest) {
       NextResponse.redirect(
         accountsRedirect(request, { x_error: status.reason }),
       ),
+      request,
     );
   }
 
@@ -58,6 +61,7 @@ export async function GET(request: NextRequest) {
       NextResponse.redirect(
         accountsRedirect(request, { x_error: description }),
       ),
+      request,
     );
   }
 
@@ -75,6 +79,7 @@ export async function GET(request: NextRequest) {
           x_error: "OAuth state validation failed. Try connecting again.",
         }),
       ),
+      request,
     );
   }
 
@@ -85,6 +90,7 @@ export async function GET(request: NextRequest) {
           x_error: "OAuth PKCE verifier missing. Try connecting again.",
         }),
       ),
+      request,
     );
   }
 
@@ -97,6 +103,7 @@ export async function GET(request: NextRequest) {
           x_error: "Connection account could not be resolved. Try again.",
         }),
       ),
+      request,
     );
   }
 
@@ -107,6 +114,7 @@ export async function GET(request: NextRequest) {
           x_error: "X did not return an authorization code.",
         }),
       ),
+      request,
     );
   }
 
@@ -134,6 +142,7 @@ export async function GET(request: NextRequest) {
           x_account: account.accountId,
         }),
       ),
+      request,
     );
   } catch (error) {
     const message =
@@ -142,6 +151,7 @@ export async function GET(request: NextRequest) {
       NextResponse.redirect(
         accountsRedirect(request, { x_error: message }),
       ),
+      request,
     );
   }
 }

@@ -2,6 +2,32 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const OPS_REALM = "BringhurstDO Ops";
 
+const OAUTH_CALLBACK_PATHS = new Set([
+  "/ops/api/social/linkedin/callback",
+  "/ops/api/social/x/callback",
+]);
+
+function resolveCanonicalOpsOrigin() {
+  for (const raw of [
+    process.env.X_REDIRECT_URI,
+    process.env.LINKEDIN_REDIRECT_URI,
+    process.env.OPS_PUBLIC_ORIGIN,
+  ]) {
+    const value = raw?.trim();
+    if (!value) {
+      continue;
+    }
+
+    try {
+      return new URL(value).origin;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
 // TODO: Basic Auth is temporary. Before live integrations or mutation features,
 // move /ops behind Vercel Deployment Protection/SSO or a real auth provider.
 function unauthorized() {
@@ -64,6 +90,25 @@ function constantTimeEqual(left: string, right: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  const canonicalOrigin = resolveCanonicalOpsOrigin();
+  if (canonicalOrigin && request.nextUrl.origin !== canonicalOrigin) {
+    const target = new URL(request.url);
+    const canonical = new URL(canonicalOrigin);
+    target.protocol = canonical.protocol;
+    target.host = canonical.host;
+    return NextResponse.redirect(target, 308);
+  }
+
+  // External OAuth providers redirect here without a guaranteed Authorization header.
+  if (OAUTH_CALLBACK_PATHS.has(pathname)) {
+    const response = NextResponse.next();
+    response.headers.set("Cache-Control", "no-store");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
+  }
+
   const configuredUsername = process.env.OPS_BASIC_AUTH_USERNAME;
   const configuredPasswordHash =
     process.env.OPS_BASIC_AUTH_PASSWORD_SHA256?.trim().toLowerCase();

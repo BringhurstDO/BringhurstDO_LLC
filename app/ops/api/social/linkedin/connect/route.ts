@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { oauthCookieOptions } from "@/lib/ops/oauth-cookie-options";
+import { redirectToCanonicalOpsOrigin } from "@/lib/ops/ops-public-origin";
 import { buildAuthorizationUrl } from "@/lib/ops/linkedin-client";
 import {
   findLinkedInAccount,
@@ -25,6 +27,11 @@ function accountsRedirect(request: NextRequest, params: Record<string, string>) 
 }
 
 export async function GET(request: NextRequest) {
+  const canonicalRedirect = redirectToCanonicalOpsOrigin(request);
+  if (canonicalRedirect) {
+    return NextResponse.redirect(canonicalRedirect, 307);
+  }
+
   const status = resolveLinkedInConfig();
 
   if (!status.ok) {
@@ -51,13 +58,10 @@ export async function GET(request: NextRequest) {
   const authorizationUrl = buildAuthorizationUrl(status.config, account, state);
 
   const response = NextResponse.redirect(authorizationUrl);
-  const cookieOptions = {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: request.nextUrl.protocol === "https:",
-    path: "/ops",
-    maxAge: LINKEDIN_OAUTH_STATE_MAX_AGE_SECONDS,
-  };
+  const cookieOptions = oauthCookieOptions(
+    request,
+    LINKEDIN_OAUTH_STATE_MAX_AGE_SECONDS,
+  );
   response.cookies.set(LINKEDIN_OAUTH_STATE_COOKIE, state, cookieOptions);
   response.cookies.set(
     LINKEDIN_OAUTH_ACCOUNT_COOKIE,
