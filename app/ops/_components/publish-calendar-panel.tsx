@@ -96,6 +96,9 @@ export function PublishCalendarPanel({
   const [includePosted, setIncludePosted] = useState(false);
   const [linkedinStatus, setLinkedinStatus] =
     useState<SocialConnectionsStatusResponse | null>(null);
+  const [xStatus, setXStatus] = useState<SocialConnectionsStatusResponse | null>(
+    null,
+  );
   const [publishingDraftId, setPublishingDraftId] = useState<string | null>(null);
   const [autopublishStatus, setAutopublishStatus] = useState<{
     cronConfigured: boolean;
@@ -164,7 +167,19 @@ export function PublishCalendarPanel({
       }
     }
 
+    async function loadXStatus() {
+      try {
+        const response = await fetch("/ops/api/social/x/status", {
+          cache: "no-store",
+        });
+        setXStatus((await response.json()) as SocialConnectionsStatusResponse);
+      } catch {
+        setXStatus(null);
+      }
+    }
+
     void loadLinkedInStatus();
+    void loadXStatus();
   }, []);
 
   useEffect(() => {
@@ -207,6 +222,20 @@ export function PublishCalendarPanel({
       );
     },
     [linkedinStatus],
+  );
+
+  const xAccountStatus = useCallback(
+    (accountId: string | undefined): SocialConnectionPublicStatus | null => {
+      if (!accountId || !xStatus) {
+        return null;
+      }
+
+      return (
+        xStatus.accounts.find((account) => account.accountId === accountId) ??
+        null
+      );
+    },
+    [xStatus],
   );
 
   const calendarRows = useMemo(() => {
@@ -429,7 +458,7 @@ export function PublishCalendarPanel({
     const existingPost = record.publishedPosts.find(
       (post) => post.platformDraftId === draft.id,
     );
-    const publishNote = `Published to LinkedIn via Ops calendar. Post id: ${result.platformPostId}`;
+    const publishNote = `Published to ${draft.platform} via Ops calendar. Post id: ${result.platformPostId}`;
 
     const nextPost = existingPost
       ? {
@@ -553,6 +582,82 @@ export function PublishCalendarPanel({
     }
   }
 
+  async function publishDraftToX(row: PublishCalendarRow) {
+    const match = findDraftRecord(row.draftId);
+
+    if (!match) {
+      setIssues(["Draft record not found."]);
+      return;
+    }
+
+    const { draft, record } = match;
+    const accountId = targetAccountIdById.get(draft.publicationTargetId);
+    const accountStatus = xAccountStatus(accountId);
+
+    if (!accountStatus?.connected) {
+      setIssues([
+        "X account is not connected. Connect it on the Accounts page first.",
+      ]);
+      return;
+    }
+
+    if (draft.status !== "approved") {
+      setIssues(["Approve this draft before publishing to X."]);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Publish this approved draft to X as ${accountStatus.accountLabel ?? draft.accountName}? This posts publicly.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPublishingDraftId(draft.id);
+    setIssues([]);
+
+    try {
+      const response = await fetch("/ops/api/social/x/publish", {
+        body: JSON.stringify({
+          accountId,
+          body: sanitizePublishableBody(draft.body),
+          confirmApproved: true,
+          contentPackageId: record.contentPackage.id,
+          platformDraftId: draft.id,
+          publicationTargetId: draft.publicationTargetId,
+          title: draft.title,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const data = (await response.json()) as
+        | SocialPublishResult
+        | { error?: string };
+
+      if (!response.ok || !("postUrl" in data)) {
+        throw new Error(
+          "error" in data && data.error ? data.error : "X publish failed.",
+        );
+      }
+
+      const nextRecords = records.map((item) =>
+        item.contentPackage.id === record.contentPackage.id
+          ? mergeLinkedInPublishResult(item, draft, data)
+          : item,
+      );
+
+      if (await persistRecords(nextRecords)) {
+        setMessage(`Published ${draft.accountName} draft to X. Public URL saved.`);
+      }
+    } catch (error) {
+      setIssues([error instanceof Error ? error.message : "X publish failed."]);
+    } finally {
+      setPublishingDraftId(null);
+    }
+  }
+
   function CalendarRowCard({ row }: { row: PublishCalendarRow }) {
     const accountId = targetAccountIdById.get(row.publicationTargetId);
     const accountStatus = linkedInAccountStatus(accountId);
@@ -561,6 +666,12 @@ export function PublishCalendarPanel({
       row.draftStatus === "approved" &&
       row.postStatus !== "posted" &&
       accountStatus?.connected;
+    const xStatusForRow = xAccountStatus(accountId);
+    const canPublishX =
+      row.platform === "X" &&
+      row.draftStatus === "approved" &&
+      row.postStatus !== "posted" &&
+      xStatusForRow?.connected;
 
     return (
       <article className="rounded-lg border border-slate-200 bg-white p-4">
@@ -614,6 +725,17 @@ export function PublishCalendarPanel({
               {publishingDraftId === row.draftId
                 ? "Publishing…"
                 : "Publish to LinkedIn"}
+            </button>
+          ) : null}
+
+          {canPublishX ? (
+            <button
+              type="button"
+              disabled={publishingDraftId === row.draftId}
+              onClick={() => void publishDraftToX(row)}
+              className="inline-flex h-9 items-center rounded-md bg-slate-950 px-3 text-xs font-semibold text-white hover:bg-slate-700 disabled:bg-slate-300"
+            >
+              {publishingDraftId === row.draftId ? "Publishing…" : "Publish to X"}
             </button>
           ) : null}
 

@@ -1113,6 +1113,9 @@ export function ContentPackageBuilder({
   const [storageMessage, setStorageMessage] = useState("");
   const [linkedinStatus, setLinkedinStatus] =
     useState<SocialConnectionsStatusResponse | null>(null);
+  const [xStatus, setXStatus] = useState<SocialConnectionsStatusResponse | null>(
+    null,
+  );
   const [publishingDraftId, setPublishingDraftId] = useState<string | null>(
     null,
   );
@@ -1232,9 +1235,22 @@ export function ContentPackageBuilder({
     }
   }, []);
 
+  const refreshXStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/ops/api/social/x/status", {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as SocialConnectionsStatusResponse;
+      setXStatus(data);
+    } catch {
+      setXStatus(null);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshLinkedInStatus();
-  }, [refreshLinkedInStatus]);
+    void refreshXStatus();
+  }, [refreshLinkedInStatus, refreshXStatus]);
 
   const targetAccountIdById = useMemo(() => {
     const map = new Map<string, string>();
@@ -1256,6 +1272,19 @@ export function ContentPackageBuilder({
       );
     },
     [linkedinStatus],
+  );
+
+  const xAccountStatus = useCallback(
+    (accountId: string | undefined): SocialConnectionPublicStatus | null => {
+      if (!accountId || !xStatus) {
+        return null;
+      }
+      return (
+        xStatus.accounts.find((account) => account.accountId === accountId) ??
+        null
+      );
+    },
+    [xStatus],
   );
 
   const connectedLinkedInAccounts = useMemo(
@@ -2161,7 +2190,7 @@ export function ContentPackageBuilder({
     const existingPost = record.publishedPosts.find(
       (post) => post.platformDraftId === draft.id,
     );
-    const publishNote = `Published to LinkedIn via Ops. Post id: ${result.platformPostId}`;
+    const publishNote = `Published to ${draft.platform} via Ops. Post id: ${result.platformPostId}`;
 
     const nextPost: PublishedPost = existingPost
       ? {
@@ -2287,6 +2316,86 @@ export function ContentPackageBuilder({
     } catch (error) {
       setPublishError(
         error instanceof Error ? error.message : "LinkedIn publish failed.",
+      );
+    } finally {
+      setPublishingDraftId(null);
+    }
+  }
+
+  async function publishDraftToX(
+    record: LocalContentPackageRecord,
+    draft: PlatformDraft,
+  ) {
+    setPublishError("");
+    setPublishMessage("");
+
+    if (draft.platform !== "X") {
+      return;
+    }
+
+    const accountId = targetAccountIdById.get(draft.publicationTargetId);
+    const accountStatus = xAccountStatus(accountId);
+
+    if (!accountStatus?.connected) {
+      setPublishError(
+        "This draft's X account is not connected. Connect it on the Accounts page first.",
+      );
+      return;
+    }
+
+    if (draft.status !== "approved") {
+      setPublishError(
+        "Set this draft's status to approved before publishing to X.",
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Publish this approved draft to X as ${accountStatus.accountLabel ?? draft.accountName}? This posts publicly and cannot be undone from Ops.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPublishingDraftId(draft.id);
+
+    try {
+      const response = await fetch("/ops/api/social/x/publish", {
+        body: JSON.stringify({
+          accountId,
+          body: sanitizePublishableBody(draft.body),
+          confirmApproved: true,
+          contentPackageId: record.contentPackage.id,
+          platformDraftId: draft.id,
+          publicationTargetId: draft.publicationTargetId,
+          title: draft.title,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const data = (await response.json()) as
+        | SocialPublishResult
+        | { error?: string };
+
+      if (!response.ok || !("postUrl" in data)) {
+        const message =
+          "error" in data && data.error ? data.error : "X publish failed.";
+        throw new Error(message);
+      }
+
+      const result = data as SocialPublishResult;
+      const nextRecords = mergeLinkedInPublishResult(record, draft, result);
+
+      if (await persistRecords(nextRecords)) {
+        setPublishMessage(
+          `Published ${draft.platform} draft for ${draft.accountName}. Public post URL saved.`,
+        );
+      }
+    } catch (error) {
+      setPublishError(
+        error instanceof Error ? error.message : "X publish failed.",
       );
     } finally {
       setPublishingDraftId(null);
@@ -3880,6 +3989,75 @@ export function ContentPackageBuilder({
                                         </div>
                                       </div>
                                     ) : null}
+                                  </div>
+                                );
+                              })()
+                            : null}
+
+                          {draft.platform === "X"
+                            ? (() => {
+                                const draftAccountId = targetAccountIdById.get(
+                                  draft.publicationTargetId,
+                                );
+                                const draftAccount = xAccountStatus(draftAccountId);
+
+                                return (
+                                  <div className="rounded-md border border-slate-300 bg-slate-50 p-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className="text-sm font-semibold text-slate-900">
+                                        Publish to X
+                                      </p>
+                                      {post?.status === "posted" ? (
+                                        <StatusPill tone="good">Posted</StatusPill>
+                                      ) : null}
+                                    </div>
+                                    {draftAccount?.connected ? (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            void publishDraftToX(record, draft)
+                                          }
+                                          disabled={
+                                            publishingDraftId === draft.id ||
+                                            draft.status !== "approved"
+                                          }
+                                          className="mt-2 inline-flex h-9 items-center gap-2 rounded-md bg-slate-950 px-3 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                          <Megaphone
+                                            className="h-4 w-4"
+                                            aria-hidden
+                                          />
+                                          {publishingDraftId === draft.id
+                                            ? "Publishing…"
+                                            : post?.status === "posted"
+                                              ? "Publish again"
+                                              : "Publish approved draft"}
+                                        </button>
+                                        {draft.status !== "approved" ? (
+                                          <p className="mt-2 text-xs leading-5 text-slate-600">
+                                            Set this draft&apos;s status to
+                                            approved to enable publishing.
+                                          </p>
+                                        ) : (
+                                          <p className="mt-2 text-xs leading-5 text-slate-600">
+                                            Posts publicly as{" "}
+                                            {draftAccount.accountLabel ??
+                                              draftAccount.configuredLabel}
+                                            . Text-only, max {xSinglePostLimit}{" "}
+                                            characters after sanitizing.
+                                          </p>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <p className="mt-2 text-xs leading-5 text-slate-600">
+                                        Connect{" "}
+                                        {draftAccount?.configuredLabel ??
+                                          "this account"}{" "}
+                                        on the Accounts page to enable one-click
+                                        publishing.
+                                      </p>
+                                    )}
                                   </div>
                                 );
                               })()

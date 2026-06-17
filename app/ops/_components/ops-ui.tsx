@@ -15,6 +15,8 @@ import {
 
 import type { OpsTone } from "@/lib/ops/types";
 
+import { OpsDataLegend } from "@/app/ops/_components/ops-data-status";
+
 const navItems = [
   { href: "/ops", label: "Overview", icon: Home },
   { href: "/ops/content", label: "Content", icon: Megaphone },
@@ -54,8 +56,11 @@ export function OpsTopNav() {
             Private operator console
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Mock/local only. Manual approval before posting, spend, or mutation.
+            Manual approval before posting, spend, or mutation.
           </p>
+          <div className="mt-2">
+            <OpsDataLegend />
+          </div>
         </div>
         <nav className="flex flex-wrap gap-2" aria-label="Ops navigation">
           {navItems.map((item) => (

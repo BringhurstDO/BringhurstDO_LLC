@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { resolveLinkedInConfig } from "@/lib/ops/linkedin-config";
+import { resolveMetaConfig } from "@/lib/ops/meta-config";
 import {
   loadSocialConnection,
   toPublicConnectionStatus,
@@ -19,15 +19,15 @@ function jsonNoStore(body: unknown, status = 200) {
 }
 
 export async function GET() {
-  const config = resolveLinkedInConfig();
+  const config = resolveMetaConfig();
 
   if (!config.ok) {
     const response: SocialConnectionsStatusResponse = {
       accounts: [],
       configured: false,
       disabledReason: config.reason,
-      oauthImplemented: true,
-      platform: "LinkedIn",
+      oauthImplemented: false,
+      platform: "Meta",
     };
     return jsonNoStore(response);
   }
@@ -35,14 +35,8 @@ export async function GET() {
   try {
     const accounts = await Promise.all(
       config.config.accounts.map(async (account) => {
-        const record = await loadSocialConnection("LinkedIn", account.accountId);
-        return toPublicConnectionStatus(
-          "LinkedIn",
-          account,
-          true,
-          null,
-          record,
-        );
+        const record = await loadSocialConnection("Meta", account.accountId);
+        return toPublicConnectionStatus("Meta", account, true, null, record);
       }),
     );
 
@@ -50,19 +44,21 @@ export async function GET() {
       accounts,
       configured: true,
       disabledReason: null,
-      oauthImplemented: true,
-      platform: "LinkedIn",
+      oauthImplemented: false,
+      platform: "Meta",
     };
     return jsonNoStore(response);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to load LinkedIn status.";
+      error instanceof Error
+        ? error.message
+        : "Failed to load Meta connection status.";
     const response: SocialConnectionsStatusResponse = {
       accounts: [],
       configured: true,
       disabledReason: message,
-      oauthImplemented: true,
-      platform: "LinkedIn",
+      oauthImplemented: false,
+      platform: "Meta",
     };
     return jsonNoStore(response);
   }

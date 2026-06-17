@@ -11,9 +11,13 @@ import type { ComponentType } from "react";
 
 import { ManualMetricEntryPanel } from "@/app/ops/_components/manual-metric-entry-panel";
 import {
+  MockDataBanner,
+  MockDataPanel,
+  mockDataInnerClass,
+} from "@/app/ops/_components/ops-data-status";
+import {
   BoundaryPill,
   OpsPageHeader,
-  OpsPanel,
   opsShellClass,
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
@@ -46,10 +50,12 @@ export default function OpsMetricsPage() {
       <OpsPageHeader
         eyebrow="Manual metrics"
         title="Weekly Scorecard"
-        description="Manual/local scorecard for content and business metrics. Social metrics are placeholders for future read-only aggregate sources."
+        description="Entire page is mock sample data (red) until Phase 10–11 live metrics sync. Manual entry UI is for layout preview only."
       />
 
       <div className={`${opsShellClass} grid gap-6 py-6`}>
+        <MockDataBanner phase="Phase 11" />
+
         <div className="flex flex-wrap gap-2">
           <BoundaryPill>Manual entry/import first</BoundaryPill>
           <BoundaryPill>Read-only social placeholders</BoundaryPill>
@@ -64,11 +70,11 @@ export default function OpsMetricsPage() {
             return (
               <article
                 key={metric.id}
-                className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+                className={`${mockDataInnerClass} p-5 shadow-sm`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-600">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-700">
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
@@ -98,7 +104,8 @@ export default function OpsMetricsPage() {
           })}
         </section>
 
-        <OpsPanel
+        <MockDataPanel
+          phase="Phase 11"
           title="Manual Metric Entry"
           eyebrow={`${weeklyReport.weekStart} to ${weeklyReport.weekEnd}`}
         >
@@ -107,15 +114,16 @@ export default function OpsMetricsPage() {
             weekEnd={weeklyReport.weekEnd}
             weekStart={weeklyReport.weekStart}
           />
-        </OpsPanel>
+        </MockDataPanel>
 
-        <OpsPanel
+        <MockDataPanel
+          phase="Phase 11"
           title="Manual Metric Entry Ledger"
-          eyebrow={`${manualMetricEntries.length} mock rows`}
+          eyebrow={`${manualMetricEntries.length} sample rows`}
         >
           <div className="overflow-x-auto">
             <table className="min-w-[860px] divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <thead className="bg-red-50/80 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th scope="col" className="px-4 py-3">
                     Metric
@@ -168,14 +176,18 @@ export default function OpsMetricsPage() {
               </tbody>
             </table>
           </div>
-        </OpsPanel>
+        </MockDataPanel>
 
-        <OpsPanel title="Read-Only Social Metric Placeholders">
+        <MockDataPanel
+          phase="Phase 10"
+          title="Read-Only Social Metric Placeholders"
+          description="Future read-sync targets — not connected to platform APIs."
+        >
           <div className="grid gap-4 lg:grid-cols-3">
             {socialMetricPlaceholders.map((placeholder) => (
               <article
                 key={placeholder.id}
-                className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                className={`${mockDataInnerClass} p-4`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -186,7 +198,7 @@ export default function OpsMetricsPage() {
                       {placeholder.sourceBoundary}
                     </p>
                   </div>
-                  <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                  <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-800">
                     {placeholder.status}
                   </span>
                 </div>
@@ -207,7 +219,7 @@ export default function OpsMetricsPage() {
               </article>
             ))}
           </div>
-        </OpsPanel>
+        </MockDataPanel>
       </div>
     </main>
   );

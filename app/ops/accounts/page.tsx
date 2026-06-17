@@ -2,6 +2,13 @@ import { BadgeCheck, Ban, ClipboardList, ExternalLink } from "lucide-react";
 
 import { LinkedInConnectPanel } from "@/app/ops/_components/linkedin-connect-panel";
 import {
+  LiveDataBadge,
+  MockDataPanel,
+  StaticConfigShell,
+} from "@/app/ops/_components/ops-data-status";
+import { PlatformConnectPanel } from "@/app/ops/_components/platform-connect-panel";
+import { XConnectPanel } from "@/app/ops/_components/x-connect-panel";
+import {
   BoundaryPill,
   OpsPageHeader,
   OpsPanel,
@@ -86,6 +93,12 @@ export default async function OpsAccountsPage({
     typeof params.linkedin_error === "string"
       ? params.linkedin_error
       : undefined;
+  const xConnectResult =
+    typeof params.x === "string" ? params.x : undefined;
+  const xConnectError =
+    typeof params.x_error === "string" ? params.x_error : undefined;
+  const metaConnectError =
+    typeof params.meta_error === "string" ? params.meta_error : undefined;
   const { accountRegistry, socialMetricPlaceholders } = opsDashboardData;
   const projectAccounts = accountRegistry.filter((account) => account.kind === "project");
   const founderAccounts = accountRegistry.filter((account) => account.kind === "founder");
@@ -112,12 +125,40 @@ export default async function OpsAccountsPage({
           <BoundaryPill>Manual approval before spending</BoundaryPill>
         </div>
 
-        <LinkedInConnectPanel
-          connectResult={connectResult}
-          connectError={connectError}
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-1">
+          <div className="flex justify-end p-3 pb-0">
+            <LiveDataBadge label="Live · Phase 7" />
+          </div>
+          <LinkedInConnectPanel
+            connectResult={connectResult}
+            connectError={connectError}
+          />
+        </div>
+
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-1">
+          <XConnectPanel
+            connectError={xConnectError}
+            connectResult={xConnectResult}
+          />
+        </div>
+
+        <PlatformConnectPanel
+          connectError={metaConnectError}
+          connectErrorParam="meta_error"
+          connectPath="/ops/api/social/meta/connect"
+          description="Requires Meta Business verification, app review, OPS_META_ENABLED=true, and durable Postgres. Instagram needs media workflow before autopublish."
+          eyebrow="Phase 9 scaffold"
+          phase="Phase 9"
+          platformLabel="Meta"
+          statusPath="/ops/api/social/meta/status"
+          title="Meta — Facebook & Instagram (Phase 9)"
         />
 
-        <OpsPanel title="Connection Readiness" eyebrow="Preflight">
+        <OpsPanel
+          title="Connection Readiness"
+          eyebrow="Preflight · Phase 8E"
+          actions={<LiveDataBadge label="Applicable checklist" />}
+        >
           <p className="text-sm leading-6 text-slate-600">
             Read-only checklist for future platform connections. This panel does
             not read tokens, start OAuth, call social APIs, or imply posting is
@@ -175,6 +216,7 @@ export default async function OpsAccountsPage({
           </div>
         </OpsPanel>
 
+        <StaticConfigShell title="Account registry metadata">
         <OpsPanel title="Account Status Labels" eyebrow="Basic labels">
           <div className="flex flex-wrap gap-2">
             {accountStatuses.map((status) => (
@@ -272,8 +314,13 @@ export default async function OpsAccountsPage({
             ))}
           </div>
         </OpsPanel>
+        </StaticConfigShell>
 
-        <OpsPanel title="Social Metric Placeholder Coverage">
+        <MockDataPanel
+          phase="Phase 10"
+          title="Social Metric Placeholder Coverage"
+          description="Future read-sync layout — not connected to platform analytics APIs."
+        >
           <div className="grid gap-4 lg:grid-cols-3">
             {socialMetricPlaceholders.map((placeholder) => (
               <article
@@ -297,7 +344,7 @@ export default async function OpsAccountsPage({
               </article>
             ))}
           </div>
-        </OpsPanel>
+        </MockDataPanel>
       </div>
     </main>
   );

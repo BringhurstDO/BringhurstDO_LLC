@@ -5,7 +5,13 @@ const syncSoapDestination = "https://www.bringhurstdo.com/syncsoap";
 const syncSafetyDestination = "https://www.bringhurstdo.com/syncsafety";
 const bringhurstDoDestination = "https://www.bringhurstdo.com";
 
-// Metadata-only mock data for the private BringhurstDO operator console.
+// Metadata-only operator config and **sample mock data** for the private Ops console.
+//
+// Visual guide (see app/ops/_components/ops-data-status.tsx):
+// - Red highlight = mock sample data (metrics, weekly report, project health) — ignore values
+// - Amber highlight = static repo config (accounts, brand, targets) — applicable to workflows
+// - White/green = live Postgres content, LinkedIn connections, marketing export
+//
 // Never add PHI, patient identifiers, encounter IDs, transcripts, secret values,
 // cookies, tokens, raw logs, or clinical payloads to this module.
 export const opsDashboardData: OpsDashboardData = {

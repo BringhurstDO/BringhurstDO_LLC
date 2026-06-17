@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { resolveLinkedInConfig } from "@/lib/ops/linkedin-config";
+import { resolveXConfig } from "@/lib/ops/x-config";
 import {
   loadSocialConnection,
   toPublicConnectionStatus,
@@ -19,7 +19,7 @@ function jsonNoStore(body: unknown, status = 200) {
 }
 
 export async function GET() {
-  const config = resolveLinkedInConfig();
+  const config = resolveXConfig();
 
   if (!config.ok) {
     const response: SocialConnectionsStatusResponse = {
@@ -27,7 +27,7 @@ export async function GET() {
       configured: false,
       disabledReason: config.reason,
       oauthImplemented: true,
-      platform: "LinkedIn",
+      platform: "X",
     };
     return jsonNoStore(response);
   }
@@ -35,14 +35,8 @@ export async function GET() {
   try {
     const accounts = await Promise.all(
       config.config.accounts.map(async (account) => {
-        const record = await loadSocialConnection("LinkedIn", account.accountId);
-        return toPublicConnectionStatus(
-          "LinkedIn",
-          account,
-          true,
-          null,
-          record,
-        );
+        const record = await loadSocialConnection("X", account.accountId);
+        return toPublicConnectionStatus("X", account, true, null, record);
       }),
     );
 
@@ -51,18 +45,18 @@ export async function GET() {
       configured: true,
       disabledReason: null,
       oauthImplemented: true,
-      platform: "LinkedIn",
+      platform: "X",
     };
     return jsonNoStore(response);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Failed to load LinkedIn status.";
+      error instanceof Error ? error.message : "Failed to load X connection status.";
     const response: SocialConnectionsStatusResponse = {
       accounts: [],
       configured: true,
       disabledReason: message,
       oauthImplemented: true,
-      platform: "LinkedIn",
+      platform: "X",
     };
     return jsonNoStore(response);
   }

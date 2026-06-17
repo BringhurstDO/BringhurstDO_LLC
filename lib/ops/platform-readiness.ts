@@ -46,11 +46,11 @@ export const OPS_PLATFORM_READINESS: OpsPlatformReadinessItem[] = [
       "No X autopublish boundary has been approved",
     ],
     nextOperatorAction:
-      "Decide whether X posting API access is worth the setup cost after LinkedIn workflow is stable.",
+      "Connect X from /ops/accounts after setting OPS_X_ENABLED=true and X_* env vars. Approve drafts before publishing.",
     platform: "X",
     status: "planned_not_connected",
-    statusLabel: "X planned, not connected",
-    tone: "neutral",
+    statusLabel: "X ready to connect",
+    tone: "watch",
   },
   {
     allowedNow: [
@@ -63,7 +63,7 @@ export const OPS_PLATFORM_READINESS: OpsPlatformReadinessItem[] = [
       "No media upload/storage workflow exists in Ops",
     ],
     nextOperatorAction:
-      "Wait on Meta trust/app review before implementing Instagram API work; keep manual posting for now.",
+      "Phase 9 scaffold is on /ops/accounts. Complete Meta Business verification/app review, then enable OPS_META_ENABLED and META_* env.",
     platform: "Instagram",
     status: "blocked_external_review",
     statusLabel: "Instagram blocked by Meta review",

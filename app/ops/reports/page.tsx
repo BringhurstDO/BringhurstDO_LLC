@@ -1,20 +1,31 @@
-import { AlertTriangle, CheckCircle2, CircleDollarSign, ListChecks } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, CircleDollarSign, FileText, ListChecks } from "lucide-react";
 
 import { ExportButtons } from "@/app/ops/_components/export-buttons";
+import {
+  LiveDataBadge,
+  MockDataPanel,
+  MockDataShell,
+  mockDataInnerClass,
+} from "@/app/ops/_components/ops-data-status";
 import { OpsPageHeader, OpsPanel, opsShellClass, StatusPill } from "@/app/ops/_components/ops-ui";
 import {
   jsonExportFile,
   markdownExportFile,
   weeklyReportToMarkdown,
 } from "@/lib/ops/export";
+import { loadOpsContentRecords } from "@/lib/ops/load-content-records";
+import { buildOpsMarketingContext } from "@/lib/ops/marketing-context";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-export default function OpsReportsPage() {
+export default async function OpsReportsPage() {
   const { projectHealthSnapshots, weeklyReport, weeklyScorecard } =
     opsDashboardData;
+  const { records, source } = await loadOpsContentRecords();
+  const marketingContext = buildOpsMarketingContext(records);
   const weeklyReportExportFiles = [
     jsonExportFile("ops-weekly-report", "JSON", weeklyReport),
     markdownExportFile(
@@ -23,34 +34,88 @@ export default function OpsReportsPage() {
       weeklyReportToMarkdown(weeklyReport),
     ),
   ];
+  const marketingContextExportFiles = [
+    jsonExportFile("ops-marketing-context", "JSON", marketingContext),
+    markdownExportFile(
+      "ops-marketing-context",
+      "Markdown",
+      marketingContext.markdown,
+    ),
+  ];
 
   return (
     <main>
       <OpsPageHeader
-        eyebrow="Weekly operator report"
+        eyebrow="Operator reports"
         title="Reports"
-        description="Mock weekly review for project status, wins, risks, cost notes, marketing output, and next actions."
+        description="Export marketing context for AI review (Gemini, ChatGPT, etc.) from saved packages. Weekly scorecard below remains placeholder until Phase 11."
       />
 
       <div className={`${opsShellClass} grid gap-6 py-6`}>
         <OpsPanel
-          title="Weekly Report Export"
-          eyebrow={`${weeklyReport.weekStart} to ${weeklyReport.weekEnd}`}
-          actions={<ExportButtons files={weeklyReportExportFiles} />}
+          title="Marketing Context Export"
+          eyebrow={
+            source === "database"
+              ? `${marketingContext.recordCount} saved packages`
+              : "Database storage required"
+          }
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              {source === "database" ? <LiveDataBadge label="Live · Postgres" /> : null}
+              <ExportButtons files={marketingContextExportFiles} />
+            </div>
+          }
         >
           <p className="text-sm leading-6 text-slate-700">
-            Export the weekly operator report for manual review, archiving, or
-            copy/paste into a separate document. Exporting does not send email,
-            publish, or mutate any source system.
+            Bounded metadata-only summary of brand voice, audiences, publication
+            targets, recent packages, upcoming calendar drafts, and posted copy.
+            Paste into Gemini or attach when planning new series — no PHI or
+            credentials.
           </p>
+          {source === "database" ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href="/ops/api/marketing-context"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              >
+                <FileText className="h-4 w-4" aria-hidden />
+                View JSON
+              </a>
+              <Link
+                href="/ops/content/calendar"
+                className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              >
+                Open calendar
+              </Link>
+            </div>
+          ) : (
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              Set <code className="font-mono">OPS_STORAGE_MODE=database</code> and{" "}
+              <code className="font-mono">DATABASE_URL</code> to build marketing
+              context from saved packages. Browser-local packages are not available
+              to this server export.
+            </p>
+          )}
         </OpsPanel>
 
-        <OpsPanel title="Weekly Scorecard" eyebrow="Manual/local metrics">
+        <MockDataPanel
+          phase="Phase 11"
+          title="Weekly Report Export"
+          eyebrow={`Sample ${weeklyReport.weekStart} to ${weeklyReport.weekEnd}`}
+          actions={<ExportButtons files={weeklyReportExportFiles} />}
+          description="Legacy mock weekly report layout. Replace with live data in Phase 11."
+        >
+          <p className="text-sm leading-6 text-slate-700">
+            Export buttons produce sample JSON/Markdown only.
+          </p>
+        </MockDataPanel>
+
+        <MockDataPanel phase="Phase 11" title="Weekly Scorecard" eyebrow="Sample metrics">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             {weeklyScorecard.map((metric) => (
               <article
                 key={metric.id}
-                className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                className={`${mockDataInnerClass} p-4`}
               >
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {metric.label}
@@ -62,13 +127,14 @@ export default function OpsReportsPage() {
               </article>
             ))}
           </div>
-        </OpsPanel>
+        </MockDataPanel>
 
+        <MockDataShell phase="Phase 11" title="Project health snapshots (sample)">
         <section className="grid gap-4 lg:grid-cols-3">
           {projectHealthSnapshots.map((snapshot) => (
             <article
               key={snapshot.id}
-              className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+              className={`${mockDataInnerClass} p-5 shadow-sm`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -100,7 +166,9 @@ export default function OpsReportsPage() {
             </article>
           ))}
         </section>
+        </MockDataShell>
 
+        <MockDataShell phase="Phase 11" title="Weekly report narrative (sample)">
         <section className="grid gap-6 lg:grid-cols-2">
           <OpsPanel title="Weekly Wins" eyebrow={weeklyReport.weekStart}>
             <ul className="space-y-3 text-sm leading-6 text-slate-700">
@@ -159,6 +227,7 @@ export default function OpsReportsPage() {
             ))}
           </div>
         </OpsPanel>
+        </MockDataShell>
       </div>
     </main>
   );

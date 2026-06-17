@@ -750,7 +750,7 @@ export type OpsDashboardData = {
 // public connection status and post results are returned to the client. Every
 // publish remains operator-approved on a per-draft basis.
 
-export type SocialConnectionPlatform = "LinkedIn";
+export type SocialConnectionPlatform = "LinkedIn" | "X" | "Meta";
 
 export type SocialAuthorType = "organization" | "member";
 
@@ -792,6 +792,8 @@ export type SocialConnectionsStatusResponse = {
   platform: SocialConnectionPlatform;
   configured: boolean;
   disabledReason: string | null;
+  /** False when env is ready but OAuth callback/publish is not implemented yet. */
+  oauthImplemented?: boolean;
   accounts: SocialConnectionPublicStatus[];
 };
 

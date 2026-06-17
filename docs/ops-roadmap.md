@@ -4,7 +4,7 @@ Living roadmap for the private Ops console. Use this when pivoting tools (e.g.
 Cursor → Codex) so the next agent understands **what shipped**, **what is in
 progress**, and **what is intentionally deferred**.
 
-Last updated: 2026-06-14 (after Phase 8C).
+Last updated: 2026-06-15 (mock data highlighting, Phase 9 scaffold).
 
 ## Product goal
 
@@ -18,95 +18,114 @@ clinical data into Ops.
 | Phase | Capability | Route / entry |
 |-------|------------|---------------|
 | 1 | Basic Auth fail-closed `/ops` | middleware |
-| 2–4 | Mock dashboard, content models, export | `/ops`, `/ops/content` |
+| 2–4 | Content models, export, accounts registry | `/ops`, `/ops/accounts` |
 | 5B–5C | Content package persistence (browser + Postgres) | `/ops/content/new` |
 | 6A | AI improve existing drafts (OpenAI/Gemini) | builder AI panel |
-| 7A–7B | LinkedIn OAuth, multi-account, publish + reshare | `/ops/accounts`, builder |
-| 8A | Weekly summary → AI series split + suggested dates | `/ops/content/series` |
-| 8B | Publish calendar, approve/reschedule, manual LinkedIn publish | `/ops/content/calendar` |
+| 7A–7B | LinkedIn OAuth, multi-account, publish + reshare | `/ops/accounts`, calendar |
+| 8A | Weekly summary → AI series split + suggested dates | `/ops/content/series`, `/ops/content/new` |
+| 8A+ | AI schedule plan, calendar rebalance, link-free bodies, delete draft/package | series + calendar |
+| 8B | Publish calendar, approve/reschedule/remove, manual LinkedIn publish | `/ops/content/calendar` |
 | 8C | Scheduled LinkedIn autopublish (opt-in per draft, approved only) | Vercel cron + calendar |
-| 8D | Platform default schedule buckets as planning data only | series + calendar guidance |
+| 8D | Platform schedule **planning buckets** (morning/midday/evening guidance) | calendar + series UI |
 | 8E | Platform connection readiness preflight | `/ops/accounts` |
+| 9 (in progress) | X + Meta OAuth scaffold (config, status, connect stub) | `/ops/accounts`, `/ops/api/social/x/*`, `/ops/api/social/meta/*` |
+| — | Marketing context export (brand + saved packages for AI) | `/ops/reports`, `GET /ops/api/marketing-context` |
+| — | Overview live content snapshot (when DB mode) | `/ops` |
 
 **Production notes (2026-06):**
 
 - Vercel deploys `main`.
 - Kyle personal LinkedIn connected; org pages blocked pending Community Management API.
-- Privacy policy at `/privacy` for LinkedIn app registration.
+- Legacy mock **content packages**, **idea bank**, and **draft queue** removed from seeds; saved packages are source of truth.
+- `/ops` overview shows live content stats when `OPS_STORAGE_MODE=database`; metrics/scorecard remain Phase 11 placeholders.
+- **Red highlight** = mock sample data to ignore; **amber** = static repo config; **green** = live Postgres / LinkedIn.
 
 ## Content workflow (end-to-end today)
 
 ```
 Weekly summary (8A)
+    → Optional: Suggest schedule with AI
     → AI split + suggested dates
-    → Save content package
+    → Save content package (rebalances calendar)
     → Publish calendar (8B): today / overdue / upcoming
     → Approve draft + opt-in autopublish (optional)
-    → Publish calendar (8B): today / overdue / upcoming
     → Manual publish OR scheduled autopublish on date (8C, LinkedIn only)
-    → Optional: reshare from founder to brand (7B, when org connected)
 ```
 
 Alternative path: single source update → platform slots → AI improve → same calendar.
 
+**Marketing context for external AI:** Export from `/ops/reports` or
+`GET /ops/api/marketing-context` (Basic Auth). Includes brand rules, audiences,
+targets, recent packages, upcoming drafts, and posted copy previews — metadata only.
+
+## Publish timing (important)
+
+| Layer | What it does |
+|-------|----------------|
+| **Calendar date** | `suggestedScheduledFor` = YYYY-MM-DD (saved per draft) |
+| **8D planning buckets** | LinkedIn morning, Instagram evening, etc. — **guidance only**, not saved per draft yet |
+| **8C autopublish** | Single Vercel cron daily at **14:00 UTC** (~9:00 AM Eastern default) |
+| **Manual publish** | Any time on the scheduled day |
+
+**Not shipped:** per-draft time-of-day field, multiple cron runs per day, or autopublish aligned to 8D buckets. Codex 8D laid groundwork; next step would be save `scheduleBucketId` per draft + map buckets to cron slots within Vercel limits (max 20 crons on Pro).
+
 ## Explicitly NOT shipped
 
-- Instagram, Facebook, X OAuth or publish APIs
+- Autonomous AI content **suggestions** (idea bank) — deferred by operator choice
+- Instagram, Facebook, X OAuth or publish APIs (Phase 9)
 - Autopublish for non-LinkedIn platforms
-- Per-draft scheduled times or time-window enforcement
-- Read-only social metrics sync into scorecard
-- Dashboard pages reading live persisted data (still mock on `/ops`, `/ops/metrics`, etc.)
+- Per-draft scheduled times enforced by cron
+- Read-only social metrics sync into scorecard (Phase 10)
+- Live project/AWS metrics on `/ops`, `/ops/metrics`, `/ops/reports` scorecard (Phase 11)
 - Email or push “post today” reminders
+- Browser-local packages in server-side marketing context export (DB only)
 
-### Phase 9 — Other platforms (after 8A–8C feel stable)
+### Phase 9 — Other platforms (in progress)
 
-**Status:** Deferred until LinkedIn series + autopublish workflow is proven.
+Scaffold shipped: X and Meta env validation, status APIs, accounts UI panels.
+OAuth callback + publish routes pending external API approval. See
+`docs/ops-phase-9-other-platforms.md`.
 
 | Platform | Prerequisite |
 |----------|--------------|
 | Instagram / Facebook | Meta Business verification, app review |
 | X | OAuth app + posting API approval |
 
-8A/8B were **intentionally moved ahead** of Meta/X connect so Kyle can run a
-LinkedIn-only content series without waiting on org API or Meta trust.
-
 ### Phase 10 — Metrics read sync
 
-**Status:** Idea only.
-
-- Pull impressions/clicks from connected accounts into performance snapshots
-- Still metadata-only aggregates; no audience exports
+Pull impressions/clicks from connected accounts into performance snapshots.
 
 ### Phase 11 — Dashboard live data
 
-**Status:** Idea only.
+Replace remaining mock on `/ops/metrics`, `/ops/reports` scorecard, `/ops/projects` health with Postgres or external feeds.
 
-- Replace `mock-data.ts` on `/ops`, `/ops/metrics`, `/ops/reports` with Postgres reads
+### Phase 12 (candidate) — Per-draft schedule buckets + multi-cron autopublish
+
+Save `scheduleBucketId` on drafts; add cron entries per bucket (within Vercel limits); autopublish only when date **and** bucket window match.
 
 ## Security boundaries (summary)
 
 Full detail: `docs/ops-security-boundaries.md`.
 
 - **Default:** no OAuth, no posting API, no autopost, no PHI.
-- **7A/7B exception:** LinkedIn only, server-only tokens, per-action operator confirm.
-- **8A exception:** AI series split, proposals not auto-saved.
-- **8B exception:** Calendar view + reschedule metadata; manual publish from calendar.
-- **8C exception:** Daily cron LinkedIn autopublish for approved + opt-in drafts only.
-- **8D planning data:** Platform default buckets exist as UI guidance only; they do not
-  change cron behavior or publish timing.
-- **8E preflight:** Connection readiness is static guidance only; it does not read
-  tokens, start OAuth, call social APIs, or change posting permissions.
+- **7A/7B:** LinkedIn only, server-only tokens, per-action confirm.
+- **8A:** AI series split; proposals not auto-saved.
+- **8B:** Calendar + delete/reschedule metadata.
+- **8C:** Daily cron LinkedIn autopublish for approved + opt-in only.
+- **8D/8E:** Planning/preflight data only.
+- **Marketing context API:** Metadata-only export; Basic Auth gated like all `/ops`.
 
 ## Key env vars
 
 | Variable | Purpose |
 |----------|---------|
 | `OPS_BASIC_AUTH_*` | Gate `/ops` |
-| `OPS_STORAGE_MODE`, `DATABASE_URL` | Durable packages |
-| `OPS_AI_ENABLED`, `OPS_AI_PROVIDER`, API keys | 6A, 8A |
+| `OPS_STORAGE_MODE`, `DATABASE_URL` | Durable packages + overview/marketing export |
+| `OPS_AI_ENABLED`, `OPS_AI_PROVIDER`, API keys | 6A, 8A, plan-series |
 | `OPS_LINKEDIN_ENABLED`, `LINKEDIN_*`, `OPS_SOCIAL_TOKEN_SECRET` | 7A/7B |
 | `OPS_AUTOPUBLISH_ENABLED`, `OPS_AUTOPUBLISH_TIMEZONE`, `CRON_SECRET` | 8C |
-| `LINKEDIN_ACCOUNTS` | Multi-account allowlist JSON |
+| `OPS_X_ENABLED`, `X_*` | 9 (X scaffold) |
+| `OPS_META_ENABLED`, `META_*` | 9 (Meta scaffold) |
 
 ## Doc index
 
@@ -119,18 +138,8 @@ Full detail: `docs/ops-security-boundaries.md`.
 | `ops-phase-8a-content-series.md` | Series split |
 | `ops-phase-8b-publish-calendar.md` | Publish calendar |
 | `ops-phase-8c-scheduled-autopublish.md` | Scheduled autopublish |
+| `ops-phase-9-other-platforms.md` | X + Meta scaffold |
 | `ops-phase-5c-database-implementation.md` | Postgres persistence |
-
-## Codex / handoff checklist
-
-When continuing in a new agent session:
-
-1. Read this file and `ops-security-boundaries.md` first.
-2. Confirm branch (`main`) and Vercel env match `.env.local` patterns (never commit secrets).
-3. Run `npm run lint`, `npm run build`, `npm run ops:check-ai-safety`, `npm run ops:check-publishable-copy`.
-4. Content packages live in browser localStorage **or** Postgres — test both if touching persistence.
-5. LinkedIn org posting blocked until LinkedIn approves Community Management API — not a code bug.
-6. Next likely user ask: **first live series on Kyle LinkedIn** or Phase 9 Meta/X.
 
 ## Decision log
 
@@ -138,7 +147,10 @@ When continuing in a new agent session:
 |------|----------|
 | 2026-06 | 8A/8B before Instagram/Facebook/X |
 | 2026-06 | 8C = LinkedIn autopublish with per-draft opt-in + approve gate |
-| 2026-06 | 8D = platform default schedule buckets as planning data only |
-| 2026-06 | 8E = platform connection readiness preflight without new integrations |
-| 2026-06 | Kyle founder LinkedIn first; brand org pages when API approved |
-| 2026-06 | Single LinkedIn Developer app for all pages; connect in Ops UI |
+| 2026-06 | 8D = platform schedule buckets as **planning guidance only** (not per-draft yet) |
+| 2026-06 | 8E = platform connection readiness preflight |
+| 2026-06-15 | Remove legacy mock content seeds; saved packages = source of truth |
+| 2026-06-15 | Marketing context export for external AI; defer autonomous idea suggestions |
+| 2026-06-15 | Consolidate `/ops/content` to three workflow entry points; simplify `/ops` overview |
+| 2026-06-15 | Red/amber/green data-status highlighting across Ops pages |
+| 2026-06-15 | Phase 9 scaffold: X + Meta config, status APIs, accounts panels |
