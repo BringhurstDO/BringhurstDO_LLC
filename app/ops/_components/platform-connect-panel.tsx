@@ -10,6 +10,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { MockDataBadge } from "@/app/ops/_components/ops-data-status";
+import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { OpsPanel, StatusPill } from "@/app/ops/_components/ops-ui";
 import type {
   SocialConnectionPublicStatus,
@@ -140,7 +141,7 @@ export function PlatformConnectPanel({
     setActionError(null);
 
     try {
-      const response = await fetch(statusPath, { cache: "no-store" });
+      const response = await opsFetch(statusPath);
       const data = (await response.json()) as SocialConnectionsStatusResponse;
       setStatus(data);
     } catch {

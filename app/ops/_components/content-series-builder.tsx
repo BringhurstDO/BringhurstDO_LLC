@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { StatusPill } from "@/app/ops/_components/ops-ui";
+import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import {
   buildUtmForTarget,
   campaignName,
@@ -320,7 +321,7 @@ export function ContentSeriesBuilder({
     setSchedulePlan(null);
 
     try {
-      const response = await fetch("/ops/api/ai/plan-series", {
+      const response = await opsFetch("/ops/api/ai/plan-series", {
         body: JSON.stringify({
           publicationTargetIds: selectedTargetIds,
           seriesSummary,
@@ -392,7 +393,7 @@ export function ContentSeriesBuilder({
     setRunId("");
 
     try {
-      const response = await fetch("/ops/api/ai/split-series", {
+      const response = await opsFetch("/ops/api/ai/split-series", {
         body: JSON.stringify({
           postsPerWeek,
           publicationTargetIds: selectedTargetIds,

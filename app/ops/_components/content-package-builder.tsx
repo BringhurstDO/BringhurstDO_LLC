@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
+import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import { removePackageFromRecords } from "@/lib/ops/content-package-mutations";
 import {
@@ -1225,7 +1226,7 @@ export function ContentPackageBuilder({
 
   const refreshLinkedInStatus = useCallback(async () => {
     try {
-      const response = await fetch("/ops/api/social/linkedin/status", {
+      const response = await opsFetch("/ops/api/social/linkedin/status", {
         cache: "no-store",
       });
       const data = (await response.json()) as SocialConnectionsStatusResponse;
@@ -1237,7 +1238,7 @@ export function ContentPackageBuilder({
 
   const refreshXStatus = useCallback(async () => {
     try {
-      const response = await fetch("/ops/api/social/x/status", {
+      const response = await opsFetch("/ops/api/social/x/status", {
         cache: "no-store",
       });
       const data = (await response.json()) as SocialConnectionsStatusResponse;
@@ -2281,7 +2282,7 @@ export function ContentPackageBuilder({
     setPublishingDraftId(draft.id);
 
     try {
-      const response = await fetch("/ops/api/social/linkedin/publish", {
+      const response = await opsFetch("/ops/api/social/linkedin/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2361,7 +2362,7 @@ export function ContentPackageBuilder({
     setPublishingDraftId(draft.id);
 
     try {
-      const response = await fetch("/ops/api/social/x/publish", {
+      const response = await opsFetch("/ops/api/social/x/publish", {
         body: JSON.stringify({
           accountId,
           body: sanitizePublishableBody(draft.body),
@@ -2425,7 +2426,7 @@ export function ContentPackageBuilder({
     setResharingKey(reshareKey);
 
     try {
-      const response = await fetch("/ops/api/social/linkedin/reshare", {
+      const response = await opsFetch("/ops/api/social/linkedin/reshare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

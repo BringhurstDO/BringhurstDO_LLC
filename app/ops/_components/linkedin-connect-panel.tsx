@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { OpsPanel, StatusPill } from "@/app/ops/_components/ops-ui";
+import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import type {
   SocialConnectionPublicStatus,
   SocialConnectionsStatusResponse,
@@ -136,9 +137,7 @@ export function LinkedInConnectPanel({
     setActionError(null);
 
     try {
-      const response = await fetch("/ops/api/social/linkedin/status", {
-        cache: "no-store",
-      });
+      const response = await opsFetch("/ops/api/social/linkedin/status");
       const data = (await response.json()) as SocialConnectionsStatusResponse;
       setStatus(data);
     } catch {
@@ -158,7 +157,7 @@ export function LinkedInConnectPanel({
       setActionError(null);
 
       try {
-        const response = await fetch("/ops/api/social/linkedin/disconnect", {
+        const response = await opsFetch("/ops/api/social/linkedin/disconnect", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ accountId }),

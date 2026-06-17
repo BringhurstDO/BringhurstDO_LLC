@@ -11,6 +11,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { LiveDataBadge } from "@/app/ops/_components/ops-data-status";
+import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { OpsPanel, StatusPill } from "@/app/ops/_components/ops-ui";
 import type {
   SocialConnectionPublicStatus,
@@ -130,9 +131,13 @@ export function XConnectPanel({ connectError, connectResult }: XConnectPanelProp
     setActionError(null);
 
     try {
-      const response = await fetch("/ops/api/social/x/status", {
-        cache: "no-store",
-      });
+      const response = await opsFetch("/ops/api/social/x/status");
+      if (response.status === 401) {
+        throw new Error(
+          "Ops session expired. Refresh the page and sign in again, then retry Connect.",
+        );
+      }
+
       const data = (await response.json()) as SocialConnectionsStatusResponse;
       setStatus(data);
     } catch {
@@ -152,10 +157,10 @@ export function XConnectPanel({ connectError, connectResult }: XConnectPanelProp
       setActionError(null);
 
       try {
-        const response = await fetch("/ops/api/social/x/disconnect", {
-          body: JSON.stringify({ accountId }),
-          headers: { "Content-Type": "application/json" },
+        const response = await opsFetch("/ops/api/social/x/disconnect", {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId }),
         });
 
         if (!response.ok) {

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, RotateCcw, Sparkles } from "lucide-react";
 
+import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { buildOpsAiVisibleContextFromRecord } from "@/lib/ops/ai-visible-context";
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import type {
@@ -89,7 +90,7 @@ export function AiImprovePanel({
     setMessage("");
 
     try {
-      const response = await fetch("/ops/api/ai/improve-drafts", {
+      const response = await opsFetch("/ops/api/ai/improve-drafts", {
         body: JSON.stringify({ aiVisibleContext }),
         cache: "no-store",
         credentials: "same-origin",

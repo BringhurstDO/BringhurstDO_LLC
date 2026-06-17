@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { StatusPill } from "@/app/ops/_components/ops-ui";
+import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
 import {
   createLocalStorageOpsPersistenceAdapter,
@@ -158,7 +159,7 @@ export function PublishCalendarPanel({
   useEffect(() => {
     async function loadLinkedInStatus() {
       try {
-        const response = await fetch("/ops/api/social/linkedin/status", {
+        const response = await opsFetch("/ops/api/social/linkedin/status", {
           cache: "no-store",
         });
         setLinkedinStatus((await response.json()) as SocialConnectionsStatusResponse);
@@ -169,7 +170,7 @@ export function PublishCalendarPanel({
 
     async function loadXStatus() {
       try {
-        const response = await fetch("/ops/api/social/x/status", {
+        const response = await opsFetch("/ops/api/social/x/status", {
           cache: "no-store",
         });
         setXStatus((await response.json()) as SocialConnectionsStatusResponse);
@@ -185,7 +186,7 @@ export function PublishCalendarPanel({
   useEffect(() => {
     async function loadAutopublishStatus() {
       try {
-        const response = await fetch("/ops/api/autopublish/status", {
+        const response = await opsFetch("/ops/api/autopublish/status", {
           cache: "no-store",
         });
         setAutopublishStatus(
@@ -374,7 +375,7 @@ export function PublishCalendarPanel({
     setIssues([]);
 
     try {
-      const response = await fetch("/ops/api/autopublish/run", {
+      const response = await opsFetch("/ops/api/autopublish/run", {
         cache: "no-store",
         method: "POST",
       });
@@ -538,7 +539,7 @@ export function PublishCalendarPanel({
     setIssues([]);
 
     try {
-      const response = await fetch("/ops/api/social/linkedin/publish", {
+      const response = await opsFetch("/ops/api/social/linkedin/publish", {
         body: JSON.stringify({
           accountId,
           body: sanitizePublishableBody(draft.body),
@@ -618,7 +619,7 @@ export function PublishCalendarPanel({
     setIssues([]);
 
     try {
-      const response = await fetch("/ops/api/social/x/publish", {
+      const response = await opsFetch("/ops/api/social/x/publish", {
         body: JSON.stringify({
           accountId,
           body: sanitizePublishableBody(draft.body),

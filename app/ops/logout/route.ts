@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 
+import {
+  opsAuthSessionCookieName,
+  opsAuthSessionCookieOptions,
+} from "@/lib/ops/ops-auth-session";
+
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
@@ -38,8 +43,9 @@ const loggedOutHtml = `<!doctype html>
   </body>
 </html>`;
 
-export function GET() {
-  return new NextResponse(loggedOutHtml, {
+export function GET(request: Request) {
+  const url = new URL(request.url);
+  const response = new NextResponse(loggedOutHtml, {
     status: 401,
     headers: {
       "WWW-Authenticate": `Basic realm="${OPS_REALM}", charset="UTF-8"`,
@@ -48,4 +54,18 @@ export function GET() {
       "X-Robots-Tag": "noindex, nofollow",
     },
   });
+
+  response.cookies.set(
+    opsAuthSessionCookieName(),
+    "",
+    {
+      ...opsAuthSessionCookieOptions(
+        url.hostname,
+        url.protocol === "https:",
+      ),
+      maxAge: 0,
+    },
+  );
+
+  return response;
 }

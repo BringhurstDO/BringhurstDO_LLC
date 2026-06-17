@@ -1,5 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import {
+  createOpsAuthSessionValue,
+  opsAuthSessionCookieName,
+  opsAuthSessionCookieOptions,
+  verifyOpsAuthSessionValue,
+} from "@/lib/ops/ops-auth-session";
+
 const OPS_REALM = "BringhurstDO Ops";
 
 const OAUTH_CALLBACK_PATHS = new Set([
@@ -28,8 +35,6 @@ function resolveCanonicalOpsOrigin() {
   return null;
 }
 
-// TODO: Basic Auth is temporary. Before live integrations or mutation features,
-// move /ops behind Vercel Deployment Protection/SSO or a real auth provider.
 function unauthorized() {
   return new NextResponse(null, {
     status: 401,
@@ -89,6 +94,31 @@ function constantTimeEqual(left: string, right: string) {
   return diff === 0;
 }
 
+async function attachSessionCookie(request: NextRequest, response: NextResponse) {
+  const session = await createOpsAuthSessionValue();
+  if (!session) {
+    return response;
+  }
+
+  response.cookies.set(
+    opsAuthSessionCookieName(),
+    session,
+    opsAuthSessionCookieOptions(
+      request.nextUrl.hostname,
+      request.nextUrl.protocol === "https:",
+    ),
+  );
+
+  return response;
+}
+
+function nextAuthorizedResponse() {
+  const response = NextResponse.next();
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -101,7 +131,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(target, 308);
   }
 
-  // External OAuth providers redirect here without a guaranteed Authorization header.
   if (OAUTH_CALLBACK_PATHS.has(pathname)) {
     const response = NextResponse.next();
     response.headers.set("Cache-Control", "no-store");
@@ -109,40 +138,41 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  const configuredUsername = process.env.OPS_BASIC_AUTH_USERNAME;
+  const configuredUsername = process.env.OPS_BASIC_AUTH_USERNAME?.trim();
   const configuredPasswordHash =
     process.env.OPS_BASIC_AUTH_PASSWORD_SHA256?.trim().toLowerCase();
 
-  // Fail closed: without both env vars, /ops renders nothing and returns 401.
   if (!configuredUsername || !configuredPasswordHash) {
     return unauthorized();
   }
 
+  const sessionValue = request.cookies.get(opsAuthSessionCookieName())?.value;
+  const sessionValid = await verifyOpsAuthSessionValue(sessionValue);
   const credentials = getBasicAuthCredentials(request);
 
-  if (!credentials) {
-    return unauthorized();
+  if (credentials) {
+    const suppliedPasswordHash = await sha256Hex(credentials.password);
+    const usernameMatches = constantTimeEqual(
+      credentials.username.trim(),
+      configuredUsername,
+    );
+    const passwordMatches = constantTimeEqual(
+      suppliedPasswordHash,
+      configuredPasswordHash,
+    );
+
+    if (!usernameMatches || !passwordMatches) {
+      return unauthorized();
+    }
+
+    return await attachSessionCookie(request, nextAuthorizedResponse());
   }
 
-  const suppliedPasswordHash = await sha256Hex(credentials.password);
-  const usernameMatches = constantTimeEqual(
-    credentials.username,
-    configuredUsername,
-  );
-  const passwordMatches = constantTimeEqual(
-    suppliedPasswordHash,
-    configuredPasswordHash,
-  );
-
-  if (!usernameMatches || !passwordMatches) {
-    return unauthorized();
+  if (sessionValid) {
+    return nextAuthorizedResponse();
   }
 
-  const response = NextResponse.next();
-  response.headers.set("Cache-Control", "no-store");
-  response.headers.set("X-Robots-Tag", "noindex, nofollow");
-
-  return response;
+  return unauthorized();
 }
 
 export const config = {
