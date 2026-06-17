@@ -1,87 +1,100 @@
-# Phase 8C — Scheduled LinkedIn Autopublish
+# Phase 8C - Scheduled Autopublish
 
-Phase 8C adds a daily cron job that publishes **approved**, **autopublish-enabled**
-LinkedIn drafts whose `suggestedScheduledFor` matches today in the configured
-timezone. This is a deliberate security-boundary change from Phase 8B manual-only
-publish.
+Phase 8C publishes approved, autopublish-enabled LinkedIn and X drafts when the
+draft's date and schedule bucket are due. This remains a deliberate
+security-boundary change from Phase 8B manual-only publishing.
 
-## Guardrails (fail-closed)
+## Guardrails
 
-Autopublish runs only when **all** are true:
+Autopublish runs only when all are true:
 
 | Gate | Requirement |
-|------|-------------|
+| --- | --- |
 | Global | `OPS_AUTOPUBLISH_ENABLED=true` |
-| Storage | `OPS_STORAGE_MODE=database` + `DATABASE_URL` |
-| LinkedIn | Phase 7A fully configured + connected account |
-| Cron auth | `CRON_SECRET` set; cron route verifies `Authorization: Bearer …` |
-| Draft | `autopublishEnabled=true` (explicit per-draft opt-in) |
+| Storage | `OPS_STORAGE_MODE=database` and `DATABASE_URL` |
+| Platform | LinkedIn or X OAuth is configured and connected |
+| Cron auth | `CRON_SECRET` is set and request has `Authorization: Bearer ...` |
+| Draft | `autopublishEnabled=true` |
 | Draft | `status=approved` |
-| Draft | `platform=LinkedIn` |
-| Draft | `suggestedScheduledFor` equals today's calendar date |
+| Draft | `platform=LinkedIn` or `platform=X` |
+| Draft | `suggestedScheduledFor` equals today's local calendar date |
+| Draft | `suggestedScheduleBucketId` matches the current cron bucket |
 | Draft | Not already posted |
 | Body | Passes publishable-copy sanitization |
-| Body | Contains no visible URLs |
-| Link card | No attached URL/article content is sent to LinkedIn |
 
-Skipped drafts and errors are logged in `ops_autopublish_runs`. LinkedIn publish
-attempts also appear in `ops_social_publish_log`.
+X direct-message scopes are forbidden. X read/write access means public post
+publishing plus weekly public post metric readback only.
 
-## Operator flow
+## Operator Flow
 
-1. Split a series (8A) or create a package with suggested dates.
-2. Optionally enable **LinkedIn autopublish for this series** when saving, or toggle
-   **Autopublish on schedule** per draft on the calendar (8B).
-3. **Approve** each draft (autopublish never bypasses approval).
-4. On the scheduled date, the cron publishes automatically — or use **Run autopublish
-   now** on `/ops/content/calendar` to test.
+1. Split a series or create a content package with suggested dates.
+2. Choose a schedule bucket per draft: 09:00, 12:00, 15:00, 18:00, or 21:00.
+3. Toggle **Autopublish on schedule** for supported drafts.
+4. Approve each draft. Autopublish never bypasses approval.
+5. On the scheduled date and bucket, Vercel Cron invokes the bucket route.
+6. **Catch-up:** Approved autopublish drafts up to 14 days overdue publish on
+   the next **morning** bucket run (covers Sundays and missed crons). Manual
+   **Run autopublish now** also publishes all due and overdue drafts.
 
-## Cron
+## Vercel Cron Boundary
 
-Vercel cron (see `vercel.json`):
+Vercel cron expressions are UTC. Hobby plans allow up to 100 cron jobs, but each
+cron can only run once per day and timing precision is hourly. Pro and Enterprise
+plans support once-per-minute schedules with per-minute precision.
 
-- Path: `/api/cron/ops-autopublish`
-- Schedule: `0 14 * * *` (14:00 UTC daily — adjust in Vercel if needed)
-- Auth: `CRON_SECRET` as Bearer token (Vercel Cron sends this automatically when configured in project settings)
+To stay compatible with this boundary, `vercel.json` uses separate once-daily
+cron entries for each schedule bucket. Each bucket has paired UTC entries so
+America/New_York local-hour behavior works across EST and EDT. The route checks
+the current local hour and skips if the invocation is not due.
 
-The cron route is **outside** `/ops` Basic Auth so Vercel can reach it without Ops credentials.
+Bucket routes:
 
-Manual test (Ops-authenticated):
+- `/api/cron/ops-autopublish/morning`
+- `/api/cron/ops-autopublish/midday`
+- `/api/cron/ops-autopublish/afternoon`
+- `/api/cron/ops-autopublish/evening`
+- `/api/cron/ops-autopublish/late-evening`
+
+Weekly X metrics readback:
+
+- `/api/cron/ops-x-metrics`
+- Reads only recent Ops-published X post ids.
+- Stores aggregate performance snapshots.
+- Does not poll timelines, search, mentions, DMs, or private data.
+
+The legacy manual test endpoint remains:
 
 - `POST /ops/api/autopublish/run`
 
-Status for UI:
-
-- `GET /ops/api/autopublish/status`
-
-## Env
+## Environment
 
 ```env
 OPS_AUTOPUBLISH_ENABLED=true
 OPS_AUTOPUBLISH_TIMEZONE=America/New_York
-CRON_SECRET=…
+CRON_SECRET=...
 OPS_STORAGE_MODE=database
-DATABASE_URL=…
+DATABASE_URL=...
+OPS_SOCIAL_TOKEN_SECRET=...
+
+# LinkedIn, when used
 OPS_LINKEDIN_ENABLED=true
-# plus existing LINKEDIN_* and OPS_SOCIAL_TOKEN_SECRET
+
+# X, when used
+OPS_X_ENABLED=true
+X_CLIENT_ID=...
+X_CLIENT_SECRET=...
+X_REDIRECT_URI=...
+X_ACCOUNTS=[{"accountId":"account-founder-x","label":"Founder X"}]
 ```
 
-Run migration after deploy:
+## Still Forbidden
 
-```bash
-npm run db:migrate
-```
+- Autopublish for Instagram or Facebook.
+- Autopublish without per-draft opt-in.
+- Autopublish for non-approved drafts.
+- X direct-message scopes or DM access.
+- Browser localStorage packages for cron jobs. Cron reads Postgres only.
+- Raw social exports, credentials, private messages, PHI, or clinical payloads.
 
-## Database
-
-`ops_autopublish_runs` — metadata-only audit rows (counts, draft ids, skip/error reasons).
-
-## Still forbidden
-
-- Autopublish for Instagram, Facebook, or X
-- Autopublish without per-draft `autopublishEnabled`
-- Autopublish for non-approved drafts
-- Autopublish with visible URLs or attached link cards
-- Browser localStorage packages (cron reads Postgres only)
-
-See `docs/ops-roadmap.md` for what comes next (Phase 9+).
+See `docs/ops-x-api-limits-and-scheduling.md` for X API cost/rate-limit posture
+and platform scheduling windows.

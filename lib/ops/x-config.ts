@@ -31,6 +31,7 @@ export type XConfigStatus =
   | { ok: false; reason: string };
 
 const DEFAULT_X_SCOPES = ["tweet.read", "tweet.write", "users.read", "offline.access"];
+const FORBIDDEN_X_SCOPES = ["dm.read", "dm.write"];
 
 function envEnabled() {
   return process.env.OPS_X_ENABLED?.trim().toLowerCase() === "true";
@@ -81,6 +82,17 @@ function parseAccounts():
       label: typeof record.label === "string" ? record.label.trim() || accountId : accountId,
       scopes: DEFAULT_X_SCOPES,
     });
+  }
+
+  const forbiddenScopes = DEFAULT_X_SCOPES.filter((scope) =>
+    FORBIDDEN_X_SCOPES.includes(scope),
+  );
+
+  if (forbiddenScopes.length > 0) {
+    return {
+      ok: false,
+      reason: `X scopes must not include direct-message access: ${forbiddenScopes.join(", ")}.`,
+    };
   }
 
   const ids = new Set(accounts.map((account) => account.accountId));

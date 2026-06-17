@@ -168,6 +168,16 @@ export type PublishXPostResult = {
   postUrl: string;
 };
 
+export type XPostMetric = {
+  bookmarkCount: number;
+  impressionCount: number;
+  likeCount: number;
+  quoteCount: number;
+  replyCount: number;
+  retweetCount: number;
+  tweetId: string;
+};
+
 export async function publishXPost(
   input: PublishXPostInput,
 ): Promise<PublishXPostResult> {
@@ -197,4 +207,61 @@ export async function publishXPost(
     platformPostId,
     postUrl: `https://x.com/i/web/status/${platformPostId}`,
   };
+}
+
+function metricNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+export async function lookupXPostMetrics({
+  accessToken,
+  tweetIds,
+}: {
+  accessToken: string;
+  tweetIds: string[];
+}): Promise<XPostMetric[]> {
+  if (tweetIds.length === 0) {
+    return [];
+  }
+
+  const url = new URL(X_TWEETS_URL);
+  url.searchParams.set("ids", tweetIds.join(","));
+  url.searchParams.set("tweet.fields", "public_metrics");
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `X metrics lookup failed (${response.status}): ${text.slice(0, 400)}`,
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: Array<{
+      id?: string;
+      public_metrics?: Record<string, unknown>;
+    }>;
+  };
+
+  return (json.data ?? [])
+    .filter((item) => item.id)
+    .map((item) => {
+      const metrics = item.public_metrics ?? {};
+
+      return {
+        bookmarkCount: metricNumber(metrics.bookmark_count),
+        impressionCount: metricNumber(metrics.impression_count),
+        likeCount: metricNumber(metrics.like_count),
+        quoteCount: metricNumber(metrics.quote_count),
+        replyCount: metricNumber(metrics.reply_count),
+        retweetCount: metricNumber(metrics.retweet_count),
+        tweetId: item.id!,
+      };
+    });
 }

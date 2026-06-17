@@ -22,6 +22,13 @@ export type SocialMetricPlatform =
 
 export type PublicationPlatform = ContentChannel;
 
+export type OpsScheduleBucketId =
+  | "morning"
+  | "midday"
+  | "afternoon"
+  | "evening"
+  | "late-evening";
+
 export type ContentAudience =
   | "physicians"
   | "clinic owners"
@@ -50,6 +57,7 @@ export type WeeklyScorecardMetricId =
   | "revenue";
 
 export type ManualMetricSource = "manual" | "imported" | "future-read-only";
+export type PerformanceSnapshotSource = "manual" | "x-api-weekly";
 
 export type SourceUpdateType =
   | "product-update"
@@ -340,6 +348,8 @@ export type PlatformDraft = {
   seriesIndex?: number;
   /** Suggested calendar day for manual posting (YYYY-MM-DD). Shown on 8B calendar; autoposted when 8C enabled. */
   suggestedScheduledFor?: string;
+  /** Suggested local publish window bucket. If omitted, platform defaults apply. */
+  suggestedScheduleBucketId?: OpsScheduleBucketId;
   /** Explicit operator opt-in for Phase 8C scheduled LinkedIn autopublish on suggestedScheduledFor. */
   autopublishEnabled?: boolean;
 };
@@ -365,7 +375,7 @@ export type PerformanceSnapshot = {
   id: string;
   publishedPostId: string;
   capturedAt: string;
-  source: "manual";
+  source: PerformanceSnapshotSource;
   impressions: string;
   clicks: string;
   reactions: string;
@@ -558,9 +568,10 @@ export type OpsAutopublishPublicStatus = {
   cronConfigured: boolean;
   disabledReason: string | null;
   enabled: boolean;
-  linkedInOnly: true;
+  linkedInOnly: boolean;
   manualReviewRequired: false;
   platform: "LinkedIn";
+  platforms: Array<"LinkedIn" | "X">;
   requiresDraftOptIn: true;
   requiresDraftStatus: "approved";
   runTimeLabel: MetadataOnlyString;

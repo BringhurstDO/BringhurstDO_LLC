@@ -11,11 +11,22 @@ import {
 } from "@/lib/ops/autopublish-config";
 import { saveAutopublishRunRecord } from "@/lib/ops/autopublish-runs-db";
 import { createDatabaseOpsPersistenceAdapter } from "@/lib/ops/persistence-db";
+import { platformScheduleBucketId } from "@/lib/ops/platform-schedule-defaults";
+import {
+  calendarDaysBetween,
+  OPS_AUTOPUBLISH_CATCH_UP_DAYS,
+} from "@/lib/ops/schedule-date-utils";
+import {
+  applyXPublishToRecord,
+  draftIsPosted as xDraftIsPosted,
+  publishXDraft,
+} from "@/lib/ops/x-publish-service";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 import type {
   OpsAutopublishDraftResult,
   OpsAutopublishRunRecord,
   OpsContentPackageRecord,
+  OpsScheduleBucketId,
   PlatformDraft,
   PublicationTarget,
 } from "@/lib/ops/types";
@@ -53,9 +64,11 @@ function isEligibleDraft(
   record: OpsContentPackageRecord,
   draft: PlatformDraft,
   runDate: string,
+  bucketId: OpsScheduleBucketId,
+  trigger: OpsAutopublishRunRecord["trigger"],
 ) {
-  if (draft.platform !== "LinkedIn") {
-    return "Platform is not LinkedIn.";
+  if (draft.platform !== "LinkedIn" && draft.platform !== "X") {
+    return "Platform does not support autopublish.";
   }
 
   if (!draft.autopublishEnabled) {
@@ -70,18 +83,52 @@ function isEligibleDraft(
     return "Draft has no suggestedScheduledFor date.";
   }
 
-  if (draft.suggestedScheduledFor !== runDate) {
-    return `Scheduled for ${draft.suggestedScheduledFor}, not ${runDate}.`;
+  if (
+    draft.platform === "X"
+      ? xDraftIsPosted(record, draft)
+      : draftIsPosted(record, draft)
+  ) {
+    return "Draft is already posted.";
   }
 
-  if (draftIsPosted(record, draft)) {
-    return "Draft is already posted.";
+  const scheduledDate = draft.suggestedScheduledFor;
+  const effectiveBucketId =
+    draft.suggestedScheduleBucketId ?? platformScheduleBucketId(draft.platform);
+
+  if (scheduledDate > runDate) {
+    return `Scheduled for ${scheduledDate}, which is still in the future.`;
+  }
+
+  if (scheduledDate < runDate) {
+    if (trigger !== "manual" && bucketId !== "morning") {
+      return `Overdue since ${scheduledDate}; catch-up runs on the morning bucket only.`;
+    }
+
+    const daysOverdue = calendarDaysBetween(scheduledDate, runDate);
+
+    if (
+      daysOverdue === null ||
+      daysOverdue > OPS_AUTOPUBLISH_CATCH_UP_DAYS
+    ) {
+      return `Overdue by ${daysOverdue ?? "?"} days (catch-up limit is ${OPS_AUTOPUBLISH_CATCH_UP_DAYS}).`;
+    }
+
+    return null;
+  }
+
+  if (trigger === "manual") {
+    return null;
+  }
+
+  if (effectiveBucketId !== bucketId) {
+    return `Scheduled for ${effectiveBucketId}, not ${bucketId}.`;
   }
 
   return null;
 }
 
 export type AutopublishRunResponse = {
+  bucketId: OpsScheduleBucketId;
   draftResults: OpsAutopublishDraftResult[];
   errorCount: number;
   publishedCount: number;
@@ -95,6 +142,7 @@ export type AutopublishRunResponse = {
 
 export async function runScheduledAutopublish(
   trigger: OpsAutopublishRunRecord["trigger"],
+  { bucketId = "morning" }: { bucketId?: OpsScheduleBucketId } = {},
 ) {
   const resolved = resolveAutopublishConfig();
 
@@ -117,11 +165,17 @@ export async function runScheduledAutopublish(
         continue;
       }
 
-      if (draft.suggestedScheduledFor !== runDate) {
+      if (!draft.suggestedScheduledFor || draft.suggestedScheduledFor > runDate) {
         continue;
       }
 
-      const eligibilityIssue = isEligibleDraft(record, draft, runDate);
+      const eligibilityIssue = isEligibleDraft(
+        record,
+        draft,
+        runDate,
+        bucketId,
+        trigger,
+      );
 
       if (eligibilityIssue) {
         draftResults.push(
@@ -143,15 +197,26 @@ export async function runScheduledAutopublish(
         continue;
       }
 
-      const published = await publishLinkedInDraft({
-        accountId,
-        body: draft.body,
-        contentPackageId: record.contentPackage.id,
-        platformDraftId: draft.id,
-        publicationTargetId: draft.publicationTargetId,
-        title: draft.title,
-        trigger: "autopublish",
-      });
+      const published =
+        draft.platform === "X"
+          ? await publishXDraft({
+              accountId,
+              body: draft.body,
+              contentPackageId: record.contentPackage.id,
+              platformDraftId: draft.id,
+              publicationTargetId: draft.publicationTargetId,
+              title: draft.title,
+              trigger: "autopublish",
+            })
+          : await publishLinkedInDraft({
+              accountId,
+              body: draft.body,
+              contentPackageId: record.contentPackage.id,
+              platformDraftId: draft.id,
+              publicationTargetId: draft.publicationTargetId,
+              title: draft.title,
+              trigger: "autopublish",
+            });
 
       if (!published.ok) {
         draftResults.push({
@@ -167,12 +232,14 @@ export async function runScheduledAutopublish(
 
       records = records.map((item) =>
         item.contentPackage.id === record.contentPackage.id
-          ? applyLinkedInPublishToRecord(
-              item,
-              draft.id,
-              published.result,
-              "autopublish",
-            )
+          ? draft.platform === "X"
+            ? applyXPublishToRecord(item, draft.id, published.result)
+            : applyLinkedInPublishToRecord(
+                item,
+                draft.id,
+                published.result,
+                "autopublish",
+              )
           : item,
       );
 
@@ -213,8 +280,9 @@ export async function runScheduledAutopublish(
     errorCount,
     id: runId,
     notes: [
-      `Autopublish run for ${runDate} (${resolved.timeZone}).`,
+      `Autopublish run for ${runDate} (${resolved.timeZone}) bucket ${bucketId}.`,
       `Published ${publishedCount}, skipped ${skippedCount}, errors ${errorCount}.`,
+      `Overdue catch-up is enabled for up to ${OPS_AUTOPUBLISH_CATCH_UP_DAYS} days on the morning bucket and manual runs.`,
     ],
     publishedCount,
     runDate,
@@ -229,6 +297,7 @@ export async function runScheduledAutopublish(
   await saveAutopublishRunRecord(runRecord).catch(() => undefined);
 
   return {
+    bucketId,
     draftResults,
     errorCount,
     publishedCount,

@@ -1,10 +1,16 @@
 import type {
   OpsContentPackageRecord,
   OpsProjectId,
+  OpsScheduleBucketId,
   PlatformDraftStatus,
   PublicationPlatform,
   PublishedPostStatus,
 } from "@/lib/ops/types";
+import { formatPlatformScheduleWindow } from "@/lib/ops/platform-schedule-defaults";
+import {
+  draftScheduleWarnings,
+  formatCalendarDateWithWeekday,
+} from "@/lib/ops/schedule-date-utils";
 
 export type PublishCalendarTiming =
   | "overdue"
@@ -28,7 +34,9 @@ export type PublishCalendarRow = {
   projectId: OpsProjectId;
   publicationTargetId: string;
   seriesIndex?: number;
+  suggestedScheduleBucketId?: OpsScheduleBucketId;
   suggestedScheduledFor?: string;
+  scheduleWarnings: string[];
   timing: PublishCalendarTiming;
   title: string;
 };
@@ -93,7 +101,13 @@ export function buildPublishCalendarRows(
         projectId: draft.publishingProjectId,
         publicationTargetId: draft.publicationTargetId,
         seriesIndex: draft.seriesIndex,
+        suggestedScheduleBucketId: draft.suggestedScheduleBucketId,
         suggestedScheduledFor: draft.suggestedScheduledFor,
+        scheduleWarnings: draftScheduleWarnings({
+          autopublishEnabled: Boolean(draft.autopublishEnabled),
+          postStatus,
+          suggestedScheduledFor: draft.suggestedScheduledFor,
+        }),
         timing: calendarTiming(draft.suggestedScheduledFor, postStatus, today),
         title: draft.title,
       };
@@ -141,8 +155,8 @@ export function groupPublishCalendarRows(rows: PublishCalendarRow[]) {
           : date === "posted"
             ? "Posted (no schedule date)"
             : date === today
-              ? "Today"
-              : date,
+              ? `Today — ${formatCalendarDateWithWeekday(today)}`
+              : formatCalendarDateWithWeekday(date),
       rows: dateRows.sort((a, b) => {
         const timingDiff = timingSortOrder[a.timing] - timingSortOrder[b.timing];
 
@@ -209,9 +223,13 @@ export function formatScheduledPublishLabel(
   suggestedScheduledFor: string | undefined,
   {
     autopublishEnabled = false,
+    platform,
+    scheduleBucketId,
     runTimeLabel,
   }: {
     autopublishEnabled?: boolean;
+    platform?: PublicationPlatform;
+    scheduleBucketId?: OpsScheduleBucketId;
     runTimeLabel?: string;
   } = {},
 ) {
@@ -220,8 +238,12 @@ export function formatScheduledPublishLabel(
   }
 
   if (autopublishEnabled && runTimeLabel) {
-    return `${suggestedScheduledFor} · LinkedIn autopublish ~${runTimeLabel}`;
+    return `${suggestedScheduledFor} - autopublish enabled`;
   }
 
-  return `${suggestedScheduledFor} · manual post (any time that day)`;
+  if (platform) {
+    return `${suggestedScheduledFor} - ${formatPlatformScheduleWindow(platform, scheduleBucketId)}`;
+  }
+
+  return `${suggestedScheduledFor} - manual post in the platform window`;
 }

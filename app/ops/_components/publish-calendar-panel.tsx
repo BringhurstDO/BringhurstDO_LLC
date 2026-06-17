@@ -29,9 +29,19 @@ import {
   type PublishCalendarTiming,
 } from "@/lib/ops/publish-calendar";
 import { removeDraftFromRecords } from "@/lib/ops/content-package-mutations";
-import { formatPlatformScheduleDefault } from "@/lib/ops/platform-schedule-defaults";
+import {
+  bumpSundayToMonday,
+  formatCalendarDateWithWeekday,
+  isSundayDate,
+} from "@/lib/ops/schedule-date-utils";
+import {
+  formatPlatformScheduleDefault,
+  OPS_SCHEDULE_BUCKETS,
+  platformScheduleBucketId,
+} from "@/lib/ops/platform-schedule-defaults";
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import type {
+  OpsScheduleBucketId,
   OpsContentPackageRecord,
   PlatformDraft,
   PlatformDraftStatus,
@@ -274,6 +284,7 @@ export function PublishCalendarPanel({
     () => platforms.map((platform) => formatPlatformScheduleDefault(platform)),
     [platforms],
   );
+  const xDraftsPresent = platforms.includes("X");
 
   async function persistRecords(nextRecords: OpsContentPackageRecord[]) {
     const validationIssues = issueText(nextRecords, "contentPackageRecords");
@@ -407,6 +418,24 @@ export function PublishCalendarPanel({
   }
 
   function rescheduleDraft(row: PublishCalendarRow, nextDate: string) {
+    let finalDate = nextDate;
+
+    if (
+      finalDate &&
+      row.autopublishEnabled &&
+      isSundayDate(finalDate)
+    ) {
+      const bumped = bumpSundayToMonday(finalDate);
+
+      if (
+        window.confirm(
+          `Autopublish does not run on Sundays. Move this draft to ${formatCalendarDateWithWeekday(bumped)} instead?`,
+        )
+      ) {
+        finalDate = bumped;
+      }
+    }
+
     updateRecord(row.contentPackageId, (record) => ({
       ...record,
       contentPackage: {
@@ -417,17 +446,40 @@ export function PublishCalendarPanel({
         draft.id === row.draftId
           ? {
               ...draft,
-              suggestedScheduledFor: nextDate || undefined,
+              suggestedScheduledFor: finalDate || undefined,
               updatedAt: new Date().toISOString(),
             }
           : draft,
       ),
     }));
     setMessage(
-      nextDate
-        ? `Rescheduled ${row.title} to ${nextDate}.`
+      finalDate
+        ? `Rescheduled ${row.title} to ${formatCalendarDateWithWeekday(finalDate)}.`
         : `Cleared suggested date for ${row.title}.`,
     );
+  }
+
+  function rescheduleDraftBucket(
+    row: PublishCalendarRow,
+    nextBucketId: OpsScheduleBucketId,
+  ) {
+    updateRecord(row.contentPackageId, (record) => ({
+      ...record,
+      contentPackage: {
+        ...record.contentPackage,
+        updatedAt: new Date().toISOString(),
+      },
+      platformDrafts: record.platformDrafts.map((draft) =>
+        draft.id === row.draftId
+          ? {
+              ...draft,
+              suggestedScheduleBucketId: nextBucketId,
+              updatedAt: new Date().toISOString(),
+            }
+          : draft,
+      ),
+    }));
+    setMessage(`Updated ${row.title} publish window.`);
   }
 
   async function removeScheduledDraft(row: PublishCalendarRow) {
@@ -698,10 +750,19 @@ export function PublishCalendarPanel({
               <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {formatScheduledPublishLabel(row.suggestedScheduledFor, {
                 autopublishEnabled: row.autopublishEnabled,
+                platform: row.platform,
                 runTimeLabel: autopublishStatus?.runTimeLabel,
+                scheduleBucketId: row.suggestedScheduleBucketId,
               })}
             </p>
             <p className="mt-2 text-sm leading-6 text-slate-700">{row.bodyPreview}</p>
+            {row.scheduleWarnings.length > 0 ? (
+              <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
+                {row.scheduleWarnings.map((warning) => (
+                  <p key={warning}>{warning}</p>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -750,11 +811,37 @@ export function PublishCalendarPanel({
             />
           </label>
 
+          <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
+            Window
+            <select
+              value={
+                row.suggestedScheduleBucketId ??
+                platformScheduleBucketId(row.platform)
+              }
+              onChange={(event) =>
+                rescheduleDraftBucket(
+                  row,
+                  event.target.value as OpsScheduleBucketId,
+                )
+              }
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
+            >
+              {OPS_SCHEDULE_BUCKETS.map((bucket) => (
+                <option key={bucket.id} value={bucket.id}>
+                  {bucket.localTime}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="inline-flex h-9 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 text-xs font-semibold text-violet-900">
             <input
               type="checkbox"
               checked={row.autopublishEnabled}
-              disabled={row.postStatus === "posted" || row.platform !== "LinkedIn"}
+              disabled={
+                row.postStatus === "posted" ||
+                (row.platform !== "LinkedIn" && row.platform !== "X")
+              }
               onChange={(event) =>
                 toggleAutopublish(row, event.target.checked)
               }
@@ -801,17 +888,23 @@ export function PublishCalendarPanel({
               optionally enable autopublish, or publish manually from here.
             </p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              Dates are calendar days only. Manual posts can go out any time that day.
-              LinkedIn autopublish runs once daily around{" "}
-              {autopublishStatus?.runTimeLabel ?? "9:00 AM ET"} (
-              {autopublishStatus?.timeZone ?? "America/New_York"}) on the scheduled
-              date when a draft is approved and opted in.
+              Dates show the weekday (America/New_York). Generated series skip
+              Sundays; manual dates on Sunday with autopublish will catch up on
+              the next weekday morning run. Overdue autopublish drafts stay in the
+              Overdue section until published or rescheduled.
             </p>
             {platformScheduleDefaults.length > 0 ? (
               <p className="mt-2 text-xs leading-5 text-slate-500">
-                Planning buckets only, not saved per draft yet:{" "}
-                {platformScheduleDefaults.join("; ")}. Future manual overrides
-                should stay within configured cron buckets.
+                Suggested windows: {platformScheduleDefaults.join("; ")}. X manual
+                posts use the window guidance and one operator-approved API call per
+                post.
+              </p>
+            ) : null}
+            {xDraftsPresent ? (
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                X API cost posture: publish uses a single write request per approved
+                post. Metrics readback should run weekly only; the calendar does not
+                poll X read endpoints for scheduling.
               </p>
             ) : null}
             {autopublishStatus ? (
@@ -911,7 +1004,8 @@ export function PublishCalendarPanel({
         <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm">
           <h2 className="flex items-center gap-2 font-sans text-base font-semibold text-amber-950">
             <Megaphone className="h-4 w-4" aria-hidden />
-            Today ({localCalendarDate()}) — {todayRows.length} draft
+            Today — {formatCalendarDateWithWeekday(localCalendarDate())} —{" "}
+            {todayRows.length} draft
             {todayRows.length === 1 ? "" : "s"} ready to review
           </h2>
           <div className="mt-4 grid gap-3">
@@ -945,6 +1039,11 @@ export function PublishCalendarPanel({
           <h2 className="font-sans text-base font-semibold text-red-950">
             Overdue — {overdueRows.length} draft{overdueRows.length === 1 ? "" : "s"}
           </h2>
+          <p className="mt-1 text-sm text-red-900">
+            These missed their scheduled date. Autopublish catch-up runs on the
+            next weekday morning bucket (up to 14 days). You can also publish
+            manually or reschedule here.
+          </p>
           <div className="mt-4 grid gap-3">
             {overdueRows.map((row) => (
               <CalendarRowCard key={row.draftId} row={row} />

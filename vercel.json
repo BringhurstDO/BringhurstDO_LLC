@@ -1,8 +1,48 @@
 {
   "crons": [
     {
-      "path": "/api/cron/ops-autopublish",
-      "schedule": "0 14 * * *"
+      "path": "/api/cron/ops-autopublish/morning",
+      "schedule": "0 13 * * 1-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/morning",
+      "schedule": "0 14 * * 1-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/midday",
+      "schedule": "0 16 * * 1-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/midday",
+      "schedule": "0 17 * * 1-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/afternoon",
+      "schedule": "0 19 * * 1-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/afternoon",
+      "schedule": "0 20 * * 1-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/evening",
+      "schedule": "0 22 * * 1-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/evening",
+      "schedule": "0 23 * * 1-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/late-evening",
+      "schedule": "0 1 * * 0,2-6"
+    },
+    {
+      "path": "/api/cron/ops-autopublish/late-evening",
+      "schedule": "0 2 * * 0,2-6"
+    },
+    {
+      "path": "/api/cron/ops-x-metrics",
+      "schedule": "0 15 * * 3"
     }
   ],
   "headers": [

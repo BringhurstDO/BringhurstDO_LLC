@@ -281,7 +281,8 @@ export function XConnectPanel({ connectError, connectResult }: XConnectPanelProp
               </li>
               <li>
                 App type: <strong>Web App, Automated App or Bot</strong>. App
-                permissions: <strong>Read and write</strong>.
+                permissions: <strong>Read and write</strong>. Do not enable direct
+                message access.
               </li>
               <li>
                 Callback / redirect URI must match{" "}
@@ -321,8 +322,10 @@ export function XConnectPanel({ connectError, connectResult }: XConnectPanelProp
           Requires X developer app with OAuth 2.0,{" "}
           <code className="font-mono">OPS_X_ENABLED=true</code>, and callback URL{" "}
           <code className="font-mono">/ops/api/social/x/callback</code>. Posts
-          are text-only up to 280 characters after sanitizing. Tokens are encrypted
-          at rest and never sent to the browser.
+          are text-only up to 280 characters after sanitizing. Weekly metrics
+          readback will use read scopes only for Ops-published post ids. Direct
+          message scopes are intentionally not requested. Tokens are encrypted at
+          rest and never sent to the browser.
         </p>
       </div>
     </OpsPanel>

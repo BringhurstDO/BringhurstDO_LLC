@@ -30,7 +30,7 @@ export type XDraftPublishInput = {
   platformDraftId: string;
   publicationTargetId: string;
   title?: string;
-  trigger: "manual";
+  trigger: "autopublish" | "manual";
 };
 
 export type XDraftPublishError = {
@@ -187,7 +187,11 @@ export async function publishXDraft(
       contentPackageId: input.contentPackageId,
       createdAt: postedAt,
       id: publishLogId,
-      notes: [`Operator-approved manual publish to X as ${account.label}.`],
+      notes: [
+        input.trigger === "autopublish"
+          ? `Operator-approved scheduled publish to X as ${account.label}.`
+          : `Operator-approved manual publish to X as ${account.label}.`,
+      ],
       platform: "X",
       platformDraftId: input.platformDraftId,
       platformPostId: published.platformPostId,

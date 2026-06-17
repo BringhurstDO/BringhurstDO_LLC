@@ -2,6 +2,7 @@ import "server-only";
 
 import { databasePersistenceConfigured } from "@/lib/ops/persistence-db";
 import { resolveLinkedInConfig } from "@/lib/ops/linkedin-config";
+import { resolveXConfig } from "@/lib/ops/x-config";
 import type { OpsAutopublishPublicStatus } from "@/lib/ops/types";
 
 export function autopublishTimezone() {
@@ -55,6 +56,7 @@ export function resolveAutopublishConfig() {
   const cronSecretConfigured = Boolean(process.env.CRON_SECRET?.trim());
   const databaseConfigured = databasePersistenceConfigured();
   const linkedInConfig = resolveLinkedInConfig();
+  const xConfig = resolveXConfig();
 
   if (!enabledFlag) {
     return {
@@ -70,10 +72,10 @@ export function resolveAutopublishConfig() {
     } as const;
   }
 
-  if (!linkedInConfig.ok) {
+  if (!linkedInConfig.ok && !xConfig.ok) {
     return {
       enabled: false,
-      reason: linkedInConfig.reason,
+      reason: `No autopublish platform is configured. LinkedIn: ${linkedInConfig.reason} X: ${xConfig.reason}`,
     } as const;
   }
 
@@ -86,8 +88,9 @@ export function resolveAutopublishConfig() {
 
   return {
     enabled: true,
-    linkedInConfig: linkedInConfig.config,
+    linkedInConfig: linkedInConfig.ok ? linkedInConfig.config : null,
     timeZone: autopublishTimezone(),
+    xConfig: xConfig.ok ? xConfig.config : null,
   } as const;
 }
 
@@ -99,9 +102,15 @@ export function getAutopublishPublicStatus(): OpsAutopublishPublicStatus {
     cronConfigured: cronSecretConfigured,
     disabledReason: resolved.enabled ? null : resolved.reason,
     enabled: resolved.enabled,
-    linkedInOnly: true,
+    linkedInOnly: false,
     manualReviewRequired: false,
     platform: "LinkedIn",
+    platforms: resolved.enabled
+      ? [
+          resolved.linkedInConfig ? "LinkedIn" : null,
+          resolved.xConfig ? "X" : null,
+        ].filter((platform): platform is "LinkedIn" | "X" => Boolean(platform))
+      : [],
     requiresDraftOptIn: true,
     requiresDraftStatus: "approved",
     runTimeLabel: autopublishRunTimeLabel(autopublishTimezone()),

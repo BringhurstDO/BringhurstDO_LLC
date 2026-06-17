@@ -8,7 +8,6 @@ const WEEKDAY_OFFSETS: Record<number, number[]> = {
   4: [0, 1, 3, 4],
   5: [0, 1, 2, 3, 4],
   6: [0, 1, 2, 3, 4, 5],
-  7: [0, 1, 2, 3, 4, 5, 6],
 };
 
 function parseLocalDate(value: string) {
@@ -48,22 +47,31 @@ function addCalendarDays(date: Date, days: number) {
   return copy;
 }
 
+function weekStartMonday(date: Date) {
+  const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = copy.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + diff);
+  return copy;
+}
+
 export function buildSeriesSchedule(input: {
   postsPerWeek: number;
   seriesStartDate: string;
   weekCount: number;
 }) {
-  const postsPerWeek = Math.min(7, Math.max(1, input.postsPerWeek));
+  const postsPerWeek = Math.min(6, Math.max(1, input.postsPerWeek));
   const weekCount = Math.min(8, Math.max(1, input.weekCount));
   const offsets = WEEKDAY_OFFSETS[postsPerWeek] ?? WEEKDAY_OFFSETS[3];
   const anchor = parseLocalDate(input.seriesStartDate);
+  const monday = weekStartMonday(anchor);
   const anchorDate = input.seriesStartDate.trim();
   const dates: string[] = [];
 
   for (let week = 0; week < weekCount; week += 1) {
     for (let index = 0; index < postsPerWeek; index += 1) {
       const slotDate = addCalendarDays(
-        anchor,
+        monday,
         week * 7 + (offsets[index] ?? index),
       );
       const formatted = formatLocalDate(slotDate);

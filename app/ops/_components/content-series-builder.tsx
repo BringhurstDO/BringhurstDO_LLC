@@ -33,7 +33,10 @@ import {
   rebalanceContentPackageSchedules,
 } from "@/lib/ops/schedule-rebalance";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
-import { formatPlatformScheduleDefault } from "@/lib/ops/platform-schedule-defaults";
+import {
+  formatPlatformScheduleDefault,
+  platformScheduleBucketId,
+} from "@/lib/ops/platform-schedule-defaults";
 import {
   createLocalStorageOpsPersistenceAdapter,
   createRemoteOpsPersistenceAdapter,
@@ -605,6 +608,7 @@ export function ContentSeriesBuilder({
         sourceProjectId: primaryProjectId,
         sourceUpdateId,
         status: "needs review",
+        suggestedScheduleBucketId: platformScheduleBucketId(target.platform),
         suggestedScheduledFor: proposal.suggestedScheduledFor,
         title: proposal.title || seriesTitle,
         updatedAt: createdAt,
@@ -828,11 +832,11 @@ export function ContentSeriesBuilder({
             <input
               type="number"
               min={1}
-              max={7}
+              max={6}
               value={postsPerWeek}
               onChange={(event) =>
                 setPostsPerWeek(
-                  Math.min(7, Math.max(1, Number.parseInt(event.target.value, 10) || 1)),
+                  Math.min(6, Math.max(1, Number.parseInt(event.target.value, 10) || 1)),
                 )
               }
               className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
@@ -892,8 +896,8 @@ export function ContentSeriesBuilder({
           <p className="mt-4 text-sm leading-6 text-slate-600">
             AI can recommend post count and spread based on your summary so posts
             do not repeat themselves. Saving a new series rebalances all pending
-            calendar dates — recent updates get near-term slots without jumping
-            ahead of older series.
+            calendar dates. Sundays are skipped; recent updates get near-term slots
+            without jumping ahead of older series.
           </p>
         )}
 

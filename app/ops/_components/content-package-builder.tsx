@@ -38,6 +38,7 @@ import {
   buildPostPacket,
   buildPublishableCopy,
 } from "@/lib/ops/post-packet";
+import { platformScheduleBucketId } from "@/lib/ops/platform-schedule-defaults";
 import {
   DEFAULT_DRAFT_OPERATOR_NOTES,
   DEFAULT_DRAFT_SAFETY_NOTES,
@@ -1971,6 +1972,7 @@ export function ContentPackageBuilder({
         sourceUpdateId,
         sourceProjectId: primaryProjectId,
         status: slot.status,
+        suggestedScheduleBucketId: platformScheduleBucketId(target.platform),
         title: slot.title || sourceTitle,
         updatedAt: createdAt,
         utmCampaignId: `utm-${packageSlug}-${target.id}-${index + 1}-${idSuffix}`,
