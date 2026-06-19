@@ -21,7 +21,10 @@ import {
   opsShellClass,
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
+import { SocialPerformancePanel } from "@/app/ops/_components/social-performance-panel";
+import { loadOpsContentRecords } from "@/lib/ops/load-content-records";
 import { opsDashboardData } from "@/lib/ops/mock-data";
+import { buildSocialPerformanceRows } from "@/lib/ops/social-performance";
 import type { WeeklyScorecardMetricId } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
@@ -37,24 +40,41 @@ const metricIcons = {
   websiteClicks: MousePointerClick,
 } satisfies Record<WeeklyScorecardMetricId, ComponentType<{ className?: string }>>;
 
-export default function OpsMetricsPage() {
+export default async function OpsMetricsPage() {
   const {
     manualMetricEntries,
     socialMetricPlaceholders,
     weeklyReport,
     weeklyScorecard,
   } = opsDashboardData;
+  const { records, source } = await loadOpsContentRecords();
+  const storageIsDatabase = source === "database";
+  const socialPerformanceRows = buildSocialPerformanceRows(records);
 
   return (
     <main>
       <OpsPageHeader
-        eyebrow="Manual metrics"
-        title="Weekly Scorecard"
-        description="Entire page is mock sample data (red) until Phase 10–11 live metrics sync. Manual entry UI is for layout preview only."
+        eyebrow="Metrics"
+        title="Weekly Scorecard & Social Performance"
+        description={
+          storageIsDatabase
+            ? "X post metrics are live from Postgres (weekly cron + manual refresh). Weekly scorecard and manual ledger below remain mock until Phase 11."
+            : "Enable OPS_STORAGE_MODE=database for live X metrics. Scorecard layout below is mock sample data."
+        }
       />
 
       <div className={`${opsShellClass} grid gap-6 py-6`}>
-        <MockDataBanner phase="Phase 11" />
+        {storageIsDatabase ? (
+          <SocialPerformancePanel initialRows={socialPerformanceRows} />
+        ) : (
+          <MockDataBanner
+            phase="Phase 10"
+            title="Social metrics need Postgres"
+            description="Set OPS_STORAGE_MODE=database and DATABASE_URL on Vercel to load Ops-published post metrics here."
+          />
+        )}
+
+        <MockDataBanner phase="Phase 11" title="Weekly scorecard is still mock" />
 
         <div className="flex flex-wrap gap-2">
           <BoundaryPill>Manual entry/import first</BoundaryPill>
@@ -180,8 +200,8 @@ export default function OpsMetricsPage() {
 
         <MockDataPanel
           phase="Phase 10"
-          title="Read-Only Social Metric Placeholders"
-          description="Future read-sync targets — not connected to platform APIs."
+          title="Future platform read-sync (not connected)"
+          description="Meta and LinkedIn API analytics remain placeholders. X is live above when database persistence is enabled."
         >
           <div className="grid gap-4 lg:grid-cols-3">
             {socialMetricPlaceholders.map((placeholder) => (

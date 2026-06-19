@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { CalendarPostPerformance } from "@/app/ops/_components/social-performance-panel";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
@@ -40,6 +41,10 @@ import {
   platformScheduleBucketId,
 } from "@/lib/ops/platform-schedule-defaults";
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
+import {
+  findPublishedPostForDraft,
+  resolveLatestPerformanceSnapshot,
+} from "@/lib/ops/social-performance";
 import type {
   OpsScheduleBucketId,
   OpsContentPackageRecord,
@@ -157,6 +162,7 @@ export function PublishCalendarPanel({
     timeZone: string;
   } | null>(null);
   const [runningAutopublish, setRunningAutopublish] = useState(false);
+  const [runningXMetricsRefresh, setRunningXMetricsRefresh] = useState(false);
   const [enableAutopublishOnApprove, setEnableAutopublishOnApprove] =
     useState(false);
 
@@ -416,6 +422,47 @@ export function PublishCalendarPanel({
         ? `Autopublish enabled for ${row.title}.`
         : `Autopublish disabled for ${row.title}.`,
     );
+  }
+
+  async function refreshXMetricsNow() {
+    setRunningXMetricsRefresh(true);
+    setIssues([]);
+
+    try {
+      const response = await opsFetch("/ops/api/social/x/metrics/refresh", {
+        cache: "no-store",
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        candidateCount?: number;
+        error?: string;
+        errors?: string[];
+        updatedCount?: number;
+      };
+
+      if (!response.ok) {
+        setIssues([payload.error ?? `X metrics refresh failed (${response.status}).`]);
+        setMessage("");
+        return;
+      }
+
+      const adapter = createPersistenceAdapter();
+      const loaded = await adapter.loadContentPackages();
+      setRecords(loaded.contentPackages.filter(isContentPackageRecord));
+
+      const errorNotes =
+        payload.errors && payload.errors.length > 0
+          ? ` Issues: ${payload.errors.join(" ")}`
+          : "";
+
+      setMessage(
+        `X metrics refreshed for ${payload.updatedCount ?? 0} of ${payload.candidateCount ?? 0} recent posts.${errorNotes}`,
+      );
+    } catch {
+      setIssues(["X metrics refresh request failed."]);
+    } finally {
+      setRunningXMetricsRefresh(false);
+    }
   }
 
   async function runAutopublishNow() {
@@ -749,6 +796,16 @@ export function PublishCalendarPanel({
   }
 
   function CalendarRowCard({ row }: { row: PublishCalendarRow }) {
+    const packageRecord = records.find(
+      (record) => record.contentPackage.id === row.contentPackageId,
+    );
+    const publishedPost = packageRecord
+      ? findPublishedPostForDraft(packageRecord, row.draftId)
+      : undefined;
+    const performanceSnapshot =
+      packageRecord && publishedPost
+        ? resolveLatestPerformanceSnapshot(packageRecord, publishedPost.id)
+        : null;
     const accountId = targetAccountIdById.get(row.publicationTargetId);
     const accountStatus = linkedInAccountStatus(accountId);
     const canPublishLinkedIn =
@@ -908,6 +965,19 @@ export function PublishCalendarPanel({
         {row.postedUrl ? (
           <p className="mt-3 break-all text-xs text-slate-500">{row.postedUrl}</p>
         ) : null}
+
+        {row.postStatus === "posted" &&
+        (row.platform === "X" || row.platform === "LinkedIn") ? (
+          <CalendarPostPerformance
+            comments={performanceSnapshot?.numericMetrics.comments ?? null}
+            capturedAt={performanceSnapshot?.capturedAt ?? null}
+            impressions={performanceSnapshot?.numericMetrics.impressions ?? null}
+            platform={row.platform}
+            reactions={performanceSnapshot?.numericMetrics.reactions ?? null}
+            saves={performanceSnapshot?.numericMetrics.saves ?? null}
+            source={performanceSnapshot?.source ?? null}
+          />
+        ) : null}
       </article>
     );
   }
@@ -981,6 +1051,17 @@ export function PublishCalendarPanel({
                 className="inline-flex h-9 items-center rounded-md bg-violet-700 px-3 text-xs font-semibold text-white hover:bg-violet-800 disabled:bg-slate-300"
               >
                 {runningAutopublish ? "Running…" : "Run autopublish now"}
+              </button>
+            ) : null}
+
+            {storageIsDatabase && xDraftsPresent ? (
+              <button
+                type="button"
+                disabled={runningXMetricsRefresh}
+                onClick={() => void refreshXMetricsNow()}
+                className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:bg-slate-100"
+              >
+                {runningXMetricsRefresh ? "Refreshing…" : "Refresh X metrics"}
               </button>
             ) : null}
 

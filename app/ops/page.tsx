@@ -17,6 +17,10 @@ import { opsShellClass } from "@/app/ops/_components/ops-ui";
 import { buildContentWorkflowSnapshot } from "@/lib/ops/content-workflow-snapshot";
 import { loadOpsContentRecords } from "@/lib/ops/load-content-records";
 import { opsDashboardData } from "@/lib/ops/mock-data";
+import {
+  buildXPerformanceSummary,
+  formatPerformanceCapturedAt,
+} from "@/lib/ops/social-performance";
 import type { OpsAccountStatus, OpsTone } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +71,7 @@ export default async function OpsPage() {
   const snapshot = buildContentWorkflowSnapshot(records, {
     loadedFrom: source === "database" ? "database" : "none",
   });
+  const xPerformance = buildXPerformanceSummary(records);
   const accountStatusCounts = Object.fromEntries(
     accountStatuses.map((status) => [
       status,
@@ -89,8 +94,9 @@ export default async function OpsPage() {
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               Content workflow, publish calendar, and marketing context for
-              metadata-only operator work. Project metrics and weekly reports stay
-              placeholder until Phase 11 live data.
+              metadata-only operator work. X post metrics are live when Postgres
+              persistence is enabled; project scorecard stays placeholder until
+              Phase 11.
             </p>
           </div>
 
@@ -217,10 +223,59 @@ export default async function OpsPage() {
           )}
         </section>
 
+        {storageIsDatabase && xPerformance.postedCount > 0 ? (
+          <section className="rounded-lg border border-emerald-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-sans text-base font-semibold text-slate-950">
+                  X post performance
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Aggregated from Ops-published X drafts. Weekly cron on Wed
+                  ~10am ET; refresh anytime from{" "}
+                  <Link href="/ops/metrics" className="font-semibold underline">
+                    Metrics
+                  </Link>{" "}
+                  or the publish calendar.
+                </p>
+              </div>
+              <LiveDataBadge label="Live · X readback" />
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(
+                [
+                  ["Posted X drafts", xPerformance.postedCount],
+                  ["With metrics", xPerformance.withMetricsCount],
+                  ["Total impressions", xPerformance.totalImpressions],
+                  ["Total reactions", xPerformance.totalReactions],
+                ] as const
+              ).map(([label, value]) => (
+                <article
+                  key={label}
+                  className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-4"
+                >
+                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800/80">
+                    {label}
+                  </div>
+                  <div className="mt-2 font-sans text-2xl font-semibold text-slate-950">
+                    {value.toLocaleString("en-US")}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <p className="mt-4 text-xs text-slate-500">
+              Last capture:{" "}
+              {formatPerformanceCapturedAt(xPerformance.lastCapturedAt)}
+            </p>
+          </section>
+        ) : null}
+
         <MockDataShell
           phase="Phase 11"
           title="Project metrics & weekly scorecard"
-          description="Placeholder layout only. No live AWS, project health, or marketing read-sync is connected."
+          description="Placeholder layout only. No live AWS, project health, or weekly scorecard read-sync is connected."
         >
           <p className="text-sm leading-6 text-red-900/90">
             Use{" "}
