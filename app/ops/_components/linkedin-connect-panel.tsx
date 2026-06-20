@@ -21,6 +21,9 @@ import type {
 type LinkedInConnectPanelProps = {
   connectResult?: string;
   connectError?: string;
+  connectErrorAccount?: string;
+  connectErrorCode?: string;
+  connectErrorHint?: string;
 };
 
 function formatDate(value: string | null) {
@@ -124,6 +127,9 @@ function AccountRow({
 export function LinkedInConnectPanel({
   connectResult,
   connectError,
+  connectErrorAccount,
+  connectErrorCode,
+  connectErrorHint,
 }: LinkedInConnectPanelProps) {
   const [status, setStatus] = useState<SocialConnectionsStatusResponse | null>(
     null,
@@ -208,7 +214,31 @@ export function LinkedInConnectPanel({
         {connectError ? (
           <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            {connectError}
+            <div>
+              <p>{connectError}</p>
+              {connectErrorAccount || connectErrorCode || connectErrorHint ? (
+                <dl className="mt-2 grid gap-1 text-xs text-red-900">
+                  {connectErrorAccount ? (
+                    <div>
+                      <dt className="inline font-semibold">Account: </dt>
+                      <dd className="inline font-mono">{connectErrorAccount}</dd>
+                    </div>
+                  ) : null}
+                  {connectErrorCode ? (
+                    <div>
+                      <dt className="inline font-semibold">OAuth code: </dt>
+                      <dd className="inline font-mono">{connectErrorCode}</dd>
+                    </div>
+                  ) : null}
+                  {connectErrorHint ? (
+                    <div>
+                      <dt className="inline font-semibold">Hint: </dt>
+                      <dd className="inline">{connectErrorHint}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
+            </div>
           </div>
         ) : null}
 

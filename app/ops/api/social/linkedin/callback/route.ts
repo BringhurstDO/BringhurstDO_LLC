@@ -43,6 +43,20 @@ function clearOAuthCookies(response: NextResponse) {
   return response;
 }
 
+function oauthTroubleshootingHint(errorCode: string) {
+  const normalized = errorCode.trim().toLowerCase();
+
+  if (
+    normalized.includes("scope") ||
+    normalized.includes("unauthorized") ||
+    normalized.includes("access_denied")
+  ) {
+    return "Check LinkedIn app products/scopes (Community Management API for org pages) and page admin rights.";
+  }
+
+  return "Reconnect from /ops/accounts. If this repeats, verify LinkedIn app config and redirect URL.";
+}
+
 export async function GET(request: NextRequest) {
   const status = resolveLinkedInConfig();
 
@@ -55,14 +69,22 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
+  const cookieAccountId =
+    request.cookies.get(LINKEDIN_OAUTH_ACCOUNT_COOKIE)?.value ?? "";
   const oauthError = searchParams.get("error");
 
   if (oauthError) {
     const description =
       searchParams.get("error_description") ?? "LinkedIn authorization failed.";
+    const hint = oauthTroubleshootingHint(oauthError);
     return clearOAuthCookies(
       NextResponse.redirect(
-        accountsRedirect(request, { linkedin_error: description }),
+        accountsRedirect(request, {
+          linkedin_error: description,
+          linkedin_error_account: cookieAccountId || "unknown",
+          linkedin_error_code: oauthError,
+          linkedin_error_hint: hint,
+        }),
       ),
     );
   }
@@ -71,8 +93,6 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const cookieState =
     request.cookies.get(LINKEDIN_OAUTH_STATE_COOKIE)?.value ?? null;
-  const cookieAccountId =
-    request.cookies.get(LINKEDIN_OAUTH_ACCOUNT_COOKIE)?.value ?? "";
 
   if (!verifyOAuthState(state, cookieState)) {
     return clearOAuthCookies(
@@ -134,9 +154,21 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "LinkedIn connection failed.";
+    const lower = message.toLowerCase();
+    const hint =
+      lower.includes("scope") ||
+      lower.includes("forbidden") ||
+      lower.includes("permission")
+        ? "Likely LinkedIn product/scope permission issue for this account."
+        : "Connection reached callback, but token/profile resolution failed.";
     return clearOAuthCookies(
       NextResponse.redirect(
-        accountsRedirect(request, { linkedin_error: message }),
+        accountsRedirect(request, {
+          linkedin_error: message,
+          linkedin_error_account: account.accountId,
+          linkedin_error_code: "callback_exchange_failed",
+          linkedin_error_hint: hint,
+        }),
       ),
     );
   }

@@ -93,6 +93,18 @@ export default async function OpsAccountsPage({
     typeof params.linkedin_error === "string"
       ? params.linkedin_error
       : undefined;
+  const connectErrorAccount =
+    typeof params.linkedin_error_account === "string"
+      ? params.linkedin_error_account
+      : undefined;
+  const connectErrorCode =
+    typeof params.linkedin_error_code === "string"
+      ? params.linkedin_error_code
+      : undefined;
+  const connectErrorHint =
+    typeof params.linkedin_error_hint === "string"
+      ? params.linkedin_error_hint
+      : undefined;
   const xConnectResult =
     typeof params.x === "string" ? params.x : undefined;
   const xConnectError =
@@ -132,6 +144,9 @@ export default async function OpsAccountsPage({
           <LinkedInConnectPanel
             connectResult={connectResult}
             connectError={connectError}
+            connectErrorAccount={connectErrorAccount}
+            connectErrorCode={connectErrorCode}
+            connectErrorHint={connectErrorHint}
           />
         </div>
 
