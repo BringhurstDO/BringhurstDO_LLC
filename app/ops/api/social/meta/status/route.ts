@@ -26,11 +26,15 @@ export async function GET() {
       accounts: [],
       configured: false,
       disabledReason: config.reason,
-      oauthImplemented: false,
+      oauthImplemented: true,
       platform: "Meta",
     };
     return jsonNoStore(response);
   }
+
+  const oauthScopes = Array.from(
+    new Set(config.config.accounts.flatMap((account) => account.scopes)),
+  );
 
   try {
     const accounts = await Promise.all(
@@ -44,20 +48,22 @@ export async function GET() {
       accounts,
       configured: true,
       disabledReason: null,
-      oauthImplemented: false,
+      oauthImplemented: true,
+      oauthRedirectUri: config.config.redirectUri,
+      oauthScopes,
       platform: "Meta",
     };
     return jsonNoStore(response);
   } catch (error) {
     const message =
-      error instanceof Error
-        ? error.message
-        : "Failed to load Meta connection status.";
+      error instanceof Error ? error.message : "Failed to load Meta status.";
     const response: SocialConnectionsStatusResponse = {
       accounts: [],
       configured: true,
       disabledReason: message,
-      oauthImplemented: false,
+      oauthImplemented: true,
+      oauthRedirectUri: config.config.redirectUri,
+      oauthScopes,
       platform: "Meta",
     };
     return jsonNoStore(response);

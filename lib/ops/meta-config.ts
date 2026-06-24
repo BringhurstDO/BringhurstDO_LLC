@@ -4,8 +4,7 @@ import { databasePersistenceConfigured } from "@/lib/ops/persistence-db";
 import { socialTokenSecretConfigured } from "@/lib/ops/social-crypto";
 import type { SocialAuthorType } from "@/lib/ops/types";
 
-// Phase 9 scaffold: Meta (Facebook Page + Instagram Business) OAuth. Fail-closed
-// until Meta Business verification/app review completes and env is configured.
+// Phase 9: Meta (Facebook Page + Instagram Business) OAuth and Facebook publish.
 
 export type MetaAccountKind = "facebook_page" | "instagram_business";
 

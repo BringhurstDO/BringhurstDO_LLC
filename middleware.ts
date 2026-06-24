@@ -11,6 +11,7 @@ const OPS_REALM = "BringhurstDO Ops";
 
 const OAUTH_CALLBACK_PATHS = new Set([
   "/ops/api/social/linkedin/callback",
+  "/ops/api/social/meta/callback",
   "/ops/api/social/x/callback",
 ]);
 
@@ -18,6 +19,7 @@ function resolveCanonicalOpsOrigin() {
   for (const raw of [
     process.env.X_REDIRECT_URI,
     process.env.LINKEDIN_REDIRECT_URI,
+    process.env.META_REDIRECT_URI,
     process.env.OPS_PUBLIC_ORIGIN,
   ]) {
     const value = raw?.trim();

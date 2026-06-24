@@ -152,6 +152,8 @@ export function PublishCalendarPanel({
   const [xStatus, setXStatus] = useState<SocialConnectionsStatusResponse | null>(
     null,
   );
+  const [metaStatus, setMetaStatus] =
+    useState<SocialConnectionsStatusResponse | null>(null);
   const [publishingDraftId, setPublishingDraftId] = useState<string | null>(null);
   const [autopublishStatus, setAutopublishStatus] = useState<{
     cronConfigured: boolean;
@@ -232,8 +234,20 @@ export function PublishCalendarPanel({
       }
     }
 
+    async function loadMetaStatus() {
+      try {
+        const response = await opsFetch("/ops/api/social/meta/status", {
+          cache: "no-store",
+        });
+        setMetaStatus((await response.json()) as SocialConnectionsStatusResponse);
+      } catch {
+        setMetaStatus(null);
+      }
+    }
+
     void loadLinkedInStatus();
     void loadXStatus();
+    void loadMetaStatus();
   }, []);
 
   useEffect(() => {
@@ -290,6 +304,20 @@ export function PublishCalendarPanel({
       );
     },
     [xStatus],
+  );
+
+  const metaAccountStatus = useCallback(
+    (accountId: string | undefined): SocialConnectionPublicStatus | null => {
+      if (!accountId || !metaStatus) {
+        return null;
+      }
+
+      return (
+        metaStatus.accounts.find((account) => account.accountId === accountId) ??
+        null
+      );
+    },
+    [metaStatus],
   );
 
   const calendarRows = useMemo(() => {
@@ -795,6 +823,87 @@ export function PublishCalendarPanel({
     }
   }
 
+  async function publishDraftToFacebook(row: PublishCalendarRow) {
+    const match = findDraftRecord(row.draftId);
+
+    if (!match) {
+      setIssues(["Draft record not found."]);
+      return;
+    }
+
+    const { draft, record } = match;
+    const accountId = targetAccountIdById.get(draft.publicationTargetId);
+    const accountStatus = metaAccountStatus(accountId);
+
+    if (!accountStatus?.connected) {
+      setIssues([
+        "Facebook Page is not connected. Connect it on the Accounts page first.",
+      ]);
+      return;
+    }
+
+    if (draft.status !== "approved") {
+      setIssues(["Approve this draft before publishing to Facebook."]);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Publish this approved draft to Facebook as ${accountStatus.accountLabel ?? draft.accountName}? This posts publicly.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPublishingDraftId(draft.id);
+    setIssues([]);
+
+    try {
+      const response = await opsFetch("/ops/api/social/meta/publish", {
+        body: JSON.stringify({
+          accountId,
+          body: sanitizePublishableBody(draft.body),
+          confirmApproved: true,
+          contentPackageId: record.contentPackage.id,
+          platform: "Facebook",
+          platformDraftId: draft.id,
+          publicationTargetId: draft.publicationTargetId,
+          title: draft.title,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const data = (await response.json()) as
+        | SocialPublishResult
+        | { error?: string };
+
+      if (!response.ok || !("postUrl" in data)) {
+        throw new Error(
+          "error" in data && data.error ? data.error : "Facebook publish failed.",
+        );
+      }
+
+      const nextRecords = records.map((item) =>
+        item.contentPackage.id === record.contentPackage.id
+          ? mergeLinkedInPublishResult(item, draft, data)
+          : item,
+      );
+
+      if (await persistRecords(nextRecords)) {
+        setMessage(
+          `Published ${draft.accountName} draft to Facebook. Public URL saved.`,
+        );
+      }
+    } catch (error) {
+      setIssues([
+        error instanceof Error ? error.message : "Facebook publish failed.",
+      ]);
+    } finally {
+      setPublishingDraftId(null);
+    }
+  }
+
   function CalendarRowCard({ row }: { row: PublishCalendarRow }) {
     const packageRecord = records.find(
       (record) => record.contentPackage.id === row.contentPackageId,
@@ -819,6 +928,12 @@ export function PublishCalendarPanel({
       row.draftStatus === "approved" &&
       row.postStatus !== "posted" &&
       xStatusForRow?.connected;
+    const metaStatusForRow = metaAccountStatus(accountId);
+    const canPublishFacebook =
+      row.platform === "Facebook" &&
+      row.draftStatus === "approved" &&
+      row.postStatus !== "posted" &&
+      metaStatusForRow?.connected;
 
     return (
       <article className="rounded-lg border border-slate-200 bg-white p-4">
@@ -892,6 +1007,19 @@ export function PublishCalendarPanel({
               className="inline-flex h-9 items-center rounded-md bg-slate-950 px-3 text-xs font-semibold text-white hover:bg-slate-700 disabled:bg-slate-300"
             >
               {publishingDraftId === row.draftId ? "Publishing…" : "Publish to X"}
+            </button>
+          ) : null}
+
+          {canPublishFacebook ? (
+            <button
+              type="button"
+              disabled={publishingDraftId === row.draftId}
+              onClick={() => void publishDraftToFacebook(row)}
+              className="inline-flex h-9 items-center rounded-md bg-[#1877F2] px-3 text-xs font-semibold text-white hover:bg-[#166fe5] disabled:bg-slate-300"
+            >
+              {publishingDraftId === row.draftId
+                ? "Publishing…"
+                : "Publish to Facebook"}
             </button>
           ) : null}
 

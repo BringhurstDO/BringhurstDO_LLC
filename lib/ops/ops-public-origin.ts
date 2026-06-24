@@ -7,6 +7,7 @@ export function resolveOpsPublicOrigin(fallbackOrigin?: string) {
   for (const raw of [
     process.env.X_REDIRECT_URI,
     process.env.LINKEDIN_REDIRECT_URI,
+    process.env.META_REDIRECT_URI,
     process.env.OPS_PUBLIC_ORIGIN,
   ]) {
     const value = raw?.trim();

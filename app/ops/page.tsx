@@ -1,6 +1,10 @@
 import Link from "next/link";
 import {
+  Activity,
+  ArrowRight,
   CalendarDays,
+  History,
+  ListChecks,
   FilePlus2,
   FileText,
   LockKeyhole,
@@ -15,7 +19,9 @@ import {
 } from "@/app/ops/_components/ops-data-status";
 import { opsShellClass } from "@/app/ops/_components/ops-ui";
 import { buildContentWorkflowSnapshot } from "@/lib/ops/content-workflow-snapshot";
+import { buildOpsDoctorSummary } from "@/lib/ops/doctor";
 import { loadOpsContentRecords } from "@/lib/ops/load-content-records";
+import { loadOpsRunHistory } from "@/lib/ops/run-history";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 import {
   buildXPerformanceSummary,
@@ -54,6 +60,58 @@ const accountStatuses: OpsAccountStatus[] = [
   "missing",
 ];
 
+const doctorToneCopy: Record<OpsTone, string> = {
+  blocked: "Needs attention",
+  good: "Ready",
+  neutral: "Info",
+  watch: "Watch",
+};
+
+const presetWorkflows = [
+  {
+    description:
+      "Check due, overdue, approved, and opted-in drafts before any scheduled window runs.",
+    href: "/ops/content/calendar",
+    label: "Morning Publish Check",
+    status: "Daily",
+  },
+  {
+    description:
+      "Inspect recent autopublish, AI helper, and social publish audit rows before trusting output.",
+    href: "/ops",
+    label: "Review Run History",
+    status: "Audit",
+  },
+  {
+    description:
+      "Find overdue, approved-but-unposted, or stale packages that need operator cleanup.",
+    href: "/ops/content/calendar",
+    label: "Draft Cleanup",
+    status: "Review",
+  },
+  {
+    description:
+      "Export public-safe marketing context for planning without credentials, PHI, or internal notes.",
+    href: "/ops/reports",
+    label: "Generate Weekly Context",
+    status: "Context",
+  },
+  {
+    description:
+      "Review LinkedIn, X, and Meta readiness without initiating OAuth or posting actions.",
+    href: "/ops/accounts",
+    label: "Account Readiness Audit",
+    status: "Readiness",
+  },
+  {
+    description:
+      "Check X readback status, manual metrics placeholders, and weekly scorecard boundaries.",
+    href: "/ops/metrics",
+    label: "Metrics Readback Check",
+    status: "Metrics",
+  },
+] as const;
+
 function StatusPill({ tone, children }: { tone: OpsTone; children: React.ReactNode }) {
   return (
     <span
@@ -65,12 +123,27 @@ function StatusPill({ tone, children }: { tone: OpsTone; children: React.ReactNo
   );
 }
 
+function formatRunTimestamp(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export default async function OpsPage() {
   const { accountRegistry, boundaries } = opsDashboardData;
   const { records, source } = await loadOpsContentRecords();
   const snapshot = buildContentWorkflowSnapshot(records, {
     loadedFrom: source === "database" ? "database" : "none",
   });
+  const doctor = await buildOpsDoctorSummary(snapshot);
+  const runHistory = await loadOpsRunHistory(8);
   const xPerformance = buildXPerformanceSummary(records);
   const accountStatusCounts = Object.fromEntries(
     accountStatuses.map((status) => [
@@ -115,6 +188,212 @@ export default async function OpsPage() {
       </section>
 
       <div className={`${opsShellClass} grid gap-6 py-6`}>
+        <section
+          className="rounded-lg border border-slate-200 bg-white shadow-sm"
+          data-testid="ops-doctor-panel"
+        >
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <Activity className="h-4 w-4" aria-hidden />
+                Ops Doctor
+              </div>
+              <h2 className="mt-2 font-sans text-base font-semibold text-slate-950">
+                System readiness
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Read-only health check for storage, content workflow, scheduled
+                publishing, AI assistance, and social account readiness.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <StatusPill tone={doctor.headlineTone}>{doctor.headline}</StatusPill>
+              <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
+                {doctor.counts.good} ready / {doctor.counts.watch} watch /{" "}
+                {doctor.counts.blocked} blocked
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+            {doctor.items.map((item) => (
+              <article
+                key={item.id}
+                className="flex min-h-full flex-col rounded-lg border border-slate-200 bg-slate-50 p-4"
+                data-testid={`ops-doctor-card-${item.id}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-sans text-sm font-semibold text-slate-950">
+                      {item.label}
+                    </h3>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      {item.status}
+                    </p>
+                  </div>
+                  <StatusPill tone={item.tone}>{doctorToneCopy[item.tone]}</StatusPill>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-slate-700">
+                  {item.summary}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  <span className="font-semibold text-slate-950">Next:</span>{" "}
+                  {item.nextAction}
+                </p>
+                {item.href ? (
+                  <Link
+                    href={item.href}
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                  >
+                    Open related area
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                  </Link>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          className="rounded-lg border border-slate-200 bg-white shadow-sm"
+          data-testid="ops-runs-panel"
+        >
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <History className="h-4 w-4" aria-hidden />
+                Ops Runs
+              </div>
+              <h2 className="mt-2 font-sans text-base font-semibold text-slate-950">
+                Recent run history
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Read-only audit trail for autopublish runs, AI draft helper
+                runs, and social publish attempts stored in the Ops database.
+              </p>
+            </div>
+            {runHistory.source === "database" ? (
+              <div className="flex flex-wrap gap-2">
+                <LiveDataBadge label="Live - Run history" />
+                <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
+                  {runHistory.counts.good} success / {runHistory.counts.watch} watch /{" "}
+                  {runHistory.counts.blocked} error
+                </span>
+              </div>
+            ) : (
+              <StatusPill
+                tone={runHistory.source === "database-error" ? "blocked" : "watch"}
+              >
+                {runHistory.source === "database-error"
+                  ? "Run history unavailable"
+                  : "Database required"}
+              </StatusPill>
+            )}
+          </div>
+
+          {runHistory.source === "database" && runHistory.items.length > 0 ? (
+            <div className="divide-y divide-slate-100">
+              {runHistory.items.map((item) => (
+                <article
+                  key={`${item.type}-${item.id}`}
+                  className="grid gap-3 p-5 lg:grid-cols-[minmax(0,1fr)_auto]"
+                  data-testid={`ops-run-${item.type}`}
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-sans text-sm font-semibold text-slate-950">
+                        {item.label}
+                      </h3>
+                      <StatusPill tone={item.tone}>{item.status}</StatusPill>
+                      <span className="text-xs text-slate-500">
+                        {formatRunTimestamp(item.createdAt)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {item.summary}
+                    </p>
+                  </div>
+                  <dl className="flex flex-wrap gap-2 lg:max-w-md lg:justify-end">
+                    {item.details.map((detail) => (
+                      <div
+                        key={detail}
+                        className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600"
+                      >
+                        {detail}
+                      </div>
+                    ))}
+                  </dl>
+                </article>
+              ))}
+            </div>
+          ) : runHistory.source === "database" ? (
+            <p className="p-5 text-sm leading-6 text-slate-600">
+              No saved Ops runs yet. Run history will appear after AI generation,
+              scheduled publishing, or manual social publish attempts are saved
+              to Postgres.
+            </p>
+          ) : (
+            <div className="p-5">
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+                {runHistory.source === "database-error"
+                  ? `Could not load recent runs: ${runHistory.error}`
+                  : "Set OPS_STORAGE_MODE=database and DATABASE_URL to read recent Ops runs. Browser-local packages do not include server run history."}
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section
+          className="rounded-lg border border-slate-200 bg-white shadow-sm"
+          data-testid="ops-presets-panel"
+        >
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <ListChecks className="h-4 w-4" aria-hidden />
+                Preset Workflows
+              </div>
+              <h2 className="mt-2 font-sans text-base font-semibold text-slate-950">
+                Guided operator workflows
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Fast paths into common operator checks. These links do not write
+                records, call social APIs, start OAuth, or publish content.
+              </p>
+            </div>
+            <StatusPill tone="neutral">Navigation only</StatusPill>
+          </div>
+
+          <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+            {presetWorkflows.map((workflow) => (
+              <article
+                key={workflow.label}
+                className="flex min-h-full flex-col rounded-lg border border-slate-200 bg-slate-50 p-4"
+                data-testid="ops-preset-workflow"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-sans text-sm font-semibold text-slate-950">
+                    {workflow.label}
+                  </h3>
+                  <span className="rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+                    {workflow.status}
+                  </span>
+                </div>
+                <p className="mt-3 grow text-sm leading-6 text-slate-700">
+                  {workflow.description}
+                </p>
+                <Link
+                  href={workflow.href}
+                  className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
+                >
+                  Open workflow
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>

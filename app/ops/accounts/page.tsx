@@ -1,13 +1,13 @@
 import { BadgeCheck, Ban, ClipboardList, ExternalLink } from "lucide-react";
 
 import { LinkedInConnectPanel } from "@/app/ops/_components/linkedin-connect-panel";
+import { MetaConnectPanel } from "@/app/ops/_components/meta-connect-panel";
+import { XConnectPanel } from "@/app/ops/_components/x-connect-panel";
 import {
   LiveDataBadge,
   MockDataPanel,
   StaticConfigShell,
 } from "@/app/ops/_components/ops-data-status";
-import { PlatformConnectPanel } from "@/app/ops/_components/platform-connect-panel";
-import { XConnectPanel } from "@/app/ops/_components/x-connect-panel";
 import {
   BoundaryPill,
   OpsPageHeader,
@@ -105,12 +105,26 @@ export default async function OpsAccountsPage({
     typeof params.linkedin_error_hint === "string"
       ? params.linkedin_error_hint
       : undefined;
+  const metaConnectResult =
+    typeof params.meta === "string" ? params.meta : undefined;
+  const metaConnectError =
+    typeof params.meta_error === "string" ? params.meta_error : undefined;
+  const metaConnectErrorAccount =
+    typeof params.meta_error_account === "string"
+      ? params.meta_error_account
+      : undefined;
+  const metaConnectErrorCode =
+    typeof params.meta_error_code === "string"
+      ? params.meta_error_code
+      : undefined;
+  const metaConnectErrorHint =
+    typeof params.meta_error_hint === "string"
+      ? params.meta_error_hint
+      : undefined;
   const xConnectResult =
     typeof params.x === "string" ? params.x : undefined;
   const xConnectError =
     typeof params.x_error === "string" ? params.x_error : undefined;
-  const metaConnectError =
-    typeof params.meta_error === "string" ? params.meta_error : undefined;
   const { accountRegistry, socialMetricPlaceholders } = opsDashboardData;
   const projectAccounts = accountRegistry.filter((account) => account.kind === "project");
   const founderAccounts = accountRegistry.filter((account) => account.kind === "founder");
@@ -157,17 +171,15 @@ export default async function OpsAccountsPage({
           />
         </div>
 
-        <PlatformConnectPanel
-          connectError={metaConnectError}
-          connectErrorParam="meta_error"
-          connectPath="/ops/api/social/meta/connect"
-          description="Requires Meta Business verification, app review, OPS_META_ENABLED=true, and durable Postgres. Instagram needs media workflow before autopublish."
-          eyebrow="Phase 9 scaffold"
-          phase="Phase 9"
-          platformLabel="Meta"
-          statusPath="/ops/api/social/meta/status"
-          title="Meta — Facebook & Instagram (Phase 9)"
-        />
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-1">
+          <MetaConnectPanel
+            connectError={metaConnectError}
+            connectErrorAccount={metaConnectErrorAccount}
+            connectErrorCode={metaConnectErrorCode}
+            connectErrorHint={metaConnectErrorHint}
+            connectResult={metaConnectResult}
+          />
+        </div>
 
         <OpsPanel
           title="Connection Readiness"
