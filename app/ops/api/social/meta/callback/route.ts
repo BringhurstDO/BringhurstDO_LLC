@@ -89,10 +89,16 @@ export async function GET(request: NextRequest) {
     request.cookies.get(META_OAUTH_STATE_COOKIE)?.value ?? null;
 
   if (!verifyOAuthState(state, cookieState)) {
+    const hint = !state
+      ? "Meta did not return a state parameter. Confirm META_REDIRECT_URI matches the Facebook app callback exactly."
+      : !cookieState
+        ? "The OAuth cookie was missing on return from Facebook. Use https://www.bringhurstdo.com/ops/accounts, allow cookies, and try Connect again in the same browser tab."
+        : "State mismatch — start Connect again from /ops/accounts in one tab without using the back button.";
     return clearOAuthCookies(
       NextResponse.redirect(
         accountsRedirect(request, {
           meta_error: "OAuth state validation failed. Try connecting again.",
+          meta_error_hint: hint,
         }),
       ),
       request,

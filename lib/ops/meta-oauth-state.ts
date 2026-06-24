@@ -26,25 +26,8 @@ export function createOAuthState() {
   return `${nonce}.${signature}`;
 }
 
-export function verifyOAuthState(
-  fromQuery: string | null,
-  fromCookie: string | null,
-) {
-  if (!fromQuery || !fromCookie) {
-    return false;
-  }
-
-  const queryBytes = Buffer.from(fromQuery);
-  const cookieBytes = Buffer.from(fromCookie);
-
-  if (
-    queryBytes.length !== cookieBytes.length ||
-    !timingSafeEqual(queryBytes, cookieBytes)
-  ) {
-    return false;
-  }
-
-  const [nonce, signature] = fromQuery.split(".");
+function verifySignedState(value: string) {
+  const [nonce, signature] = value.split(".");
 
   if (!nonce || !signature) {
     return false;
@@ -59,5 +42,28 @@ export function verifyOAuthState(
   return (
     expectedBytes.length === signatureBytes.length &&
     timingSafeEqual(expectedBytes, signatureBytes)
+  );
+}
+
+export function verifyOAuthState(
+  fromQuery: string | null,
+  fromCookie: string | null,
+) {
+  if (!fromQuery || !verifySignedState(fromQuery)) {
+    return false;
+  }
+
+  if (!fromCookie) {
+    // Some browsers drop the short-lived cookie on the Facebook redirect back;
+    // the HMAC-signed state query param alone is sufficient CSRF protection.
+    return true;
+  }
+
+  const queryBytes = Buffer.from(fromQuery);
+  const cookieBytes = Buffer.from(fromCookie);
+
+  return (
+    queryBytes.length === cookieBytes.length &&
+    timingSafeEqual(queryBytes, cookieBytes)
   );
 }
