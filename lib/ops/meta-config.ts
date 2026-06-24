@@ -22,6 +22,8 @@ export type MetaResolvedConfig = {
   appId: string;
   appSecret: string;
   redirectUri: string;
+  /** Facebook Login for Business configuration ID (preferred over scope on Business apps). */
+  loginConfigId: string | null;
   accounts: MetaAccountConfig[];
 };
 
@@ -183,12 +185,15 @@ export function resolveMetaConfig(): MetaConfigStatus {
     return { ok: false, reason: accounts.reason };
   }
 
+  const loginConfigId = process.env.META_LOGIN_CONFIG_ID?.trim() || null;
+
   return {
     ok: true,
     config: {
       accounts: accounts.accounts,
       appId,
       appSecret,
+      loginConfigId,
       redirectUri,
     },
   };

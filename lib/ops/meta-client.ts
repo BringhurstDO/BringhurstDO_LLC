@@ -66,9 +66,15 @@ export function buildAuthorizationUrl(
     client_id: config.appId,
     redirect_uri: config.redirectUri,
     response_type: "code",
-    scope: account.scopes.join(","),
     state,
   });
+
+  if (config.loginConfigId) {
+    params.set("config_id", config.loginConfigId);
+    params.set("override_default_response_type", "true");
+  } else {
+    params.set("scope", account.scopes.join(","));
+  }
 
   return `${META_OAUTH_URL}?${params.toString()}`;
 }

@@ -49,21 +49,18 @@ export function verifyOAuthState(
   fromQuery: string | null,
   fromCookie: string | null,
 ) {
-  if (!fromQuery || !verifySignedState(fromQuery)) {
+  const queryValid = Boolean(fromQuery && verifySignedState(fromQuery));
+  const cookieValid = Boolean(fromCookie && verifySignedState(fromCookie));
+
+  if (!queryValid && !cookieValid) {
     return false;
   }
 
-  if (!fromCookie) {
-    // Some browsers drop the short-lived cookie on the Facebook redirect back;
-    // the HMAC-signed state query param alone is sufficient CSRF protection.
-    return true;
+  if (queryValid && cookieValid && fromQuery !== fromCookie) {
+    return false;
   }
 
-  const queryBytes = Buffer.from(fromQuery);
-  const cookieBytes = Buffer.from(fromCookie);
-
-  return (
-    queryBytes.length === cookieBytes.length &&
-    timingSafeEqual(queryBytes, cookieBytes)
-  );
+  // Facebook Login for Business sometimes omits state on the callback URL but
+  // the signed httpOnly cookie from /connect is still present.
+  return true;
 }

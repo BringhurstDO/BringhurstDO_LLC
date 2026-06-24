@@ -89,11 +89,13 @@ export async function GET(request: NextRequest) {
     request.cookies.get(META_OAUTH_STATE_COOKIE)?.value ?? null;
 
   if (!verifyOAuthState(state, cookieState)) {
-    const hint = !state
-      ? "Meta did not return a state parameter. Confirm META_REDIRECT_URI matches the Facebook app callback exactly."
-      : !cookieState
-        ? "The OAuth cookie was missing on return from Facebook. Use https://www.bringhurstdo.com/ops/accounts, allow cookies, and try Connect again in the same browser tab."
-        : "State mismatch — start Connect again from /ops/accounts in one tab without using the back button.";
+    const hint = !state && !cookieState
+      ? "Start Connect from https://www.bringhurstdo.com/ops/accounts, finish Facebook login in the same tab, and confirm App Domains includes bringhurstdo.com. Business apps should set META_LOGIN_CONFIG_ID from Facebook Login for Business → Configurations."
+      : !state
+        ? "Meta omitted state on the callback and the OAuth cookie was missing. Allow cookies for bringhurstdo.com and try Connect again without using the back button."
+        : !cookieState
+          ? "The OAuth cookie was missing on return from Facebook. Use https://www.bringhurstdo.com/ops/accounts, allow cookies, and try Connect again in the same browser tab."
+          : "State mismatch — start Connect again from /ops/accounts in one tab without using the back button.";
     return clearOAuthCookies(
       NextResponse.redirect(
         accountsRedirect(request, {
