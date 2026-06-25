@@ -125,7 +125,7 @@ function FacebookPageRow({
   );
 }
 
-function InstagramMirrorRow({
+function InstagramPublishRow({
   account,
   facebookConnected,
 }: {
@@ -144,13 +144,13 @@ function InstagramMirrorRow({
           </p>
         </div>
         <StatusPill tone={facebookConnected ? "good" : "neutral"}>
-          {facebookConnected ? "Via Page cross-post" : "Needs Facebook Page"}
+          {facebookConnected ? "Ready to publish" : "Needs Facebook Page"}
         </StatusPill>
       </div>
       <p className="mt-3 text-xs leading-5 text-slate-600">
-        Ops publishes to the linked Facebook Page. Meta cross-posting sends the
-        post to this Instagram account when enabled in Business Suite. No
-        separate Instagram OAuth is required.
+        Ops publishes natively to this Instagram account using the linked Facebook
+        Page token. Caption comes from your approved draft; image uses draft media
+        assetLocation or a brand default from /public.
       </p>
     </div>
   );
@@ -380,10 +380,10 @@ export function MetaConnectPanel({
         {!loading && configured && instagramAccounts.length > 0 ? (
           <div className="grid gap-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Instagram (via Meta cross-post)
+              Instagram (publish from Ops)
             </p>
             {instagramAccounts.map((account) => (
-              <InstagramMirrorRow
+              <InstagramPublishRow
                 key={account.accountId}
                 account={account}
                 facebookConnected={
@@ -399,9 +399,8 @@ export function MetaConnectPanel({
         <p className="text-xs leading-5 text-slate-500">
           One Facebook Business login can authorize every brand Page you admin.
           Ops only stores tokens for configured business Pages in META_ACCOUNTS —
-          not your personal Facebook profile. Instagram rows mirror the linked
-          Page through Meta cross-posting; native Instagram publish is not
-          implemented yet.
+          not your personal Facebook profile. Instagram accounts publish through
+          the linked Page token after you approve each draft on the calendar.
         </p>
       </div>
     </OpsPanel>

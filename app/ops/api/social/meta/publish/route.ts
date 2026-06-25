@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { publishMetaDraft } from "@/lib/ops/meta-publish-service";
 import { resolveMetaConfig } from "@/lib/ops/meta-config";
-import type { SocialPublishResult } from "@/lib/ops/types";
+import type { OpsProjectId, SocialPublishResult } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -17,17 +17,34 @@ function jsonNoStore(body: unknown, status = 200) {
 
 type PublishBody = {
   accountId?: unknown;
+  assetLocation?: unknown;
   body?: unknown;
   confirmApproved?: unknown;
   contentPackageId?: unknown;
+  imageUrl?: unknown;
   platform?: unknown;
   platformDraftId?: unknown;
   publicationTargetId?: unknown;
+  publishingProjectId?: unknown;
   title?: unknown;
 };
 
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function asProjectId(value: unknown): OpsProjectId | undefined {
+  const normalized = asString(value);
+
+  if (
+    normalized === "syncsoap" ||
+    normalized === "syncsafety" ||
+    normalized === "bringhurstdo"
+  ) {
+    return normalized;
+  }
+
+  return undefined;
 }
 
 export async function POST(request: NextRequest) {
@@ -84,11 +101,14 @@ export async function POST(request: NextRequest) {
 
   const published = await publishMetaDraft({
     accountId: requestedAccountId,
+    assetLocation: asString(payload.assetLocation) || undefined,
     body: rawBody,
     contentPackageId,
+    imageUrl: asString(payload.imageUrl) || undefined,
     platform,
     platformDraftId,
     publicationTargetId,
+    publishingProjectId: asProjectId(payload.publishingProjectId),
     title: title || undefined,
     trigger: "manual",
   });
@@ -97,7 +117,9 @@ export async function POST(request: NextRequest) {
     const httpStatus =
       published.error.code === "not_implemented"
         ? 501
-        : published.error.code === "connection"
+        : published.error.code === "media_missing"
+          ? 400
+          : published.error.code === "connection"
           ? published.error.message.includes("not connected")
             ? 409
             : 502

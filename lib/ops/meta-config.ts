@@ -34,12 +34,13 @@ export type MetaConfigStatus =
 const FACEBOOK_PAGE_SCOPES = [
   "pages_show_list",
   "pages_manage_posts",
+  "instagram_content_publish",
   "business_management",
 ];
 
-// Connect + verify linked Business account; publish scope added when IG publish ships.
 const INSTAGRAM_SCOPES = [
   "instagram_basic",
+  "instagram_content_publish",
   "pages_show_list",
   "business_management",
 ];
@@ -200,4 +201,21 @@ export function resolveMetaConfig(): MetaConfigStatus {
 
 export function findMetaAccount(config: MetaResolvedConfig, accountId: string) {
   return config.accounts.find((account) => account.accountId === accountId) ?? null;
+}
+
+export function findLinkedFacebookPageAccount(
+  config: MetaResolvedConfig,
+  instagramAccount: MetaAccountConfig,
+) {
+  if (instagramAccount.kind !== "instagram_business" || !instagramAccount.pageId) {
+    return null;
+  }
+
+  return (
+    config.accounts.find(
+      (account) =>
+        account.kind === "facebook_page" &&
+        account.pageId === instagramAccount.pageId,
+    ) ?? null
+  );
 }

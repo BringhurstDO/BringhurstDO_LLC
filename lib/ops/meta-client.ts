@@ -322,3 +322,116 @@ export async function publishFacebookPagePost(input: {
     postUrl: `https://www.facebook.com/${json.id}`,
   };
 }
+
+export type PublishInstagramImagePostResult = {
+  platformPostId: string;
+  postUrl: string;
+};
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForInstagramContainerReady(
+  creationId: string,
+  pageAccessToken: string,
+) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const url = new URL(`${META_GRAPH_URL}/${creationId}`);
+    url.searchParams.set("fields", "status_code");
+    url.searchParams.set("access_token", pageAccessToken);
+
+    const response = await fetch(url.toString(), { method: "GET" });
+    const json = await readGraphJson<{ status_code?: string }>(
+      response,
+      "Meta Instagram container status failed",
+    );
+
+    if (json.status_code === "FINISHED") {
+      return;
+    }
+
+    if (json.status_code === "ERROR") {
+      throw new Error("Instagram media container processing failed.");
+    }
+
+    await sleep(1500);
+  }
+
+  throw new Error("Instagram media container timed out before publish.");
+}
+
+async function fetchInstagramPermalink(
+  mediaId: string,
+  pageAccessToken: string,
+) {
+  const url = new URL(`${META_GRAPH_URL}/${mediaId}`);
+  url.searchParams.set("fields", "permalink");
+  url.searchParams.set("access_token", pageAccessToken);
+
+  const response = await fetch(url.toString(), { method: "GET" });
+  const json = await readGraphJson<{ permalink?: string }>(
+    response,
+    "Meta Instagram permalink lookup failed",
+  );
+
+  return json.permalink?.trim() || `https://www.instagram.com/`;
+}
+
+export async function publishInstagramImagePost(input: {
+  caption: string;
+  igUserId: string;
+  imageUrl: string;
+  pageAccessToken: string;
+}): Promise<PublishInstagramImagePostResult> {
+  const containerUrl = `${META_GRAPH_URL}/${input.igUserId}/media`;
+  const containerResponse = await fetch(containerUrl, {
+    body: JSON.stringify({
+      access_token: input.pageAccessToken,
+      caption: input.caption,
+      image_url: input.imageUrl,
+    }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+
+  const containerJson = await readGraphJson<{ id?: string }>(
+    containerResponse,
+    "Meta Instagram media container failed",
+  );
+
+  if (!containerJson.id) {
+    throw new Error("Meta Instagram media container did not return an id.");
+  }
+
+  await waitForInstagramContainerReady(containerJson.id, input.pageAccessToken);
+
+  const publishUrl = `${META_GRAPH_URL}/${input.igUserId}/media_publish`;
+  const publishResponse = await fetch(publishUrl, {
+    body: JSON.stringify({
+      access_token: input.pageAccessToken,
+      creation_id: containerJson.id,
+    }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+
+  const publishJson = await readGraphJson<{ id?: string }>(
+    publishResponse,
+    "Meta Instagram publish failed",
+  );
+
+  if (!publishJson.id) {
+    throw new Error("Meta Instagram publish did not return a media id.");
+  }
+
+  const postUrl = await fetchInstagramPermalink(
+    publishJson.id,
+    input.pageAccessToken,
+  );
+
+  return {
+    platformPostId: publishJson.id,
+    postUrl,
+  };
+}

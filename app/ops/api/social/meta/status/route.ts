@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { resolveMetaConfig } from "@/lib/ops/meta-config";
+import {
+  findLinkedFacebookPageAccount,
+  resolveMetaConfig,
+} from "@/lib/ops/meta-config";
 import {
   loadSocialConnection,
   toPublicConnectionStatus,
@@ -39,7 +42,14 @@ export async function GET() {
   try {
     const accounts = await Promise.all(
       config.config.accounts.map(async (account) => {
-        const record = await loadSocialConnection("Meta", account.accountId);
+        const linkedPage =
+          account.kind === "instagram_business"
+            ? findLinkedFacebookPageAccount(config.config, account)
+            : null;
+        const record = await loadSocialConnection(
+          "Meta",
+          linkedPage?.accountId ?? account.accountId,
+        );
         return toPublicConnectionStatus("Meta", account, true, null, record);
       }),
     );

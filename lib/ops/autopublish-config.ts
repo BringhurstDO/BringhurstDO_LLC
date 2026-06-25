@@ -2,6 +2,7 @@ import "server-only";
 
 import { databasePersistenceConfigured } from "@/lib/ops/persistence-db";
 import { resolveLinkedInConfig } from "@/lib/ops/linkedin-config";
+import { resolveMetaConfig } from "@/lib/ops/meta-config";
 import { resolveXConfig } from "@/lib/ops/x-config";
 import type { OpsAutopublishPublicStatus } from "@/lib/ops/types";
 
@@ -57,6 +58,7 @@ export function resolveAutopublishConfig() {
   const databaseConfigured = databasePersistenceConfigured();
   const linkedInConfig = resolveLinkedInConfig();
   const xConfig = resolveXConfig();
+  const metaConfig = resolveMetaConfig();
 
   if (!enabledFlag) {
     return {
@@ -72,10 +74,10 @@ export function resolveAutopublishConfig() {
     } as const;
   }
 
-  if (!linkedInConfig.ok && !xConfig.ok) {
+  if (!linkedInConfig.ok && !xConfig.ok && !metaConfig.ok) {
     return {
       enabled: false,
-      reason: `No autopublish platform is configured. LinkedIn: ${linkedInConfig.reason} X: ${xConfig.reason}`,
+      reason: `No autopublish platform is configured. LinkedIn: ${linkedInConfig.reason} X: ${xConfig.reason} Meta: ${metaConfig.reason}`,
     } as const;
   }
 
@@ -89,6 +91,7 @@ export function resolveAutopublishConfig() {
   return {
     enabled: true,
     linkedInConfig: linkedInConfig.ok ? linkedInConfig.config : null,
+    metaConfig: metaConfig.ok ? metaConfig.config : null,
     timeZone: autopublishTimezone(),
     xConfig: xConfig.ok ? xConfig.config : null,
   } as const;
@@ -109,7 +112,11 @@ export function getAutopublishPublicStatus(): OpsAutopublishPublicStatus {
       ? [
           resolved.linkedInConfig ? "LinkedIn" : null,
           resolved.xConfig ? "X" : null,
-        ].filter((platform): platform is "LinkedIn" | "X" => Boolean(platform))
+          resolved.metaConfig ? "Instagram" : null,
+        ].filter(
+          (platform): platform is "Instagram" | "LinkedIn" | "X" =>
+            Boolean(platform),
+        )
       : [],
     requiresDraftOptIn: true,
     requiresDraftStatus: "approved",

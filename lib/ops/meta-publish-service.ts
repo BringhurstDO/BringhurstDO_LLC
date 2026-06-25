@@ -4,12 +4,20 @@ import {
   containsPublishableArtifact,
   sanitizePublishableBody,
 } from "@/lib/ops/publishable-copy";
-import { getReadyMetaConnection } from "@/lib/ops/meta-connection";
-import { publishFacebookPagePost } from "@/lib/ops/meta-client";
+import {
+  getReadyInstagramPublishConnection,
+  getReadyMetaConnection,
+} from "@/lib/ops/meta-connection";
+import {
+  publishFacebookPagePost,
+  publishInstagramImagePost,
+} from "@/lib/ops/meta-client";
 import { findMetaAccount, resolveMetaConfig } from "@/lib/ops/meta-config";
+import { resolveInstagramPublishImageUrl } from "@/lib/ops/meta-instagram-media";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
 import type {
   OpsContentPackageRecord,
+  OpsProjectId,
   SocialPublishLogRecord,
   SocialPublishResult,
 } from "@/lib/ops/types";
@@ -23,13 +31,16 @@ function nowId() {
 
 export type MetaDraftPublishInput = {
   accountId: string;
+  assetLocation?: string;
   body: string;
   contentPackageId: string;
+  imageUrl?: string;
   platform: "Facebook" | "Instagram";
   platformDraftId: string;
   publicationTargetId: string;
+  publishingProjectId?: OpsProjectId;
   title?: string;
-  trigger: "manual";
+  trigger: "autopublish" | "manual";
 };
 
 export type MetaDraftPublishError = {
@@ -37,6 +48,7 @@ export type MetaDraftPublishError = {
     | "body_invalid"
     | "config"
     | "connection"
+    | "media_missing"
     | "not_implemented"
     | "publish_failed";
   message: string;
@@ -130,14 +142,131 @@ export async function publishMetaDraft(
   }
 
   if (input.platform === "Instagram") {
-    return {
-      ok: false,
-      error: {
-        code: "not_implemented",
-        message:
-          "Instagram publish is not implemented yet. Connect the account now for readiness, but publish text-only posts to Facebook Pages first.",
-      },
-    };
+    if (account.kind !== "instagram_business" || !account.instagramBusinessAccountId) {
+      return {
+        ok: false,
+        error: {
+          code: "config",
+          message: "This Meta account is not configured as an Instagram Business target.",
+        },
+      };
+    }
+
+    const sanitizedBody = sanitizePublishableBody(input.body);
+
+    if (!sanitizedBody.trim()) {
+      return {
+        ok: false,
+        error: {
+          code: "body_invalid",
+          message: "Publish body is empty after sanitizing.",
+        },
+      };
+    }
+
+    if (containsPublishableArtifact(sanitizedBody)) {
+      return {
+        ok: false,
+        error: {
+          code: "body_invalid",
+          message:
+            "Publish body still contains internal workflow/operator language after sanitizing.",
+        },
+      };
+    }
+
+    const caption =
+      sanitizedBody.length > 2200
+        ? `${sanitizedBody.slice(0, 2197).trim()}…`
+        : sanitizedBody;
+
+    const image = resolveInstagramPublishImageUrl({
+      accountId: account.accountId,
+      assetLocation: input.assetLocation,
+      imageUrl: input.imageUrl,
+      publishingProjectId: input.publishingProjectId,
+    });
+
+    if (!image.ok) {
+      return {
+        ok: false,
+        error: {
+          code: "media_missing",
+          message: image.reason,
+        },
+      };
+    }
+
+    const ready = await getReadyInstagramPublishConnection(config.config, account);
+
+    if (!ready.ok) {
+      return {
+        ok: false,
+        error: {
+          code: "connection",
+          message: ready.error.message,
+        },
+      };
+    }
+
+    try {
+      const published = await publishInstagramImagePost({
+        caption,
+        igUserId: account.instagramBusinessAccountId,
+        imageUrl: image.imageUrl,
+        pageAccessToken: ready.value.accessToken,
+      });
+      const postedAt = new Date().toISOString();
+      const publishLogId = `meta-publish-${nowId()}`;
+      const bodyPreview =
+        caption.length > 280 ? `${caption.slice(0, 280).trim()}…` : caption;
+
+      const logRecord: SocialPublishLogRecord = {
+        accountId: account.accountId,
+        authorUrn: ready.value.authorUrn,
+        bodyPreview,
+        contentPackageId: input.contentPackageId,
+        createdAt: postedAt,
+        id: publishLogId,
+        notes: [
+          input.trigger === "autopublish"
+            ? `Scheduled autopublish to Instagram as ${account.label}. Image: ${image.imageUrl}`
+            : `Operator-approved manual publish to Instagram as ${account.label}. Image: ${image.imageUrl}`,
+        ],
+        platform: "Meta",
+        platformDraftId: input.platformDraftId,
+        platformPostId: published.platformPostId,
+        postUrl: published.postUrl,
+        publicationTargetId: input.publicationTargetId,
+        sourceBoundary: PUBLISH_BOUNDARY,
+        status: "success",
+      };
+
+      await saveSocialPublishLog(logRecord).catch(() => undefined);
+
+      return {
+        ok: true,
+        result: {
+          accountId: account.accountId,
+          platform: "Meta",
+          platformDraftId: input.platformDraftId,
+          platformPostId: published.platformPostId,
+          postUrl: published.postUrl,
+          postedAt,
+          publicationTargetId: input.publicationTargetId,
+          publishLogId,
+        },
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "publish_failed",
+          message:
+            error instanceof Error ? error.message : "Instagram publish failed.",
+        },
+      };
+    }
   }
 
   if (account.kind !== "facebook_page" || !account.pageId) {
@@ -206,7 +335,9 @@ export async function publishMetaDraft(
       createdAt: postedAt,
       id: publishLogId,
       notes: [
-        `Operator-approved manual publish to Facebook as ${account.label}.`,
+        input.trigger === "autopublish"
+          ? `Scheduled autopublish to Facebook as ${account.label}.`
+          : `Operator-approved manual publish to Facebook as ${account.label}.`,
       ],
       platform: "Meta",
       platformDraftId: input.platformDraftId,

@@ -904,6 +904,89 @@ export function PublishCalendarPanel({
     }
   }
 
+  async function publishDraftToInstagram(row: PublishCalendarRow) {
+    const match = findDraftRecord(row.draftId);
+
+    if (!match) {
+      setIssues(["Draft record not found."]);
+      return;
+    }
+
+    const { draft, record } = match;
+    const accountId = targetAccountIdById.get(draft.publicationTargetId);
+    const accountStatus = metaAccountStatus(accountId);
+
+    if (!accountStatus?.connected) {
+      setIssues([
+        "Instagram is not ready. Connect the linked Facebook Page on the Accounts page first.",
+      ]);
+      return;
+    }
+
+    if (draft.status !== "approved") {
+      setIssues(["Approve this draft before publishing to Instagram."]);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Publish this approved draft to Instagram as ${accountStatus.accountLabel ?? draft.accountName}? Ops will attach a brand default image unless you set media assetLocation on the draft.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setPublishingDraftId(draft.id);
+    setIssues([]);
+
+    try {
+      const response = await opsFetch("/ops/api/social/meta/publish", {
+        body: JSON.stringify({
+          accountId,
+          assetLocation: draft.media.assetLocation,
+          body: sanitizePublishableBody(draft.body),
+          confirmApproved: true,
+          contentPackageId: record.contentPackage.id,
+          platform: "Instagram",
+          platformDraftId: draft.id,
+          publicationTargetId: draft.publicationTargetId,
+          publishingProjectId: draft.publishingProjectId,
+          title: draft.title,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const data = (await response.json()) as
+        | SocialPublishResult
+        | { error?: string };
+
+      if (!response.ok || !("postUrl" in data)) {
+        throw new Error(
+          "error" in data && data.error ? data.error : "Instagram publish failed.",
+        );
+      }
+
+      const nextRecords = records.map((item) =>
+        item.contentPackage.id === record.contentPackage.id
+          ? mergeLinkedInPublishResult(item, draft, data)
+          : item,
+      );
+
+      if (await persistRecords(nextRecords)) {
+        setMessage(
+          `Published ${draft.accountName} draft to Instagram. Public URL saved.`,
+        );
+      }
+    } catch (error) {
+      setIssues([
+        error instanceof Error ? error.message : "Instagram publish failed.",
+      ]);
+    } finally {
+      setPublishingDraftId(null);
+    }
+  }
+
   function CalendarRowCard({ row }: { row: PublishCalendarRow }) {
     const packageRecord = records.find(
       (record) => record.contentPackage.id === row.contentPackageId,
@@ -931,6 +1014,11 @@ export function PublishCalendarPanel({
     const metaStatusForRow = metaAccountStatus(accountId);
     const canPublishFacebook =
       row.platform === "Facebook" &&
+      row.draftStatus === "approved" &&
+      row.postStatus !== "posted" &&
+      metaStatusForRow?.connected;
+    const canPublishInstagram =
+      row.platform === "Instagram" &&
       row.draftStatus === "approved" &&
       row.postStatus !== "posted" &&
       metaStatusForRow?.connected;
@@ -1023,6 +1111,19 @@ export function PublishCalendarPanel({
             </button>
           ) : null}
 
+          {canPublishInstagram ? (
+            <button
+              type="button"
+              disabled={publishingDraftId === row.draftId}
+              onClick={() => void publishDraftToInstagram(row)}
+              className="inline-flex h-9 items-center rounded-md bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] px-3 text-xs font-semibold text-white hover:opacity-90 disabled:bg-slate-300"
+            >
+              {publishingDraftId === row.draftId
+                ? "Publishing…"
+                : "Publish to Instagram"}
+            </button>
+          ) : null}
+
           <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
             Date
             <input
@@ -1062,7 +1163,9 @@ export function PublishCalendarPanel({
               checked={row.autopublishEnabled}
               disabled={
                 row.postStatus === "posted" ||
-                (row.platform !== "LinkedIn" && row.platform !== "X")
+                (row.platform !== "LinkedIn" &&
+                  row.platform !== "X" &&
+                  row.platform !== "Instagram")
               }
               onChange={(event) =>
                 toggleAutopublish(row, event.target.checked)
@@ -1132,7 +1235,8 @@ export function PublishCalendarPanel({
               <p className="mt-2 text-xs leading-5 text-slate-500">
                 Suggested windows: {platformScheduleDefaults.join("; ")}. X manual
                 posts use the window guidance and one operator-approved API call per
-                post.
+                post. Instagram autopublish uses your caption plus a brand default
+                image unless the draft media assetLocation points at a public image.
               </p>
             ) : null}
             {xDraftsPresent ? (

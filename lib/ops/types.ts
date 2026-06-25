@@ -571,7 +571,7 @@ export type OpsAutopublishPublicStatus = {
   linkedInOnly: boolean;
   manualReviewRequired: false;
   platform: "LinkedIn";
-  platforms: Array<"LinkedIn" | "X">;
+  platforms: Array<"Instagram" | "LinkedIn" | "X">;
   requiresDraftOptIn: true;
   requiresDraftStatus: "approved";
   runTimeLabel: MetadataOnlyString;

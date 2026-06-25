@@ -10,6 +10,10 @@ import {
   resolveAutopublishConfig,
 } from "@/lib/ops/autopublish-config";
 import { saveAutopublishRunRecord } from "@/lib/ops/autopublish-runs-db";
+import {
+  applyMetaPublishToRecord,
+  publishMetaDraft,
+} from "@/lib/ops/meta-publish-service";
 import { createDatabaseOpsPersistenceAdapter } from "@/lib/ops/persistence-db";
 import { platformScheduleBucketId } from "@/lib/ops/platform-schedule-defaults";
 import {
@@ -60,6 +64,24 @@ function skipResult(
   };
 }
 
+function draftAlreadyPosted(
+  record: OpsContentPackageRecord,
+  draft: PlatformDraft,
+) {
+  if (draft.platform === "X") {
+    return xDraftIsPosted(record, draft);
+  }
+
+  if (draft.platform === "Instagram") {
+    return record.publishedPosts.some(
+      (post) =>
+        post.platformDraftId === draft.id && post.status === "posted",
+    );
+  }
+
+  return draftIsPosted(record, draft);
+}
+
 function isEligibleDraft(
   record: OpsContentPackageRecord,
   draft: PlatformDraft,
@@ -67,7 +89,11 @@ function isEligibleDraft(
   bucketId: OpsScheduleBucketId,
   trigger: OpsAutopublishRunRecord["trigger"],
 ) {
-  if (draft.platform !== "LinkedIn" && draft.platform !== "X") {
+  if (
+    draft.platform !== "LinkedIn" &&
+    draft.platform !== "X" &&
+    draft.platform !== "Instagram"
+  ) {
     return "Platform does not support autopublish.";
   }
 
@@ -83,11 +109,7 @@ function isEligibleDraft(
     return "Draft has no suggestedScheduledFor date.";
   }
 
-  if (
-    draft.platform === "X"
-      ? xDraftIsPosted(record, draft)
-      : draftIsPosted(record, draft)
-  ) {
+  if (draftAlreadyPosted(record, draft)) {
     return "Draft is already posted.";
   }
 
@@ -208,15 +230,28 @@ export async function runScheduledAutopublish(
               title: draft.title,
               trigger: "autopublish",
             })
-          : await publishLinkedInDraft({
-              accountId,
-              body: draft.body,
-              contentPackageId: record.contentPackage.id,
-              platformDraftId: draft.id,
-              publicationTargetId: draft.publicationTargetId,
-              title: draft.title,
-              trigger: "autopublish",
-            });
+          : draft.platform === "Instagram"
+            ? await publishMetaDraft({
+                accountId,
+                assetLocation: draft.media.assetLocation,
+                body: draft.body,
+                contentPackageId: record.contentPackage.id,
+                platform: "Instagram",
+                platformDraftId: draft.id,
+                publicationTargetId: draft.publicationTargetId,
+                publishingProjectId: draft.publishingProjectId,
+                title: draft.title,
+                trigger: "autopublish",
+              })
+            : await publishLinkedInDraft({
+                accountId,
+                body: draft.body,
+                contentPackageId: record.contentPackage.id,
+                platformDraftId: draft.id,
+                publicationTargetId: draft.publicationTargetId,
+                title: draft.title,
+                trigger: "autopublish",
+              });
 
       if (!published.ok) {
         draftResults.push({
@@ -234,12 +269,14 @@ export async function runScheduledAutopublish(
         item.contentPackage.id === record.contentPackage.id
           ? draft.platform === "X"
             ? applyXPublishToRecord(item, draft.id, published.result)
-            : applyLinkedInPublishToRecord(
-                item,
-                draft.id,
-                published.result,
-                "autopublish",
-              )
+            : draft.platform === "Instagram"
+              ? applyMetaPublishToRecord(item, draft.id, published.result)
+              : applyLinkedInPublishToRecord(
+                  item,
+                  draft.id,
+                  published.result,
+                  "autopublish",
+                )
           : item,
       );
 
@@ -288,7 +325,7 @@ export async function runScheduledAutopublish(
     runDate,
     skippedCount,
     sourceBoundary:
-      "BringhurstDO Ops scheduled LinkedIn autopublish run. Metadata-only audit.",
+      "BringhurstDO Ops scheduled social autopublish run. Metadata-only audit.",
     status,
     timeZone: resolved.timeZone,
     trigger,

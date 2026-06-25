@@ -55,19 +55,19 @@ export const OPS_PLATFORM_READINESS: OpsPlatformReadinessItem[] = [
   {
     allowedNow: [
       "Manual target planning, deterministic/AI draft generation, UTM links",
-      "Manual posted tracking and aggregate metric entry",
+      "Operator-approved publish and scheduled autopublish when Meta is connected",
+      "Brand default images from /public when draft media has no assetLocation",
     ],
     blockedBy: [
-      "Meta Business verification/app review is not complete",
-      "No Instagram OAuth or publishing API is connected",
-      "No media upload/storage workflow exists in Ops",
+      "Meta app needs instagram_content_publish in Business Login config",
+      "Instagram API requires a public HTTPS image on every post",
     ],
     nextOperatorAction:
-      "Phase 9 scaffold is on /ops/accounts. Complete Meta Business verification/app review, then enable OPS_META_ENABLED and META_* env.",
+      "Connect all Facebook Pages on /ops/accounts, approve Instagram drafts on the calendar, and enable autopublish per draft.",
     platform: "Instagram",
-    status: "blocked_external_review",
-    statusLabel: "Instagram blocked by Meta review",
-    tone: "blocked",
+    status: "partially_connected",
+    statusLabel: "Instagram ready when Meta Pages connect",
+    tone: "watch",
   },
   {
     allowedNow: [

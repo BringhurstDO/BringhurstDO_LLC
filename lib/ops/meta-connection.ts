@@ -1,6 +1,7 @@
 import "server-only";
 
-import type { MetaAccountConfig } from "@/lib/ops/meta-config";
+import type { MetaAccountConfig, MetaResolvedConfig } from "@/lib/ops/meta-config";
+import { findLinkedFacebookPageAccount } from "@/lib/ops/meta-config";
 import {
   connectionExpired,
   decryptAccessToken,
@@ -17,6 +18,11 @@ export type MetaReadyConnection = {
   accountLabel: string;
   authorUrn: string;
   kind: MetaAccountConfig["kind"];
+};
+
+export type MetaReadyInstagramConnection = MetaReadyConnection & {
+  instagramBusinessAccountId: string;
+  linkedPageAccountId: string;
 };
 
 export async function getReadyMetaConnection(
@@ -70,6 +76,64 @@ export async function getReadyMetaConnection(
       accountLabel: connection.accountLabel,
       authorUrn: connection.authorUrn,
       kind: account.kind,
+    },
+  };
+}
+
+export async function getReadyInstagramPublishConnection(
+  config: MetaResolvedConfig,
+  account: MetaAccountConfig,
+): Promise<
+  | { ok: true; value: MetaReadyInstagramConnection }
+  | { ok: false; error: MetaConnectionError }
+> {
+  if (account.kind !== "instagram_business") {
+    return {
+      ok: false,
+      error: {
+        code: "load_failed",
+        message: "This Meta account is not configured as an Instagram target.",
+      },
+    };
+  }
+
+  if (!account.instagramBusinessAccountId) {
+    return {
+      ok: false,
+      error: {
+        code: "load_failed",
+        message: "instagramBusinessAccountId is missing for this Instagram account.",
+      },
+    };
+  }
+
+  const linkedPage = findLinkedFacebookPageAccount(config, account);
+
+  if (!linkedPage) {
+    return {
+      ok: false,
+      error: {
+        code: "not_connected",
+        message:
+          "Linked Facebook Page is not configured in META_ACCOUNTS for this Instagram account.",
+      },
+    };
+  }
+
+  const ready = await getReadyMetaConnection(linkedPage);
+
+  if (!ready.ok) {
+    return ready;
+  }
+
+  return {
+    ok: true,
+    value: {
+      ...ready.value,
+      authorUrn: account.instagramBusinessAccountId,
+      instagramBusinessAccountId: account.instagramBusinessAccountId,
+      kind: "instagram_business",
+      linkedPageAccountId: linkedPage.accountId,
     },
   };
 }
