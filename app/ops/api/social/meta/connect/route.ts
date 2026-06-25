@@ -7,6 +7,7 @@ import { findMetaAccount, resolveMetaConfig } from "@/lib/ops/meta-config";
 import {
   createOAuthState,
   META_OAUTH_ACCOUNT_COOKIE,
+  META_OAUTH_CONNECT_ALL_FACEBOOK_PAGES,
   META_OAUTH_STATE_COOKIE,
   META_OAUTH_STATE_MAX_AGE_SECONDS,
 } from "@/lib/ops/meta-oauth-state";
@@ -37,22 +38,50 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const requestedAccountId =
-    request.nextUrl.searchParams.get("account")?.trim() ||
-    status.config.accounts[0]?.accountId ||
-    "";
-  const account = findMetaAccount(status.config, requestedAccountId);
+  const connectAllFacebookPages =
+    request.nextUrl.searchParams.get("mode")?.trim().toLowerCase() ===
+    "all-pages";
 
-  if (!account) {
-    return NextResponse.redirect(
-      accountsRedirect(request, {
-        meta_error: `Unknown Meta account: ${requestedAccountId}`,
-      }),
+  let oauthAccountId: string;
+  let scopeAccount;
+
+  if (connectAllFacebookPages) {
+    const facebookAccounts = status.config.accounts.filter(
+      (account) => account.kind === "facebook_page",
     );
+
+    if (facebookAccounts.length === 0) {
+      return NextResponse.redirect(
+        accountsRedirect(request, {
+          meta_error:
+            "No Facebook Page accounts are configured in META_ACCOUNTS.",
+        }),
+      );
+    }
+
+    oauthAccountId = META_OAUTH_CONNECT_ALL_FACEBOOK_PAGES;
+    scopeAccount = facebookAccounts[0]!;
+  } else {
+    const requestedAccountId =
+      request.nextUrl.searchParams.get("account")?.trim() ||
+      status.config.accounts[0]?.accountId ||
+      "";
+    const account = findMetaAccount(status.config, requestedAccountId);
+
+    if (!account) {
+      return NextResponse.redirect(
+        accountsRedirect(request, {
+          meta_error: `Unknown Meta account: ${requestedAccountId}`,
+        }),
+      );
+    }
+
+    oauthAccountId = account.accountId;
+    scopeAccount = account;
   }
 
   const state = createOAuthState();
-  const authorizationUrl = buildAuthorizationUrl(status.config, account, state);
+  const authorizationUrl = buildAuthorizationUrl(status.config, scopeAccount, state);
 
   const response = NextResponse.redirect(authorizationUrl);
   const cookieOptions = oauthCookieOptions(
@@ -60,11 +89,7 @@ export async function GET(request: NextRequest) {
     META_OAUTH_STATE_MAX_AGE_SECONDS,
   );
   response.cookies.set(META_OAUTH_STATE_COOKIE, state, cookieOptions);
-  response.cookies.set(
-    META_OAUTH_ACCOUNT_COOKIE,
-    account.accountId,
-    cookieOptions,
-  );
+  response.cookies.set(META_OAUTH_ACCOUNT_COOKIE, oauthAccountId, cookieOptions);
   response.headers.set("Cache-Control", "no-store");
 
   return response;

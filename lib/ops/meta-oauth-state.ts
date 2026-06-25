@@ -6,6 +6,13 @@ export const META_OAUTH_STATE_COOKIE = "ops_meta_oauth_state";
 export const META_OAUTH_ACCOUNT_COOKIE = "ops_meta_oauth_account";
 export const META_OAUTH_STATE_MAX_AGE_SECONDS = 600;
 
+/** Cookie value for one OAuth login that connects every configured Facebook Page. */
+export const META_OAUTH_CONNECT_ALL_FACEBOOK_PAGES = "__all_facebook_pages__";
+
+export function isConnectAllFacebookPagesMode(accountId: string) {
+  return accountId === META_OAUTH_CONNECT_ALL_FACEBOOK_PAGES;
+}
+
 function stateSecret() {
   const secret =
     process.env.OPS_SOCIAL_TOKEN_SECRET?.trim() ||

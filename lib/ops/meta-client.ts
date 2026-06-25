@@ -237,6 +237,57 @@ export async function resolveMetaAuthor(
   return resolveInstagramBusinessAuthor(account, pages);
 }
 
+export type MetaFacebookPageConnectResult = {
+  account: MetaAccountConfig;
+  author: MetaResolvedAuthor;
+};
+
+export type MetaFacebookPageConnectSkip = {
+  accountId: string;
+  label: string;
+  reason: string;
+};
+
+export async function resolveAllConfiguredFacebookPageAuthors(
+  config: MetaResolvedConfig,
+  userAccessToken: string,
+): Promise<{
+  authors: MetaFacebookPageConnectResult[];
+  skipped: MetaFacebookPageConnectSkip[];
+}> {
+  const pages = await listManagedPages(userAccessToken);
+  const facebookAccounts = config.accounts.filter(
+    (account) => account.kind === "facebook_page",
+  );
+  const authors: MetaFacebookPageConnectResult[] = [];
+  const skipped: MetaFacebookPageConnectSkip[] = [];
+
+  for (const account of facebookAccounts) {
+    const page = findConfiguredPage(pages, account.pageId ?? "");
+
+    if (!page?.access_token) {
+      skipped.push({
+        accountId: account.accountId,
+        label: account.label,
+        reason: `Facebook Page ${account.pageId} was not returned for this login. Confirm you are a Page admin.`,
+      });
+      continue;
+    }
+
+    authors.push({
+      account,
+      author: {
+        accessToken: page.access_token,
+        authorType: "organization",
+        authorUrn: page.id,
+        label: page.name?.trim() || account.label,
+      },
+    });
+  }
+
+  return { authors, skipped };
+}
+
 export type PublishFacebookPagePostResult = {
   platformPostId: string;
   postUrl: string;

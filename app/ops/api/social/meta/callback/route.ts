@@ -4,10 +4,12 @@ import { oauthCookieOptions } from "@/lib/ops/oauth-cookie-options";
 import {
   exchangeCodeForToken,
   exchangeLongLivedUserToken,
+  resolveAllConfiguredFacebookPageAuthors,
   resolveMetaAuthor,
 } from "@/lib/ops/meta-client";
 import { findMetaAccount, resolveMetaConfig } from "@/lib/ops/meta-config";
 import {
+  isConnectAllFacebookPagesMode,
   META_OAUTH_ACCOUNT_COOKIE,
   META_OAUTH_STATE_COOKIE,
   verifyOAuthState,
@@ -107,9 +109,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const account = findMetaAccount(status.config, cookieAccountId);
+  const account = isConnectAllFacebookPagesMode(cookieAccountId)
+    ? null
+    : findMetaAccount(status.config, cookieAccountId);
 
-  if (!account) {
+  if (!isConnectAllFacebookPagesMode(cookieAccountId) && !account) {
     return clearOAuthCookies(
       NextResponse.redirect(
         accountsRedirect(request, {
@@ -137,26 +141,74 @@ export async function GET(request: NextRequest) {
       status.config,
       shortLived.accessToken,
     );
-    const author = await resolveMetaAuthor(account, longLived.accessToken);
+
+    if (isConnectAllFacebookPagesMode(cookieAccountId)) {
+      const { authors, skipped } = await resolveAllConfiguredFacebookPageAuthors(
+        status.config,
+        longLived.accessToken,
+      );
+
+      if (authors.length === 0) {
+        const detail =
+          skipped.length > 0
+            ? skipped.map((entry) => `${entry.label}: ${entry.reason}`).join(" ")
+            : "No configured Facebook Pages were returned for this login.";
+        throw new Error(detail);
+      }
+
+      for (const { account: pageAccount, author } of authors) {
+        await saveSocialConnection({
+          accessToken: author.accessToken,
+          accountId: pageAccount.accountId,
+          accountLabel: author.label || pageAccount.label,
+          authorType: author.authorType,
+          authorUrn: author.authorUrn,
+          expiresAt: longLived.expiresAt,
+          platform: "Meta",
+          refreshToken: null,
+          refreshTokenExpiresAt: null,
+          scopes: pageAccount.scopes,
+        });
+      }
+
+      const redirectParams: Record<string, string> = {
+        meta: "connected_all",
+        meta_connected: String(authors.length),
+      };
+
+      if (skipped.length > 0) {
+        redirectParams.meta_skipped = String(skipped.length);
+        redirectParams.meta_error_hint = skipped
+          .map((entry) => `${entry.label}: ${entry.reason}`)
+          .join(" ");
+      }
+
+      return clearOAuthCookies(
+        NextResponse.redirect(accountsRedirect(request, redirectParams)),
+        request,
+      );
+    }
+
+    const author = await resolveMetaAuthor(account!, longLived.accessToken);
 
     await saveSocialConnection({
       accessToken: author.accessToken,
-      accountId: account.accountId,
-      accountLabel: author.label || account.label,
+      accountId: account!.accountId,
+      accountLabel: author.label || account!.label,
       authorType: author.authorType,
       authorUrn: author.authorUrn,
       expiresAt: longLived.expiresAt,
       platform: "Meta",
       refreshToken: null,
       refreshTokenExpiresAt: null,
-      scopes: account.scopes,
+      scopes: account!.scopes,
     });
 
     return clearOAuthCookies(
       NextResponse.redirect(
         accountsRedirect(request, {
           meta: "connected",
-          meta_account: account.accountId,
+          meta_account: account!.accountId,
         }),
       ),
       request,
@@ -173,7 +225,7 @@ export async function GET(request: NextRequest) {
       NextResponse.redirect(
         accountsRedirect(request, {
           meta_error: message,
-          meta_error_account: account.accountId,
+          meta_error_account: cookieAccountId || "unknown",
           meta_error_code: "callback_exchange_failed",
           meta_error_hint: hint,
         }),

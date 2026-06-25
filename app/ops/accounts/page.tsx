@@ -107,6 +107,10 @@ export default async function OpsAccountsPage({
       : undefined;
   const metaConnectResult =
     typeof params.meta === "string" ? params.meta : undefined;
+  const metaConnectResultCount =
+    typeof params.meta_connected === "string" ? params.meta_connected : undefined;
+  const metaConnectSkippedCount =
+    typeof params.meta_skipped === "string" ? params.meta_skipped : undefined;
   const metaConnectError =
     typeof params.meta_error === "string" ? params.meta_error : undefined;
   const metaConnectErrorAccount =
@@ -178,6 +182,8 @@ export default async function OpsAccountsPage({
             connectErrorCode={metaConnectErrorCode}
             connectErrorHint={metaConnectErrorHint}
             connectResult={metaConnectResult}
+            connectResultCount={metaConnectResultCount}
+            connectSkippedCount={metaConnectSkippedCount}
           />
         </div>
 

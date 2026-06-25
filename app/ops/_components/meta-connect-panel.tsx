@@ -20,6 +20,8 @@ import type {
 
 type MetaConnectPanelProps = {
   connectResult?: string;
+  connectResultCount?: string;
+  connectSkippedCount?: string;
   connectError?: string;
   connectErrorAccount?: string;
   connectErrorCode?: string;
@@ -39,15 +41,15 @@ function formatDate(value: string | null) {
   return new Date(parsed).toLocaleString();
 }
 
-function accountKindLabel(accountId: string) {
-  if (accountId.includes("instagram")) {
-    return "Instagram Business (connect only for now)";
-  }
-
-  return "Facebook Page";
+function isInstagramAccount(accountId: string) {
+  return accountId.includes("instagram");
 }
 
-function AccountRow({
+function facebookAccountIdForInstagram(accountId: string) {
+  return accountId.replace("-instagram", "-facebook");
+}
+
+function FacebookPageRow({
   account,
   busy,
   onDisconnect,
@@ -73,7 +75,7 @@ function AccountRow({
             {account.configuredLabel}
           </p>
           <p className="mt-0.5 text-xs text-slate-500">
-            {accountKindLabel(account.accountId)} ·{" "}
+            Facebook Page ·{" "}
             <span className="font-mono">{account.accountId}</span>
           </p>
         </div>
@@ -83,7 +85,7 @@ function AccountRow({
       {connected || expired ? (
         <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
           <div>
-            <dt className="text-slate-500">Author id</dt>
+            <dt className="text-slate-500">Page id</dt>
             <dd className="mt-0.5 font-mono text-slate-700">
               {account.authorIdMasked ?? "—"}
             </dd>
@@ -94,12 +96,6 @@ function AccountRow({
               {formatDate(account.expiresAt)}
             </dd>
           </div>
-          <div className="sm:col-span-2">
-            <dt className="text-slate-500">Scopes</dt>
-            <dd className="mt-0.5 font-mono text-slate-700">
-              {account.scopes.length ? account.scopes.join(" ") : "—"}
-            </dd>
-          </div>
         </dl>
       ) : null}
 
@@ -108,10 +104,10 @@ function AccountRow({
           href={`/ops/api/social/meta/connect?account=${encodeURIComponent(
             account.accountId,
           )}`}
-          className="inline-flex h-8 items-center gap-2 rounded-md bg-[#1877F2] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#166fe5]"
+          className="inline-flex h-8 items-center gap-2 rounded-md border border-[#1877F2]/30 bg-white px-3 text-xs font-medium text-[#1877F2] transition-colors hover:bg-[#1877F2]/5"
         >
           <Plug className="h-3.5 w-3.5" aria-hidden />
-          {connected || expired ? "Reconnect" : "Connect"}
+          {connected || expired ? "Reconnect" : "Connect one"}
         </a>
         {connected || expired ? (
           <button
@@ -129,8 +125,41 @@ function AccountRow({
   );
 }
 
+function InstagramMirrorRow({
+  account,
+  facebookConnected,
+}: {
+  account: SocialConnectionPublicStatus;
+  facebookConnected: boolean;
+}) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">
+            {account.configuredLabel}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Instagram · <span className="font-mono">{account.accountId}</span>
+          </p>
+        </div>
+        <StatusPill tone={facebookConnected ? "good" : "neutral"}>
+          {facebookConnected ? "Via Page cross-post" : "Needs Facebook Page"}
+        </StatusPill>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-600">
+        Ops publishes to the linked Facebook Page. Meta cross-posting sends the
+        post to this Instagram account when enabled in Business Suite. No
+        separate Instagram OAuth is required.
+      </p>
+    </div>
+  );
+}
+
 export function MetaConnectPanel({
   connectResult,
+  connectResultCount,
+  connectSkippedCount,
   connectError,
   connectErrorAccount,
   connectErrorCode,
@@ -195,20 +224,46 @@ export function MetaConnectPanel({
 
   const configured = status?.configured ?? false;
   const accounts = status?.accounts ?? [];
-  const connectedCount = accounts.filter((account) => account.connected).length;
+  const facebookAccounts = accounts.filter(
+    (account) => !isInstagramAccount(account.accountId),
+  );
+  const instagramAccounts = accounts.filter((account) =>
+    isInstagramAccount(account.accountId),
+  );
+  const facebookConnectedCount = facebookAccounts.filter(
+    (account) => account.connected,
+  ).length;
+  const facebookConnectedById = new Map(
+    facebookAccounts.map((account) => [account.accountId, account.connected]),
+  );
 
   return (
     <OpsPanel
       actions={
         <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#1877F2]">
           <Share2 className="h-4 w-4" aria-hidden />
-          {connectedCount}/{accounts.length || 0} connected
+          Pages {facebookConnectedCount}/{facebookAccounts.length || 0} connected
         </span>
       }
       eyebrow="Phase 9 — Meta"
       title="Facebook & Instagram"
     >
       <div className="flex flex-col gap-4">
+        {connectResult === "connected_all" ? (
+          <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            Connected {connectResultCount ?? "all configured"} Facebook Page
+            {connectResultCount === "1" ? "" : "s"} in one login. Page tokens are
+            stored server-side only.
+            {connectSkippedCount && connectSkippedCount !== "0" ? (
+              <span className="block mt-1">
+                {connectSkippedCount} configured Page(s) were skipped — see hint
+                below.
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         {connectResult === "connected" ? (
           <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
@@ -262,6 +317,15 @@ export function MetaConnectPanel({
             <Clock className="h-3.5 w-3.5" aria-hidden />
             Manual approval required per post
           </span>
+          {configured && facebookAccounts.length > 0 ? (
+            <a
+              href="/ops/api/social/meta/connect?mode=all-pages"
+              className="inline-flex h-8 items-center gap-2 rounded-md bg-[#1877F2] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#166fe5]"
+            >
+              <Plug className="h-3.5 w-3.5" aria-hidden />
+              Connect all Facebook Pages
+            </a>
+          ) : null}
           <button
             type="button"
             disabled={busy}
@@ -297,10 +361,13 @@ export function MetaConnectPanel({
           </div>
         ) : null}
 
-        {!loading && configured && accounts.length > 0 ? (
+        {!loading && configured && facebookAccounts.length > 0 ? (
           <div className="grid gap-3">
-            {accounts.map((account) => (
-              <AccountRow
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Facebook Pages (publish from Ops)
+            </p>
+            {facebookAccounts.map((account) => (
+              <FacebookPageRow
                 key={account.accountId}
                 account={account}
                 busy={busy}
@@ -310,11 +377,31 @@ export function MetaConnectPanel({
           </div>
         ) : null}
 
+        {!loading && configured && instagramAccounts.length > 0 ? (
+          <div className="grid gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Instagram (via Meta cross-post)
+            </p>
+            {instagramAccounts.map((account) => (
+              <InstagramMirrorRow
+                key={account.accountId}
+                account={account}
+                facebookConnected={
+                  facebookConnectedById.get(
+                    facebookAccountIdForInstagram(account.accountId),
+                  ) ?? false
+                }
+              />
+            ))}
+          </div>
+        ) : null}
+
         <p className="text-xs leading-5 text-slate-500">
-          Facebook Page text posting is live from approved drafts. Instagram
-          connect verifies the linked Business account, but image/video publish
-          is not implemented yet. Tokens are encrypted at rest and never sent to
-          the browser.
+          One Facebook Business login can authorize every brand Page you admin.
+          Ops only stores tokens for configured business Pages in META_ACCOUNTS —
+          not your personal Facebook profile. Instagram rows mirror the linked
+          Page through Meta cross-posting; native Instagram publish is not
+          implemented yet.
         </p>
       </div>
     </OpsPanel>
