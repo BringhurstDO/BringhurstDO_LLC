@@ -37,9 +37,9 @@ const FACEBOOK_PAGE_SCOPES = [
   "business_management",
 ];
 
+// Connect + verify linked Business account; publish scope added when IG publish ships.
 const INSTAGRAM_SCOPES = [
   "instagram_basic",
-  "instagram_content_publish",
   "pages_show_list",
   "business_management",
 ];

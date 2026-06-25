@@ -150,6 +150,67 @@ function findConfiguredPage(pages: MetaPageAccount[], pageId: string) {
   return pages.find((page) => page.id === pageId) ?? null;
 }
 
+async function lookupInstagramOnPage(page: MetaPageAccount) {
+  if (!page.access_token) {
+    return null;
+  }
+
+  const igUrl = new URL(`${META_GRAPH_URL}/${page.id}`);
+  igUrl.searchParams.set(
+    "fields",
+    "instagram_business_account{id,username}",
+  );
+  igUrl.searchParams.set("access_token", page.access_token);
+
+  const response = await fetch(igUrl.toString(), { method: "GET" });
+  const json = await readGraphJson<{
+    instagram_business_account?: { id?: string; username?: string };
+  }>(response, "Meta Instagram business account lookup failed");
+
+  const igId = json.instagram_business_account?.id?.trim();
+  if (!igId) {
+    return null;
+  }
+
+  return {
+    igId,
+    page,
+    username: json.instagram_business_account?.username?.trim() || null,
+  };
+}
+
+async function resolveInstagramBusinessAuthor(
+  account: MetaAccountConfig,
+  pages: MetaPageAccount[],
+) {
+  const targetIgId = account.instagramBusinessAccountId ?? "";
+  const preferredPages = account.pageId
+    ? pages.filter((page) => page.id === account.pageId)
+    : pages;
+
+  for (const page of preferredPages) {
+    const match = await lookupInstagramOnPage(page);
+    if (match?.igId === targetIgId) {
+      return {
+        accessToken: match.page.access_token!,
+        authorType: "organization" as const,
+        authorUrn: match.igId,
+        label: match.username || account.label,
+      };
+    }
+  }
+
+  if (account.pageId) {
+    throw new Error(
+      `Instagram business account ${targetIgId} was not found on Facebook Page ${account.pageId}. Confirm the Page is linked to that IG account in Meta Business settings.`,
+    );
+  }
+
+  throw new Error(
+    `Instagram business account ${targetIgId} was not found on any managed Facebook Page for this user. Add the hosting pageId to META_ACCOUNTS or confirm Page ↔ Instagram linkage.`,
+  );
+}
+
 export async function resolveMetaAuthor(
   account: MetaAccountConfig,
   userAccessToken: string,
@@ -173,44 +234,7 @@ export async function resolveMetaAuthor(
     };
   }
 
-  const linkedPage = pages.find((page) => Boolean(page.access_token));
-
-  if (!linkedPage?.access_token) {
-    throw new Error(
-      "No managed Facebook Pages were returned for this user. Instagram Business connect requires an admin Page with a linked IG account.",
-    );
-  }
-
-  const igUrl = new URL(
-    `${META_GRAPH_URL}/${linkedPage.id}`,
-  );
-  igUrl.searchParams.set(
-    "fields",
-    "instagram_business_account{id,username}",
-  );
-  igUrl.searchParams.set("access_token", linkedPage.access_token);
-
-  const response = await fetch(igUrl.toString(), { method: "GET" });
-  const json = await readGraphJson<{
-    instagram_business_account?: { id?: string; username?: string };
-  }>(response, "Meta Instagram business account lookup failed");
-
-  const igId = json.instagram_business_account?.id?.trim();
-
-  if (!igId || igId !== account.instagramBusinessAccountId) {
-    throw new Error(
-      `Instagram business account ${account.instagramBusinessAccountId} was not found on the managed Pages for this user.`,
-    );
-  }
-
-  return {
-    accessToken: linkedPage.access_token,
-    authorType: "organization",
-    authorUrn: igId,
-    label:
-      json.instagram_business_account?.username?.trim() ||
-      account.label,
-  };
+  return resolveInstagramBusinessAuthor(account, pages);
 }
 
 export type PublishFacebookPagePostResult = {
