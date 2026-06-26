@@ -13,7 +13,7 @@ import {
   publishInstagramImagePost,
 } from "@/lib/ops/meta-client";
 import { findMetaAccount, resolveMetaConfig } from "@/lib/ops/meta-config";
-import { resolveInstagramPublishImageUrl } from "@/lib/ops/meta-instagram-media";
+import { resolveMetaPublishImageUrl } from "@/lib/ops/meta-instagram-media";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
 import type {
   OpsContentPackageRecord,
@@ -180,10 +180,11 @@ export async function publishMetaDraft(
         ? `${sanitizedBody.slice(0, 2197).trim()}…`
         : sanitizedBody;
 
-    const image = resolveInstagramPublishImageUrl({
+    const image = resolveMetaPublishImageUrl({
       accountId: account.accountId,
       assetLocation: input.assetLocation,
       imageUrl: input.imageUrl,
+      platform: "Instagram",
       publishingProjectId: input.publishingProjectId,
     });
 
@@ -314,8 +315,17 @@ export async function publishMetaDraft(
     };
   }
 
+  const image = resolveMetaPublishImageUrl({
+    accountId: account.accountId,
+    assetLocation: input.assetLocation,
+    imageUrl: input.imageUrl,
+    platform: "Facebook",
+    publishingProjectId: input.publishingProjectId,
+  });
+
   try {
     const published = await publishFacebookPagePost({
+      imageUrl: image.ok ? image.imageUrl : undefined,
       message: sanitizedBody,
       pageAccessToken: ready.value.accessToken,
       pageId: account.pageId,
@@ -336,8 +346,12 @@ export async function publishMetaDraft(
       id: publishLogId,
       notes: [
         input.trigger === "autopublish"
-          ? `Scheduled autopublish to Facebook as ${account.label}.`
-          : `Operator-approved manual publish to Facebook as ${account.label}.`,
+          ? image.ok
+            ? `Scheduled autopublish to Facebook as ${account.label}. Image: ${image.imageUrl}`
+            : `Scheduled autopublish to Facebook as ${account.label}.`
+          : image.ok
+            ? `Operator-approved manual publish to Facebook as ${account.label}. Image: ${image.imageUrl}`
+            : `Operator-approved manual publish to Facebook as ${account.label}.`,
       ],
       platform: "Meta",
       platformDraftId: input.platformDraftId,

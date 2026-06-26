@@ -115,7 +115,9 @@ async function publishAutopublishDraft(
   if (draft.platform === "Facebook") {
     return publishMetaDraft({
       ...base,
+      assetLocation: draft.media.assetLocation,
       platform: "Facebook",
+      publishingProjectId: draft.publishingProjectId,
     });
   }
 

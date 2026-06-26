@@ -593,7 +593,10 @@ export function ContentSeriesBuilder({
       const generatedUrl = buildUtmForTarget(target, campaign, content);
       const body = prepareSeriesPublishableBody(proposal.body.trim());
       const publishingProjectId = target.projectId ?? primaryProjectId;
-      const instagramImage = seriesSocialImage.trim();
+      const packageImage = seriesSocialImage.trim();
+      const usesPackageImage =
+        packageImage &&
+        (target.platform === "Instagram" || target.platform === "Facebook");
 
       return {
         accountName: target.accountName,
@@ -606,22 +609,21 @@ export function ContentSeriesBuilder({
         generatedUrl,
         id: `platform-draft-${packageSlug}-${target.id}-${proposal.seriesIndex}-${idSuffix}`,
         lastAiRunId: runId || undefined,
-        media:
-          target.platform === "Instagram" && instagramImage
-            ? {
-                ...defaultMediaMetadata,
-                assetLocation: instagramImage,
-                mediaSummary:
-                  proposal.mediaNote ||
-                  "Package social image attached for Instagram.",
-                mediaType: "screenshot",
-                visualHook: "Approved social image from series package.",
-              }
-            : {
-                ...defaultMediaMetadata,
-                mediaSummary:
-                  proposal.mediaNote || defaultMediaMetadata.mediaSummary,
-              },
+        media: usesPackageImage
+          ? {
+              ...defaultMediaMetadata,
+              assetLocation: packageImage,
+              mediaSummary:
+                proposal.mediaNote ||
+                `Package social image attached for ${target.platform}.`,
+              mediaType: "screenshot",
+              visualHook: "Approved social image from series package.",
+            }
+          : {
+              ...defaultMediaMetadata,
+              mediaSummary:
+                proposal.mediaNote || defaultMediaMetadata.mediaSummary,
+            },
         operatorNotes: [...DEFAULT_DRAFT_OPERATOR_NOTES],
         platform: target.platform,
         projectId: publishingProjectId,

@@ -59,10 +59,28 @@ function toAbsolutePublicUrl(origin: string, value: string) {
   return null;
 }
 
-export function resolveInstagramPublishImageUrl(input: {
+function platformPreferredAsset(
+  platform: "Facebook" | "Instagram" | undefined,
+  assetLocation: string | undefined,
+) {
+  const trimmed = assetLocation?.trim();
+
+  if (!trimmed || platform !== "Facebook") {
+    return trimmed;
+  }
+
+  if (trimmed === "/ops-ig/america-250-square.png") {
+    return "/ops-ig/america-250-facebook.png";
+  }
+
+  return trimmed;
+}
+
+export function resolveMetaPublishImageUrl(input: {
   accountId?: string;
   assetLocation?: string;
   imageUrl?: string;
+  platform?: "Facebook" | "Instagram";
   publishingProjectId?: OpsProjectId;
 }):
   | { ok: true; imageUrl: string }
@@ -78,8 +96,13 @@ export function resolveInstagramPublishImageUrl(input: {
   }
 
   const envDefaults = parseDefaultImagesFromEnv();
+  const preferredAsset = platformPreferredAsset(
+    input.platform,
+    input.assetLocation,
+  );
   const candidates = [
     input.imageUrl,
+    preferredAsset,
     input.assetLocation,
     input.accountId ? envDefaults[input.accountId] : undefined,
     input.publishingProjectId ? envDefaults[input.publishingProjectId] : undefined,
@@ -101,9 +124,22 @@ export function resolveInstagramPublishImageUrl(input: {
     }
   }
 
+  const platformLabel = input.platform === "Facebook" ? "Facebook" : "Instagram";
+
   return {
     ok: false,
     reason:
-      "Instagram requires a public HTTPS image. Attach a product screenshot on the calendar or package builder, pick an approved catalog image, or configure META_INSTAGRAM_DEFAULT_IMAGES.",
+      `${platformLabel} requires a public HTTPS image. Attach a social image on the package builder or calendar, pick an approved catalog image, or configure META_INSTAGRAM_DEFAULT_IMAGES.`,
   };
+}
+
+export function resolveInstagramPublishImageUrl(input: {
+  accountId?: string;
+  assetLocation?: string;
+  imageUrl?: string;
+  publishingProjectId?: OpsProjectId;
+}):
+  | { ok: true; imageUrl: string }
+  | { ok: false; reason: string } {
+  return resolveMetaPublishImageUrl({ ...input, platform: "Instagram" });
 }

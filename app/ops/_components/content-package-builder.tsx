@@ -1478,14 +1478,17 @@ export function ContentPackageBuilder({
           .join("; ")}.`
       : "No manually posted content is recorded yet.";
 
-  function syncInstagramSlotsWithPackageImage(assetLocation: string) {
+  function syncVisualPlatformSlotsWithPackageImage(assetLocation: string) {
     const trimmed = assetLocation.trim();
 
     setDraftSlots((current) =>
       current.map((slot) => {
         const target = publicationTargets.find((item) => item.id === slot.targetId);
 
-        if (target?.platform !== "Instagram") {
+        if (
+          target?.platform !== "Instagram" &&
+          target?.platform !== "Facebook"
+        ) {
           return slot;
         }
 
@@ -1493,7 +1496,7 @@ export function ContentPackageBuilder({
           ...slot,
           assetLocation: trimmed,
           mediaSummary: trimmed
-            ? "Package social image attached for Instagram."
+            ? `Package social image attached for ${target.platform}.`
             : slot.mediaSummary,
           mediaType: trimmed ? "screenshot" : slot.mediaType,
           visualHook: trimmed
@@ -1506,7 +1509,7 @@ export function ContentPackageBuilder({
 
   function handlePackageSocialImageChange(assetLocation: string) {
     setPackageSocialImage(assetLocation);
-    syncInstagramSlotsWithPackageImage(assetLocation);
+    syncVisualPlatformSlotsWithPackageImage(assetLocation);
   }
 
   function toggleTarget(targetId: string) {
@@ -1550,7 +1553,9 @@ export function ContentPackageBuilder({
 
         return {
           assetLocation:
-            target.platform === "Instagram" ? packageSocialImage.trim() : "",
+            target.platform === "Instagram" || target.platform === "Facebook"
+              ? packageSocialImage.trim()
+              : "",
           body: draftTemplateBody({
             campaign,
             destinationUrl,

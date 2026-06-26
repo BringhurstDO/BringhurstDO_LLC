@@ -850,7 +850,11 @@ export function PublishCalendarPanel({
     }
 
     const confirmed = window.confirm(
-      `Publish this approved draft to Facebook as ${accountStatus.accountLabel ?? draft.accountName}? This posts publicly.`,
+      `Publish this approved draft to Facebook as ${accountStatus.accountLabel ?? draft.accountName}?${
+        draft.media.assetLocation?.trim()
+          ? " The attached social image will be published with your caption."
+          : " No image is attached — this will post as text only unless a brand default is configured."
+      }`,
     );
 
     if (!confirmed) {
@@ -864,12 +868,14 @@ export function PublishCalendarPanel({
       const response = await opsFetch("/ops/api/social/meta/publish", {
         body: JSON.stringify({
           accountId,
+          assetLocation: draft.media.assetLocation,
           body: sanitizePublishableBody(draft.body),
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platform: "Facebook",
           platformDraftId: draft.id,
           publicationTargetId: draft.publicationTargetId,
+          publishingProjectId: draft.publishingProjectId,
           title: draft.title,
         }),
         headers: { "Content-Type": "application/json" },
@@ -1100,7 +1106,8 @@ export function PublishCalendarPanel({
                 ))}
               </div>
             ) : null}
-            {row.platform === "Instagram" && draft ? (
+            {row.platform === "Instagram" || row.platform === "Facebook" ? (
+              draft ? (
               <div className="mt-3">
                 <IgMediaAttachPanel
                   assetLocation={draft.media.assetLocation ?? ""}
@@ -1112,6 +1119,7 @@ export function PublishCalendarPanel({
                   }
                 />
               </div>
+              ) : null
             ) : null}
           </div>
         </div>

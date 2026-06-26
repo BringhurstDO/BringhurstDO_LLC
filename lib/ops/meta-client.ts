@@ -294,10 +294,43 @@ export type PublishFacebookPagePostResult = {
 };
 
 export async function publishFacebookPagePost(input: {
+  imageUrl?: string;
   message: string;
   pageAccessToken: string;
   pageId: string;
 }): Promise<PublishFacebookPagePostResult> {
+  const message = input.message.trim();
+  const imageUrl = input.imageUrl?.trim();
+
+  if (imageUrl) {
+    const photoUrl = `${META_GRAPH_URL}/${input.pageId}/photos`;
+    const response = await fetch(photoUrl, {
+      body: JSON.stringify({
+        access_token: input.pageAccessToken,
+        caption: message,
+        url: imageUrl,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    const json = await readGraphJson<{ id?: string; post_id?: string }>(
+      response,
+      "Meta Facebook photo publish failed",
+    );
+
+    const platformPostId = json.post_id ?? json.id;
+
+    if (!platformPostId) {
+      throw new Error("Meta Facebook photo publish did not return a post id.");
+    }
+
+    return {
+      platformPostId,
+      postUrl: `https://www.facebook.com/${platformPostId}`,
+    };
+  }
+
   const url = `${META_GRAPH_URL}/${input.pageId}/feed`;
   const response = await fetch(url, {
     body: JSON.stringify({
