@@ -185,7 +185,9 @@ export async function generateOpsAiSeriesSplit({
   const proposals = mapSeriesSplitProposals(context, parsed.posts);
 
   if (proposals.length === 0) {
-    throw new Error(`${provider} returned no usable series post proposals.`);
+    throw new Error(
+      "No publish slots were built for this schedule. Move the start date earlier, increase posts per week, or add weeks, then split again.",
+    );
   }
 
   if (proposals.length !== context.slots.length) {

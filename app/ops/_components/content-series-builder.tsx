@@ -391,6 +391,18 @@ export function ContentSeriesBuilder({
       return;
     }
 
+    if (selectedTargetIds.length === 0) {
+      setIssues(["Select at least one publication target before splitting."]);
+      return;
+    }
+
+    if (slotCount === 0) {
+      setIssues([
+        "No publish dates fall on or after the series start date. Move the start date earlier, increase posts per week, or add weeks.",
+      ]);
+      return;
+    }
+
     setLoading(true);
     setIssues([]);
     setMessage("");

@@ -82,6 +82,12 @@ export function buildSeriesSchedule(input: {
     }
   }
 
+  // Start dates late in the week (e.g. Friday with 1–2 posts/week) can filter out
+  // every weekday slot in the first week. Always honor the operator's start date.
+  if (dates.length === 0) {
+    dates.push(anchorDate);
+  }
+
   return dates;
 }
 

@@ -227,6 +227,15 @@ export function validateSeriesSplitRequest({
     };
   }
 
+  if (scheduleDates.length === 0) {
+    return {
+      context: null,
+      issues: [
+        "No publish dates fall on or after the series start date. Move the start date earlier, increase posts per week, or add weeks.",
+      ],
+    };
+  }
+
   const totalSlots = scheduleDates.length * selectedTargets.length;
 
   if (totalSlots > 40) {
