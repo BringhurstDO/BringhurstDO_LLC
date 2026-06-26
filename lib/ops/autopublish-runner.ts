@@ -1,5 +1,6 @@
 import "server-only";
 
+import { platformSupportsAutopublish } from "@/lib/ops/autopublish-platforms";
 import {
   applyLinkedInPublishToRecord,
   draftIsPosted,
@@ -33,6 +34,7 @@ import type {
   OpsScheduleBucketId,
   PlatformDraft,
   PublicationTarget,
+  SocialPublishResult,
 } from "@/lib/ops/types";
 
 function nowId() {
@@ -72,7 +74,7 @@ function draftAlreadyPosted(
     return xDraftIsPosted(record, draft);
   }
 
-  if (draft.platform === "Instagram") {
+  if (draft.platform === "Instagram" || draft.platform === "Facebook") {
     return record.publishedPosts.some(
       (post) =>
         post.platformDraftId === draft.id && post.status === "posted",
@@ -82,6 +84,65 @@ function draftAlreadyPosted(
   return draftIsPosted(record, draft);
 }
 
+async function publishAutopublishDraft(
+  draft: PlatformDraft,
+  record: OpsContentPackageRecord,
+  accountId: string,
+) {
+  const base = {
+    accountId,
+    body: draft.body,
+    contentPackageId: record.contentPackage.id,
+    platformDraftId: draft.id,
+    publicationTargetId: draft.publicationTargetId,
+    title: draft.title,
+    trigger: "autopublish" as const,
+  };
+
+  if (draft.platform === "X") {
+    return publishXDraft(base);
+  }
+
+  if (draft.platform === "Instagram") {
+    return publishMetaDraft({
+      ...base,
+      assetLocation: draft.media.assetLocation,
+      platform: "Instagram",
+      publishingProjectId: draft.publishingProjectId,
+    });
+  }
+
+  if (draft.platform === "Facebook") {
+    return publishMetaDraft({
+      ...base,
+      platform: "Facebook",
+    });
+  }
+
+  return publishLinkedInDraft(base);
+}
+
+function applyAutopublishResult(
+  record: OpsContentPackageRecord,
+  draft: PlatformDraft,
+  result: SocialPublishResult,
+) {
+  if (draft.platform === "X") {
+    return applyXPublishToRecord(record, draft.id, result);
+  }
+
+  if (draft.platform === "Instagram" || draft.platform === "Facebook") {
+    return applyMetaPublishToRecord(record, draft.id, result);
+  }
+
+  return applyLinkedInPublishToRecord(
+    record,
+    draft.id,
+    result,
+    "autopublish",
+  );
+}
+
 function isEligibleDraft(
   record: OpsContentPackageRecord,
   draft: PlatformDraft,
@@ -89,11 +150,7 @@ function isEligibleDraft(
   bucketId: OpsScheduleBucketId,
   trigger: OpsAutopublishRunRecord["trigger"],
 ) {
-  if (
-    draft.platform !== "LinkedIn" &&
-    draft.platform !== "X" &&
-    draft.platform !== "Instagram"
-  ) {
+  if (!platformSupportsAutopublish(draft.platform)) {
     return "Platform does not support autopublish.";
   }
 
@@ -219,39 +276,11 @@ export async function runScheduledAutopublish(
         continue;
       }
 
-      const published =
-        draft.platform === "X"
-          ? await publishXDraft({
-              accountId,
-              body: draft.body,
-              contentPackageId: record.contentPackage.id,
-              platformDraftId: draft.id,
-              publicationTargetId: draft.publicationTargetId,
-              title: draft.title,
-              trigger: "autopublish",
-            })
-          : draft.platform === "Instagram"
-            ? await publishMetaDraft({
-                accountId,
-                assetLocation: draft.media.assetLocation,
-                body: draft.body,
-                contentPackageId: record.contentPackage.id,
-                platform: "Instagram",
-                platformDraftId: draft.id,
-                publicationTargetId: draft.publicationTargetId,
-                publishingProjectId: draft.publishingProjectId,
-                title: draft.title,
-                trigger: "autopublish",
-              })
-            : await publishLinkedInDraft({
-                accountId,
-                body: draft.body,
-                contentPackageId: record.contentPackage.id,
-                platformDraftId: draft.id,
-                publicationTargetId: draft.publicationTargetId,
-                title: draft.title,
-                trigger: "autopublish",
-              });
+      const published = await publishAutopublishDraft(
+        draft,
+        record,
+        accountId,
+      );
 
       if (!published.ok) {
         draftResults.push({
@@ -267,16 +296,7 @@ export async function runScheduledAutopublish(
 
       records = records.map((item) =>
         item.contentPackage.id === record.contentPackage.id
-          ? draft.platform === "X"
-            ? applyXPublishToRecord(item, draft.id, published.result)
-            : draft.platform === "Instagram"
-              ? applyMetaPublishToRecord(item, draft.id, published.result)
-              : applyLinkedInPublishToRecord(
-                  item,
-                  draft.id,
-                  published.result,
-                  "autopublish",
-                )
+          ? applyAutopublishResult(item, draft, published.result)
           : item,
       );
 

@@ -11,6 +11,7 @@ import {
   Upload,
 } from "lucide-react";
 
+import { OpsPackageSocialImagePanel } from "@/app/ops/_components/ops-package-social-image-panel";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import {
@@ -28,6 +29,7 @@ import {
   prepareSeriesPublishableBody,
   sanitizePublishableBody,
 } from "@/lib/ops/publishable-copy";
+import { platformSupportsAutopublish } from "@/lib/ops/autopublish-platforms";
 import {
   countRebalancedDrafts,
   rebalanceContentPackageSchedules,
@@ -138,6 +140,7 @@ export function ContentSeriesBuilder({
   const [updateType, setUpdateType] =
     useState<SourceUpdateType>("weekly-review");
   const [seriesSummary, setSeriesSummary] = useState("");
+  const [seriesSocialImage, setSeriesSocialImage] = useState("");
   const [seriesStartDate, setSeriesStartDate] = useState(defaultSeriesStartDate);
   const [postsPerWeek, setPostsPerWeek] = useState(3);
   const [weekCount, setWeekCount] = useState(1);
@@ -547,7 +550,7 @@ export function ContentSeriesBuilder({
       notes: [
         ...DEFAULT_PACKAGE_OPERATOR_NOTES,
         seriesAutopublish
-          ? "Series package with suggested dates and LinkedIn autopublish opt-in per draft."
+          ? "Series package with suggested dates and autopublish opt-in per connected-platform draft."
           : "Series package with suggested publish dates — manual posting unless autopublish enabled per draft.",
       ],
       projectIds: uniqueProjectIds([primaryProjectId, ...publishingProjectIds]),
@@ -578,22 +581,35 @@ export function ContentSeriesBuilder({
       const generatedUrl = buildUtmForTarget(target, campaign, content);
       const body = prepareSeriesPublishableBody(proposal.body.trim());
       const publishingProjectId = target.projectId ?? primaryProjectId;
+      const instagramImage = seriesSocialImage.trim();
 
       return {
         accountName: target.accountName,
         aiReviewNotes: proposal.safetyNotes,
         approvalRequired: true,
         autopublishEnabled:
-          seriesAutopublish && target.platform === "LinkedIn",
+          seriesAutopublish && platformSupportsAutopublish(target.platform),
         body,
         contentPackageId,
         generatedUrl,
         id: `platform-draft-${packageSlug}-${target.id}-${proposal.seriesIndex}-${idSuffix}`,
         lastAiRunId: runId || undefined,
-        media: {
-          ...defaultMediaMetadata,
-          mediaSummary: proposal.mediaNote || defaultMediaMetadata.mediaSummary,
-        },
+        media:
+          target.platform === "Instagram" && instagramImage
+            ? {
+                ...defaultMediaMetadata,
+                assetLocation: instagramImage,
+                mediaSummary:
+                  proposal.mediaNote ||
+                  "Package social image attached for Instagram.",
+                mediaType: "screenshot",
+                visualHook: "Approved social image from series package.",
+              }
+            : {
+                ...defaultMediaMetadata,
+                mediaSummary:
+                  proposal.mediaNote || defaultMediaMetadata.mediaSummary,
+              },
         operatorNotes: [...DEFAULT_DRAFT_OPERATOR_NOTES],
         platform: target.platform,
         projectId: publishingProjectId,
@@ -812,6 +828,16 @@ export function ContentSeriesBuilder({
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <OpsPackageSocialImagePanel
+          assetLocation={seriesSocialImage}
+          onChange={setSeriesSocialImage}
+          projectId={primaryProjectId}
+          sourceSummary={seriesSummary}
+          sourceTitle={seriesTitle}
+        />
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="font-sans text-base font-semibold text-slate-950">
           Schedule & Targets
         </h2>
@@ -959,10 +985,11 @@ export function ContentSeriesBuilder({
             className="mt-1"
           />
           <span>
-            <span className="font-semibold">Enable LinkedIn autopublish for this series</span>
+            <span className="font-semibold">Enable autopublish for this series</span>
             <span className="mt-1 block text-xs leading-5 text-violet-900">
-              Sets autopublish on each LinkedIn draft after save. Drafts must still
-              be approved before the daily cron can publish them (Phase 8C).
+              Sets autopublish on LinkedIn, X, Facebook, and Instagram drafts after
+              save. Drafts must still be approved before the daily cron can publish
+              them.
             </span>
           </span>
         </label>

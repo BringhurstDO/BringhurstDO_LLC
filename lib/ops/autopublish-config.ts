@@ -1,6 +1,7 @@
 import "server-only";
 
 import { databasePersistenceConfigured } from "@/lib/ops/persistence-db";
+import type { OpsAutopublishPlatform } from "@/lib/ops/autopublish-platforms";
 import { resolveLinkedInConfig } from "@/lib/ops/linkedin-config";
 import { resolveMetaConfig } from "@/lib/ops/meta-config";
 import { resolveXConfig } from "@/lib/ops/x-config";
@@ -112,10 +113,10 @@ export function getAutopublishPublicStatus(): OpsAutopublishPublicStatus {
       ? [
           resolved.linkedInConfig ? "LinkedIn" : null,
           resolved.xConfig ? "X" : null,
+          resolved.metaConfig ? "Facebook" : null,
           resolved.metaConfig ? "Instagram" : null,
-        ].filter(
-          (platform): platform is "Instagram" | "LinkedIn" | "X" =>
-            Boolean(platform),
+        ].filter((platform): platform is OpsAutopublishPlatform =>
+          Boolean(platform),
         )
       : [],
     requiresDraftOptIn: true,

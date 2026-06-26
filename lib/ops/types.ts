@@ -1,4 +1,5 @@
 import type { MetadataOnlyString, SafeOpsText } from "@/lib/ops/safety";
+import type { OpsAutopublishPlatform } from "@/lib/ops/autopublish-platforms";
 
 export type OpsProjectId = "syncsoap" | "syncsafety" | "bringhurstdo";
 
@@ -350,7 +351,7 @@ export type PlatformDraft = {
   suggestedScheduledFor?: string;
   /** Suggested local publish window bucket. If omitted, platform defaults apply. */
   suggestedScheduleBucketId?: OpsScheduleBucketId;
-  /** Explicit operator opt-in for Phase 8C scheduled LinkedIn autopublish on suggestedScheduledFor. */
+  /** Explicit operator opt-in for scheduled autopublish on suggestedScheduledFor. */
   autopublishEnabled?: boolean;
 };
 
@@ -571,7 +572,7 @@ export type OpsAutopublishPublicStatus = {
   linkedInOnly: boolean;
   manualReviewRequired: false;
   platform: "LinkedIn";
-  platforms: Array<"Instagram" | "LinkedIn" | "X">;
+  platforms: OpsAutopublishPlatform[];
   requiresDraftOptIn: true;
   requiresDraftStatus: "approved";
   runTimeLabel: MetadataOnlyString;

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { CalendarPostPerformance } from "@/app/ops/_components/social-performance-panel";
+import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
@@ -41,6 +42,7 @@ import {
   platformScheduleBucketId,
 } from "@/lib/ops/platform-schedule-defaults";
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
+import { platformSupportsAutopublish } from "@/lib/ops/autopublish-platforms";
 import {
   findPublishedPostForDraft,
   resolveLatestPerformanceSnapshot,
@@ -929,7 +931,11 @@ export function PublishCalendarPanel({
     }
 
     const confirmed = window.confirm(
-      `Publish this approved draft to Instagram as ${accountStatus.accountLabel ?? draft.accountName}? Ops will attach a brand default image unless you set media assetLocation on the draft.`,
+      `Publish this approved draft to Instagram as ${accountStatus.accountLabel ?? draft.accountName}?${
+        draft.media.assetLocation?.trim()
+          ? " The attached product screenshot will be published with your caption."
+          : " No screenshot is attached — Ops will use a brand default image."
+      }`,
     );
 
     if (!confirmed) {
@@ -987,9 +993,43 @@ export function PublishCalendarPanel({
     }
   }
 
+  function updateDraftIgMedia(row: PublishCalendarRow, assetLocation: string) {
+    updateRecord(row.contentPackageId, (record) => ({
+      ...record,
+      contentPackage: {
+        ...record.contentPackage,
+        updatedAt: new Date().toISOString(),
+      },
+      platformDrafts: record.platformDrafts.map((draft) =>
+        draft.id === row.draftId
+          ? {
+              ...draft,
+              media: {
+                ...draft.media,
+                assetLocation: assetLocation.trim() || undefined,
+                mediaSummary: assetLocation.trim()
+                  ? "Approved product screenshot attached for Instagram."
+                  : draft.media.mediaSummary,
+                mediaType: assetLocation.trim() ? "screenshot" : draft.media.mediaType,
+              },
+              updatedAt: new Date().toISOString(),
+            }
+          : draft,
+      ),
+    }));
+    setMessage(
+      assetLocation.trim()
+        ? `Attached Instagram screenshot for ${row.title}.`
+        : `Cleared Instagram screenshot for ${row.title}.`,
+    );
+  }
+
   function CalendarRowCard({ row }: { row: PublishCalendarRow }) {
     const packageRecord = records.find(
       (record) => record.contentPackage.id === row.contentPackageId,
+    );
+    const draft = packageRecord?.platformDrafts.find(
+      (item) => item.id === row.draftId,
     );
     const publishedPost = packageRecord
       ? findPublishedPostForDraft(packageRecord, row.draftId)
@@ -1058,6 +1098,19 @@ export function PublishCalendarPanel({
                 {row.scheduleWarnings.map((warning) => (
                   <p key={warning}>{warning}</p>
                 ))}
+              </div>
+            ) : null}
+            {row.platform === "Instagram" && draft ? (
+              <div className="mt-3">
+                <IgMediaAttachPanel
+                  assetLocation={draft.media.assetLocation ?? ""}
+                  compact
+                  disabled={row.postStatus === "posted"}
+                  projectId={row.projectId}
+                  onChange={(assetLocation) =>
+                    updateDraftIgMedia(row, assetLocation)
+                  }
+                />
               </div>
             ) : null}
           </div>
@@ -1163,9 +1216,7 @@ export function PublishCalendarPanel({
               checked={row.autopublishEnabled}
               disabled={
                 row.postStatus === "posted" ||
-                (row.platform !== "LinkedIn" &&
-                  row.platform !== "X" &&
-                  row.platform !== "Instagram")
+                !platformSupportsAutopublish(row.platform)
               }
               onChange={(event) =>
                 toggleAutopublish(row, event.target.checked)
@@ -1235,8 +1286,9 @@ export function PublishCalendarPanel({
               <p className="mt-2 text-xs leading-5 text-slate-500">
                 Suggested windows: {platformScheduleDefaults.join("; ")}. X manual
                 posts use the window guidance and one operator-approved API call per
-                post. Instagram autopublish uses your caption plus a brand default
-                image unless the draft media assetLocation points at a public image.
+                post. Instagram autopublish uses your caption plus an attached
+                product screenshot when one is selected; otherwise it falls back
+                to a brand default image.
               </p>
             ) : null}
             {xDraftsPresent ? (

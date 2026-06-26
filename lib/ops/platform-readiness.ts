@@ -22,7 +22,7 @@ export const OPS_PLATFORM_READINESS: OpsPlatformReadinessItem[] = [
     allowedNow: [
       "Manual drafts, UTM links, package export/import, metrics entry",
       "Server-only OAuth and approved publishing for configured accounts",
-      "Daily approved-and-opted-in autopublish for connected LinkedIn only",
+      "Daily approved-and-opted-in autopublish for connected LinkedIn, X, Facebook, and Instagram",
     ],
     blockedBy: [
       "Organization page posting requires LinkedIn Community Management API approval",
@@ -56,7 +56,7 @@ export const OPS_PLATFORM_READINESS: OpsPlatformReadinessItem[] = [
     allowedNow: [
       "Manual target planning, deterministic/AI draft generation, UTM links",
       "Operator-approved publish and scheduled autopublish when Meta is connected",
-      "Brand default images from /public when draft media has no assetLocation",
+      "Attach approved product screenshots per Instagram draft before publish",
     ],
     blockedBy: [
       "Meta app needs instagram_content_publish in Business Login config",
@@ -72,19 +72,18 @@ export const OPS_PLATFORM_READINESS: OpsPlatformReadinessItem[] = [
   {
     allowedNow: [
       "Manual page target planning, deterministic/AI draft generation, UTM links",
-      "Manual posted tracking and aggregate metric entry",
+      "Operator-approved publish and scheduled autopublish when Meta Pages are connected",
     ],
     blockedBy: [
-      "No Meta Business integration is connected",
-      "No Facebook OAuth or Page publishing API is connected",
-      "No Facebook autopublish boundary has been approved",
+      "Meta app needs pages_manage_posts and instagram_content_publish",
+      "Each brand Page must be connected on /ops/accounts",
     ],
     nextOperatorAction:
-      "Keep Facebook manual until Meta Business setup is approved and the page URLs are canonicalized.",
+      "Connect all Facebook Pages, approve drafts on the calendar, and enable autopublish per Facebook draft.",
     platform: "Facebook",
-    status: "blocked_external_review",
-    statusLabel: "Facebook blocked by Meta setup",
-    tone: "blocked",
+    status: "partially_connected",
+    statusLabel: "Facebook ready when Meta Pages connect",
+    tone: "watch",
   },
   {
     allowedNow: ["Manual draft planning and UTM links"],

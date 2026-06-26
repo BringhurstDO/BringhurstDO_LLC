@@ -53,6 +53,10 @@ yarn-error.log*
 /scripts/live-social-header.png
 /public/bringhurstdo-social-header-source.svg
 
+# Local dev Instagram screenshot uploads (production uses Vercel Blob).
+/public/ops-ig/uploads/**
+!/public/ops-ig/uploads/.gitkeep
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

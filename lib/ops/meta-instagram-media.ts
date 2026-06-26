@@ -6,7 +6,7 @@ import type { OpsProjectId } from "@/lib/ops/types";
 const PROJECT_DEFAULT_ASSET: Partial<Record<OpsProjectId, string>> = {
   bringhurstdo: "/bringhurstdo-social-header.png",
   syncsafety: "/syncsafety-mock.jpg",
-  syncsoap: "/bringhurstdo-social-header.png",
+  syncsoap: "/ops-ig/syncsoap-product-screenshot.png",
 };
 
 function parseDefaultImagesFromEnv() {
@@ -104,6 +104,6 @@ export function resolveInstagramPublishImageUrl(input: {
   return {
     ok: false,
     reason:
-      "Instagram requires a public HTTPS image. Set draft media assetLocation to a site path (for example /bringhurstdo-social-header.png), or configure META_INSTAGRAM_DEFAULT_IMAGES.",
+      "Instagram requires a public HTTPS image. Attach a product screenshot on the calendar or package builder, pick an approved catalog image, or configure META_INSTAGRAM_DEFAULT_IMAGES.",
   };
 }

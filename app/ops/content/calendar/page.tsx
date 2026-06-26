@@ -18,7 +18,7 @@ export default function OpsPublishCalendarPage() {
       <OpsPageHeader
         eyebrow="Phase 8B — publish calendar"
         title="Publish Calendar"
-        description="See what to post when across saved content packages and series splits. Approve drafts, opt in to scheduled LinkedIn autopublish (8C), or publish manually from the calendar."
+        description="See what to post when across saved content packages and series splits. Approve drafts, opt in to scheduled autopublish for connected platforms, or publish manually from the calendar."
       />
 
       <div className={`${opsShellClass} grid gap-6 py-6`}>
@@ -27,8 +27,8 @@ export default function OpsPublishCalendarPage() {
             {storageIsDatabase ? "Durable database save" : "Local browser save"}
           </BoundaryPill>
           <BoundaryPill>Manual publish always available</BoundaryPill>
-          <BoundaryPill>8C autopublish: LinkedIn + opt-in + approved</BoundaryPill>
-          <BoundaryPill>LinkedIn publish when connected</BoundaryPill>
+          <BoundaryPill>8C autopublish: approved + opt-in per draft</BoundaryPill>
+          <BoundaryPill>LinkedIn, X, Facebook, Instagram when connected</BoundaryPill>
         </div>
 
         <PublishCalendarPanel

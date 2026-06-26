@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 
 import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
+import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel";
+import { OpsPackageSocialImagePanel } from "@/app/ops/_components/ops-package-social-image-panel";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import { removePackageFromRecords } from "@/lib/ops/content-package-mutations";
@@ -1102,6 +1104,7 @@ export function ContentPackageBuilder({
   const [sourceDate, setSourceDate] = useState("2026-06-06");
   const [sourceSummary, setSourceSummary] = useState("");
   const [sourceNotes, setSourceNotes] = useState("");
+  const [packageSocialImage, setPackageSocialImage] = useState("");
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
   const [draftSlots, setDraftSlots] = useState<DraftSlotInput[]>([]);
   const [records, setRecords] = useState<LocalContentPackageRecord[]>(initialRecords);
@@ -1475,6 +1478,37 @@ export function ContentPackageBuilder({
           .join("; ")}.`
       : "No manually posted content is recorded yet.";
 
+  function syncInstagramSlotsWithPackageImage(assetLocation: string) {
+    const trimmed = assetLocation.trim();
+
+    setDraftSlots((current) =>
+      current.map((slot) => {
+        const target = publicationTargets.find((item) => item.id === slot.targetId);
+
+        if (target?.platform !== "Instagram") {
+          return slot;
+        }
+
+        return {
+          ...slot,
+          assetLocation: trimmed,
+          mediaSummary: trimmed
+            ? "Package social image attached for Instagram."
+            : slot.mediaSummary,
+          mediaType: trimmed ? "screenshot" : slot.mediaType,
+          visualHook: trimmed
+            ? "Approved social image from package."
+            : slot.visualHook,
+        };
+      }),
+    );
+  }
+
+  function handlePackageSocialImageChange(assetLocation: string) {
+    setPackageSocialImage(assetLocation);
+    syncInstagramSlotsWithPackageImage(assetLocation);
+  }
+
   function toggleTarget(targetId: string) {
     const target = publicationTargets.find((item) => item.id === targetId);
 
@@ -1515,7 +1549,8 @@ export function ContentPackageBuilder({
         );
 
         return {
-          assetLocation: "",
+          assetLocation:
+            target.platform === "Instagram" ? packageSocialImage.trim() : "",
           body: draftTemplateBody({
             campaign,
             destinationUrl,
@@ -2683,6 +2718,14 @@ export function ContentPackageBuilder({
               className="min-h-20 rounded-lg border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-800"
             />
           </label>
+
+          <OpsPackageSocialImagePanel
+            assetLocation={packageSocialImage}
+            onChange={handlePackageSocialImageChange}
+            projectId={primaryProjectId}
+            sourceSummary={sourceSummary}
+            sourceTitle={sourceTitle}
+          />
         </div>
       </section>
 
@@ -3439,19 +3482,37 @@ export function ContentPackageBuilder({
                               className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
                             />
                           </label>
-                          <label className="grid gap-2 text-xs font-semibold text-slate-600">
-                            Asset reference
-                            <input
-                              value={slot.assetLocation}
-                              onChange={(event) =>
+                          {target.platform === "Instagram" ? (
+                            <IgMediaAttachPanel
+                              assetLocation={slot.assetLocation}
+                              projectId={target.projectId ?? primaryProjectId}
+                              onChange={(assetLocation) =>
                                 updateDraftSlot(slot.id, {
-                                  assetLocation: event.target.value,
+                                  assetLocation,
+                                  mediaSummary: assetLocation.trim()
+                                    ? "Approved product screenshot attached for Instagram."
+                                    : slot.mediaSummary,
+                                  mediaType: assetLocation.trim()
+                                    ? "screenshot"
+                                    : slot.mediaType,
                                 })
                               }
-                              placeholder="External URL, local path note, or reference ID only"
-                              className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
                             />
-                          </label>
+                          ) : (
+                            <label className="grid gap-2 text-xs font-semibold text-slate-600">
+                              Asset reference
+                              <input
+                                value={slot.assetLocation}
+                                onChange={(event) =>
+                                  updateDraftSlot(slot.id, {
+                                    assetLocation: event.target.value,
+                                  })
+                                }
+                                placeholder="External URL, local path note, or reference ID only"
+                                className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+                              />
+                            </label>
+                          )}
                         </div>
                       </div>
                     </div>

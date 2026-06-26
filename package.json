@@ -17,11 +17,13 @@
     "ops:verify-deploy": "node scripts/verify-deploy.mjs",
     "ops:check-ai-safety": "npx tsx scripts/check-ai-safety.ts",
     "ops:check-ai-series-output": "npx tsx scripts/check-ai-series-output.ts",
-    "ops:check-publishable-copy": "npx tsx scripts/check-publishable-copy.ts"
+    "ops:check-publishable-copy": "npx tsx scripts/check-publishable-copy.ts",
+    "ops:render-america-250": "node scripts/render-america-250-social.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
     "@neondatabase/serverless": "^1.1.0",
+    "@vercel/blob": "^2.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.7.0",
@@ -40,6 +42,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.14",
+    "sharp": "^0.35.2",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
     "typescript": "^5"
