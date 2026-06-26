@@ -28,7 +28,8 @@ Hard rules:
   ]
 }
 
-Return exactly one post per slotId in the input. Do not skip slots. Do not add extra slots.`;
+Return exactly one post per slotId in the input. Do not skip slots. Do not add extra slots.
+- Copy each slotId string exactly from context.slots[].slotId (including the series- prefix and trailing index). Do not substitute publicationTargetId alone when multiple dates exist for the same target.`;
 
 export type ParsedSeriesPost = {
   body?: string;

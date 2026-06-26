@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { OpsAiProvider, OpsAiSeriesSplitProposal } from "@/lib/ops/types";
+import type { OpsAiProvider } from "@/lib/ops/types";
 
 import type { OpsAiSeriesSplitContext } from "@/lib/ops/ai-series-context";
 import {
@@ -9,10 +9,12 @@ import {
   type AiGenerationUsage,
 } from "@/lib/ops/ai-prompt";
 import {
+  mapSeriesSplitProposals,
+} from "@/lib/ops/ai-series-map-proposals";
+import {
   OPS_AI_SERIES_SYSTEM_PROMPT,
   parseSeriesPayload,
 } from "@/lib/ops/ai-series-prompt";
-import { prepareSeriesPublishableBody } from "@/lib/ops/publishable-copy";
 
 type OpenAiResponse = {
   choices?: Array<{ message?: { content?: string } }>;
@@ -37,51 +39,6 @@ type GeminiResponse = {
     totalTokenCount?: number;
   };
 };
-
-function mapProposals(
-  context: OpsAiSeriesSplitContext,
-  parsed: ReturnType<typeof parseSeriesPayload>,
-) {
-  const slotById = new Map(context.slots.map((slot) => [slot.slotId, slot]));
-
-  return (parsed.posts ?? [])
-    .filter(
-      (post): post is typeof post & { slotId: string; body: string } =>
-        Boolean(
-          post.slotId &&
-            slotById.has(post.slotId) &&
-            typeof post.body === "string" &&
-            post.body.trim(),
-        ),
-    )
-    .map((post) => {
-      const slot = slotById.get(post.slotId)!;
-
-      return {
-        accountName: slot.accountName,
-        body: prepareSeriesPublishableBody(post.body.trim()),
-        mediaNote:
-          typeof post.mediaNote === "string" && post.mediaNote.trim()
-            ? post.mediaNote.trim()
-            : "Review media metadata before posting.",
-        platform: slot.platform,
-        proposalId: post.slotId,
-        publicationTargetId: slot.publicationTargetId,
-        safetyNotes: Array.isArray(post.safetyNotes)
-          ? post.safetyNotes.filter(
-              (note): note is string =>
-                typeof note === "string" && note.trim().length > 0,
-            )
-          : ["Manual review required before posting."],
-        seriesIndex: slot.seriesIndex,
-        suggestedScheduledFor: slot.suggestedScheduledFor,
-        title:
-          typeof post.title === "string" && post.title.trim()
-            ? post.title.trim()
-            : `${context.series.title} — ${slot.seriesIndex}`,
-      } satisfies OpsAiSeriesSplitProposal;
-    });
-}
 
 async function callOpenAi({
   apiKey,
@@ -217,7 +174,15 @@ export async function generateOpsAiSeriesSplit({
       ? await callGemini({ apiKey, context, model })
       : await callOpenAi({ apiKey, context, model });
 
-  const proposals = mapProposals(context, parseSeriesPayload(result.content));
+  const parsed = (() => {
+    try {
+      return parseSeriesPayload(result.content);
+    } catch {
+      return { posts: [] };
+    }
+  })();
+
+  const proposals = mapSeriesSplitProposals(context, parsed.posts);
 
   if (proposals.length === 0) {
     throw new Error(`${provider} returned no usable series post proposals.`);
