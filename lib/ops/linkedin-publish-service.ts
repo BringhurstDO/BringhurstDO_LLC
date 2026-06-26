@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getReadyLinkedInConnection } from "@/lib/ops/linkedin-connection";
-import { publishLinkedInPost } from "@/lib/ops/linkedin-client";
+import { publishLinkedInPost, uploadLinkedInImage } from "@/lib/ops/linkedin-client";
 import {
   findLinkedInAccount,
   resolveLinkedInConfig,
@@ -15,9 +15,14 @@ import {
   containsPublishableArtifact,
   sanitizePublishableBody,
 } from "@/lib/ops/publishable-copy";
+import {
+  fetchPublicImageBytes,
+  resolvePublishImageUrl,
+} from "@/lib/ops/ops-publish-media";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
 import type {
   OpsContentPackageRecord,
+  OpsProjectId,
   PlatformDraft,
   SocialPublishLogRecord,
   SocialPublishResult,
@@ -32,11 +37,14 @@ function nowId() {
 
 export type LinkedInDraftPublishInput = {
   accountId: string;
+  assetLocation?: string;
   body: string;
   contentPackageId: string;
+  imageUrl?: string;
   linkUrl?: string;
   platformDraftId: string;
   publicationTargetId: string;
+  publishingProjectId?: OpsProjectId;
   title?: string;
   trigger: "autopublish" | "manual";
 };
@@ -46,6 +54,7 @@ export type LinkedInDraftPublishError = {
     | "body_invalid"
     | "config"
     | "connection"
+    | "media_missing"
     | "not_found"
     | "publish_failed";
   message: string;
@@ -200,13 +209,34 @@ export async function publishLinkedInDraft(
 
   const publishLogId = `social-publish-${nowId()}`;
   const bodyPreview = body.slice(0, 280);
+  const image = resolvePublishImageUrl({
+    accountId: account.accountId,
+    assetLocation: input.assetLocation,
+    imageUrl: input.imageUrl,
+    platform: "LinkedIn",
+    publishingProjectId: input.publishingProjectId,
+  });
 
   try {
+    let imageUrn: string | undefined;
+
+    if (image.ok) {
+      const fetched = await fetchPublicImageBytes(image.imageUrl);
+      imageUrn = await uploadLinkedInImage({
+        accessToken: ready.value.accessToken,
+        authorUrn: ready.value.authorUrn,
+        bytes: fetched.bytes,
+        config: config.config,
+        contentType: fetched.contentType,
+      });
+    }
+
     const published = await publishLinkedInPost({
       accessToken: ready.value.accessToken,
       authorUrn: ready.value.authorUrn,
       commentary: body,
       config: config.config,
+      imageUrn,
     });
 
     const postedAt = new Date().toISOString();
@@ -219,8 +249,12 @@ export async function publishLinkedInDraft(
       id: publishLogId,
       notes: [
         input.trigger === "autopublish"
-          ? `Scheduled autopublish to LinkedIn as ${account.label}.`
-          : `Operator-approved manual publish to LinkedIn as ${account.label}.`,
+          ? image.ok
+            ? `Scheduled autopublish to LinkedIn as ${account.label}. Image: ${image.imageUrl}`
+            : `Scheduled autopublish to LinkedIn as ${account.label}.`
+          : image.ok
+            ? `Operator-approved manual publish to LinkedIn as ${account.label}. Image: ${image.imageUrl}`
+            : `Operator-approved manual publish to LinkedIn as ${account.label}.`,
       ],
       platform: "LinkedIn",
       platformDraftId: input.platformDraftId,

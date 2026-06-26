@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { publishXDraft } from "@/lib/ops/x-publish-service";
 import { resolveXConfig } from "@/lib/ops/x-config";
-import type { SocialPublishResult } from "@/lib/ops/types";
+import type { OpsProjectId, SocialPublishResult } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -17,16 +17,27 @@ function jsonNoStore(body: unknown, status = 200) {
 
 type PublishBody = {
   accountId?: unknown;
+  assetLocation?: unknown;
   body?: unknown;
   confirmApproved?: unknown;
   contentPackageId?: unknown;
   platformDraftId?: unknown;
   publicationTargetId?: unknown;
+  publishingProjectId?: unknown;
   title?: unknown;
 };
 
 function asString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function asProjectId(value: unknown): OpsProjectId | undefined {
+  const trimmed = asString(value);
+  return trimmed === "syncsoap" ||
+    trimmed === "syncsafety" ||
+    trimmed === "bringhurstdo"
+    ? trimmed
+    : undefined;
 }
 
 export async function POST(request: NextRequest) {
@@ -73,10 +84,12 @@ export async function POST(request: NextRequest) {
 
   const published = await publishXDraft({
     accountId: requestedAccountId,
+    assetLocation: asString(payload.assetLocation) || undefined,
     body: rawBody,
     contentPackageId,
     platformDraftId,
     publicationTargetId,
+    publishingProjectId: asProjectId(payload.publishingProjectId),
     title: title || undefined,
     trigger: "manual",
   });

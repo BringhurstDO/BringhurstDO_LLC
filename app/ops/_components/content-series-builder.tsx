@@ -46,6 +46,7 @@ import {
   type OpsStorageMode,
 } from "@/lib/ops/persistence";
 import { buildSeriesSchedule } from "@/lib/ops/series-schedule";
+import { platformSupportsSocialImage } from "@/lib/ops/social-image-utils";
 import type {
   BusinessOutcome,
   ContentPackage,
@@ -261,9 +262,8 @@ export function ContentSeriesBuilder({
     schedulePreview.length > 0
       ? schedulePreview.length * selectedTargets.length
       : 0;
-  const metaTargetsNeedImage = selectedTargets.some(
-    (target) =>
-      target.platform === "Instagram" || target.platform === "Facebook",
+  const metaTargetsNeedImage = selectedTargets.some((target) =>
+    platformSupportsSocialImage(target.platform),
   );
   const packageImageSelected = seriesSocialImage.trim().length > 0;
   const selectedPlatformScheduleDefaults = useMemo(
@@ -640,8 +640,7 @@ export function ContentSeriesBuilder({
       const publishingProjectId = target.projectId ?? primaryProjectId;
       const packageImage = seriesSocialImage.trim();
       const usesPackageImage =
-        packageImage &&
-        (target.platform === "Instagram" || target.platform === "Facebook");
+        packageImage && platformSupportsSocialImage(target.platform);
 
       const isApproved = approvedProposalIds.has(proposal.proposalId);
 
@@ -903,6 +902,7 @@ export function ContentSeriesBuilder({
           projectId={primaryProjectId}
           sourceSummary={seriesSummary}
           sourceTitle={seriesTitle}
+          updateType={updateType}
         />
       </section>
 
@@ -1187,8 +1187,8 @@ export function ContentSeriesBuilder({
                 </p>
                 <p className="mt-1 leading-6">
                   AI split only generates captions. This image copies onto every
-                  Facebook and Instagram draft when you save the package — it is
-                  not sent to Gemini during split.
+                  LinkedIn, X, Facebook, and Instagram draft when you save the
+                  package — it is not sent to Gemini during split.
                 </p>
                 <p className="mt-2 break-all font-mono text-xs text-sky-800">
                   {seriesSocialImage.trim()}
@@ -1218,8 +1218,7 @@ export function ContentSeriesBuilder({
                           #{proposal.seriesIndex}
                         </StatusPill>
                         {packageImageSelected &&
-                        (proposal.platform === "Instagram" ||
-                          proposal.platform === "Facebook") ? (
+                        platformSupportsSocialImage(proposal.platform) ? (
                           <StatusPill tone="good">Image on save</StatusPill>
                         ) : null}
                         {approvedProposalIds.has(proposal.proposalId) ? (
@@ -1228,8 +1227,7 @@ export function ContentSeriesBuilder({
                       </div>
                       <p className="mt-1 text-xs text-slate-500">{proposal.title}</p>
                       {packageImageSelected &&
-                      (proposal.platform === "Instagram" ||
-                        proposal.platform === "Facebook") ? (
+                      platformSupportsSocialImage(proposal.platform) ? (
                         <div className="mt-3 flex items-center gap-3 rounded-md border border-slate-200 bg-white p-2">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img

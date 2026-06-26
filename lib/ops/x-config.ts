@@ -10,6 +10,7 @@ import type { SocialAuthorType } from "@/lib/ops/types";
 export const X_AUTHORIZATION_URL = "https://x.com/i/oauth2/authorize";
 export const X_TOKEN_URL = "https://api.twitter.com/2/oauth2/token";
 export const X_TWEETS_URL = "https://api.twitter.com/2/tweets";
+export const X_MEDIA_UPLOAD_URL = "https://upload.twitter.com/1.1/media/upload.json";
 export const X_USERS_ME_URL = "https://api.twitter.com/2/users/me";
 
 export type XAccountConfig = {
@@ -30,7 +31,13 @@ export type XConfigStatus =
   | { ok: true; config: XResolvedConfig }
   | { ok: false; reason: string };
 
-const DEFAULT_X_SCOPES = ["tweet.read", "tweet.write", "users.read", "offline.access"];
+const DEFAULT_X_SCOPES = [
+  "media.write",
+  "tweet.read",
+  "tweet.write",
+  "users.read",
+  "offline.access",
+];
 const FORBIDDEN_X_SCOPES = ["dm.read", "dm.write"];
 
 function envEnabled() {

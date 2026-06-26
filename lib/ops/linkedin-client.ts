@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   LINKEDIN_AUTHORIZATION_URL,
+  LINKEDIN_IMAGES_URL,
   LINKEDIN_POSTS_URL,
   LINKEDIN_TOKEN_URL,
   LINKEDIN_USERINFO_URL,
@@ -162,6 +163,7 @@ export type PublishLinkedInPostInput = {
   accessToken: string;
   authorUrn: string;
   commentary: string;
+  imageUrn?: string;
 };
 
 export type PublishLinkedInPostResult = {
@@ -209,6 +211,64 @@ async function sendLinkedInPost(
   };
 }
 
+export async function uploadLinkedInImage(input: {
+  accessToken: string;
+  authorUrn: string;
+  bytes: Uint8Array;
+  config: LinkedInResolvedConfig;
+  contentType: string;
+}): Promise<string> {
+  const initResponse = await fetch(`${LINKEDIN_IMAGES_URL}?action=initializeUpload`, {
+    body: JSON.stringify({
+      initializeUploadRequest: {
+        owner: input.authorUrn,
+      },
+    }),
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+      "Content-Type": "application/json",
+      "LinkedIn-Version": input.config.apiVersion,
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
+    method: "POST",
+  });
+
+  const initText = await initResponse.text();
+
+  if (!initResponse.ok) {
+    throw new Error(
+      `LinkedIn image initialize failed (${initResponse.status}): ${initText.slice(0, 400)}`,
+    );
+  }
+
+  const initJson = JSON.parse(initText) as {
+    value?: { image?: string; uploadUrl?: string };
+  };
+  const uploadUrl = initJson.value?.uploadUrl?.trim();
+  const imageUrn = initJson.value?.image?.trim();
+
+  if (!uploadUrl || !imageUrn) {
+    throw new Error("LinkedIn image initialize did not return uploadUrl and image URN.");
+  }
+
+  const uploadResponse = await fetch(uploadUrl, {
+    body: Buffer.from(input.bytes),
+    headers: {
+      "Content-Type": input.contentType,
+    },
+    method: "PUT",
+  });
+
+  if (!uploadResponse.ok) {
+    const uploadText = await uploadResponse.text();
+    throw new Error(
+      `LinkedIn image upload failed (${uploadResponse.status}): ${uploadText.slice(0, 400)}`,
+    );
+  }
+
+  return imageUrn;
+}
+
 export async function publishLinkedInPost(
   input: PublishLinkedInPostInput,
 ): Promise<PublishLinkedInPostResult> {
@@ -224,6 +284,14 @@ export async function publishLinkedInPost(
     lifecycleState: "PUBLISHED",
     isReshareDisabledByAuthor: false,
   };
+
+  if (input.imageUrn) {
+    body.content = {
+      media: {
+        id: input.imageUrn,
+      },
+    };
+  }
 
   return sendLinkedInPost(
     input.config,

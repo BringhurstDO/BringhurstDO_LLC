@@ -1,3 +1,6 @@
+import { shouldAutoAttachCatalogImage } from "@/lib/ops/social-image-utils";
+import type { OpsProjectId, SourceUpdateType } from "@/lib/ops/types";
+
 export type SocialCatalogHint = {
   catalogIds: string[];
   label: string;
@@ -78,4 +81,106 @@ export function resolveSuggestedCatalogEntry<
     catalogId,
     label: hint?.label ?? entry.label,
   };
+}
+
+export function resolveSuggestedCatalogEntryForProject<
+  T extends {
+    assetLocation: string;
+    id: string;
+    label: string;
+    projectId: OpsProjectId;
+  },
+>(entries: T[], title: string, summary: string, projectId?: OpsProjectId) {
+  const suggestion = resolveSuggestedCatalogEntry(entries, title, summary);
+
+  if (!suggestion) {
+    return null;
+  }
+
+  const entry = entries.find((item) => item.id === suggestion.catalogId);
+
+  if (!entry) {
+    return null;
+  }
+
+  if (projectId && entry.projectId !== projectId) {
+    const projectEntry = entries.find(
+      (item) => item.projectId === projectId && item.id.includes("product"),
+    );
+
+    if (projectEntry) {
+      return {
+        assetLocation: projectEntry.assetLocation,
+        catalogId: projectEntry.id,
+        label: projectEntry.label,
+      };
+    }
+  }
+
+  return suggestion;
+}
+
+export function resolveAutoPackageSocialImage<
+  T extends {
+    assetLocation: string;
+    id: string;
+    label: string;
+    projectId: OpsProjectId;
+  },
+>(
+  entries: T[],
+  {
+    currentAssetLocation,
+    projectId,
+    summary,
+    title,
+    updateType,
+  }: {
+    currentAssetLocation: string;
+    projectId: OpsProjectId;
+    summary: string;
+    title: string;
+    updateType?: SourceUpdateType;
+  },
+) {
+  if (currentAssetLocation.trim()) {
+    return null;
+  }
+
+  const suggestion = resolveSuggestedCatalogEntryForProject(
+    entries,
+    title,
+    summary,
+    projectId,
+  );
+
+  if (suggestion) {
+    const catalogMatch = Boolean(suggestCatalogAssetId(title, summary));
+
+    if (shouldAutoAttachCatalogImage(updateType, catalogMatch)) {
+      return suggestion;
+    }
+
+    return null;
+  }
+
+  if (shouldAutoAttachCatalogImage(updateType, false)) {
+    const projectDefault = entries.find(
+      (item) =>
+        item.projectId === projectId &&
+        (item.id.includes("product") ||
+          item.id.includes("screenshot") ||
+          item.id.includes("mock")),
+    );
+
+    if (projectDefault) {
+      return {
+        assetLocation: projectDefault.assetLocation,
+        catalogId: projectDefault.id,
+        label: projectDefault.label,
+      };
+    }
+  }
+
+  return null;
 }

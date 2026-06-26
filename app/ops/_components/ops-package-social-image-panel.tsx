@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
-import { resolveSuggestedCatalogEntry } from "@/lib/ops/social-media-suggest";
-import type { OpsProjectId } from "@/lib/ops/types";
+import { resolveAutoPackageSocialImage } from "@/lib/ops/social-media-suggest";
+import type { OpsProjectId, SourceUpdateType } from "@/lib/ops/types";
 
 type CatalogEntry = {
   assetLocation: string;
@@ -20,6 +20,7 @@ type OpsPackageSocialImagePanelProps = {
   projectId: OpsProjectId;
   sourceSummary: string;
   sourceTitle: string;
+  updateType?: SourceUpdateType;
 };
 
 export function OpsPackageSocialImagePanel({
@@ -28,8 +29,10 @@ export function OpsPackageSocialImagePanel({
   projectId,
   sourceSummary,
   sourceTitle,
+  updateType,
 }: OpsPackageSocialImagePanelProps) {
   const [catalogEntries, setCatalogEntries] = useState<CatalogEntry[]>([]);
+  const lastAutoKeyRef = useRef("");
 
   const loadCatalog = useCallback(async () => {
     try {
@@ -52,24 +55,70 @@ export function OpsPackageSocialImagePanel({
 
   const suggestion = useMemo(
     () =>
-      resolveSuggestedCatalogEntry(catalogEntries, sourceTitle, sourceSummary),
-    [catalogEntries, sourceSummary, sourceTitle],
+      resolveAutoPackageSocialImage(catalogEntries, {
+        currentAssetLocation: "",
+        projectId,
+        summary: sourceSummary,
+        title: sourceTitle,
+        updateType,
+      }) ??
+      null,
+    [catalogEntries, projectId, sourceSummary, sourceTitle, updateType],
   );
 
+  useEffect(() => {
+    if (!catalogEntries.length) {
+      return;
+    }
+
+    const auto = resolveAutoPackageSocialImage(catalogEntries, {
+      currentAssetLocation: assetLocation,
+      projectId,
+      summary: sourceSummary,
+      title: sourceTitle,
+      updateType,
+    });
+
+    if (!auto) {
+      return;
+    }
+
+    const autoKey = `${sourceTitle}\n${sourceSummary}\n${auto.catalogId}`;
+
+    if (assetLocation.trim()) {
+      lastAutoKeyRef.current = autoKey;
+      return;
+    }
+
+    if (lastAutoKeyRef.current === autoKey) {
+      return;
+    }
+
+    lastAutoKeyRef.current = autoKey;
+    onChange(auto.assetLocation);
+  }, [
+    assetLocation,
+    catalogEntries,
+    onChange,
+    projectId,
+    sourceSummary,
+    sourceTitle,
+    updateType,
+  ]);
+
   const showSuggestion =
-    suggestion &&
-    suggestion.assetLocation.trim() !== assetLocation.trim();
+    suggestion && suggestion.assetLocation.trim() !== assetLocation.trim();
 
   return (
     <div className="grid gap-3">
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
         <h3 className="font-sans text-sm font-semibold text-slate-950">
-          Social image for Facebook and Instagram
+          Social image for connected platforms
         </h3>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          Attach once at the package level. Ops copies this image onto every
-          Facebook and Instagram draft when you generate slots or save a series.
-          Upload a new file or pick from the approved catalog.
+          Attach once at the package level. Ops copies this image onto LinkedIn,
+          X, Facebook, and Instagram drafts when keywords or update type match
+          the catalog. Clear the image on any draft that should stay text-only.
         </p>
         {showSuggestion ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950">
@@ -92,7 +141,7 @@ export function OpsPackageSocialImagePanel({
         assetLocation={assetLocation}
         catalogScope="all"
         heading="Package social image"
-        description="Used for Facebook and Instagram publish and autopublish."
+        description="One image per post on LinkedIn, X, Facebook, and Instagram. Remove before save if a draft should be text-only."
         onChange={onChange}
         projectId={projectId}
       />

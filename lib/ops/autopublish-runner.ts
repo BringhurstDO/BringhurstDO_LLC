@@ -100,7 +100,11 @@ async function publishAutopublishDraft(
   };
 
   if (draft.platform === "X") {
-    return publishXDraft(base);
+    return publishXDraft({
+      ...base,
+      assetLocation: draft.media.assetLocation,
+      publishingProjectId: draft.publishingProjectId,
+    });
   }
 
   if (draft.platform === "Instagram") {
@@ -121,7 +125,11 @@ async function publishAutopublishDraft(
     });
   }
 
-  return publishLinkedInDraft(base);
+  return publishLinkedInDraft({
+    ...base,
+    assetLocation: draft.media.assetLocation,
+    publishingProjectId: draft.publishingProjectId,
+  });
 }
 
 function applyAutopublishResult(

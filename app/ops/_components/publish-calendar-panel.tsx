@@ -43,6 +43,7 @@ import {
 } from "@/lib/ops/platform-schedule-defaults";
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import { platformSupportsAutopublish } from "@/lib/ops/autopublish-platforms";
+import { platformSupportsSocialImage } from "@/lib/ops/social-image-utils";
 import {
   findPublishedPostForDraft,
   resolveLatestPerformanceSnapshot,
@@ -703,7 +704,11 @@ export function PublishCalendarPanel({
     }
 
     const confirmed = window.confirm(
-      `Publish this approved draft to LinkedIn as ${accountStatus.accountLabel ?? draft.accountName}? This posts publicly.`,
+      `Publish this approved draft to LinkedIn as ${accountStatus.accountLabel ?? draft.accountName}?${
+        draft.media.assetLocation?.trim()
+          ? " The attached social image will be published with your caption."
+          : " No image is attached — this will post as text only."
+      }`,
     );
 
     if (!confirmed) {
@@ -717,11 +722,13 @@ export function PublishCalendarPanel({
       const response = await opsFetch("/ops/api/social/linkedin/publish", {
         body: JSON.stringify({
           accountId,
+          assetLocation: draft.media.assetLocation,
           body: sanitizePublishableBody(draft.body),
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platformDraftId: draft.id,
           publicationTargetId: draft.publicationTargetId,
+          publishingProjectId: draft.publishingProjectId,
           title: draft.title,
         }),
         headers: { "Content-Type": "application/json" },
@@ -783,7 +790,11 @@ export function PublishCalendarPanel({
     }
 
     const confirmed = window.confirm(
-      `Publish this approved draft to X as ${accountStatus.accountLabel ?? draft.accountName}? This posts publicly.`,
+      `Publish this approved draft to X as ${accountStatus.accountLabel ?? draft.accountName}?${
+        draft.media.assetLocation?.trim()
+          ? " The attached social image will be published with your tweet."
+          : " No image is attached — this will post as text only."
+      }`,
     );
 
     if (!confirmed) {
@@ -797,11 +808,13 @@ export function PublishCalendarPanel({
       const response = await opsFetch("/ops/api/social/x/publish", {
         body: JSON.stringify({
           accountId,
+          assetLocation: draft.media.assetLocation,
           body: sanitizePublishableBody(draft.body),
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platformDraftId: draft.id,
           publicationTargetId: draft.publicationTargetId,
+          publishingProjectId: draft.publishingProjectId,
           title: draft.title,
         }),
         headers: { "Content-Type": "application/json" },
@@ -1115,8 +1128,7 @@ export function PublishCalendarPanel({
                 ))}
               </div>
             ) : null}
-            {row.platform === "Instagram" || row.platform === "Facebook" ? (
-              draft ? (
+            {platformSupportsSocialImage(row.platform) && draft ? (
               <div className="mt-3">
                 <IgMediaAttachPanel
                   assetLocation={draft.media.assetLocation ?? ""}
@@ -1128,7 +1140,6 @@ export function PublishCalendarPanel({
                   }
                 />
               </div>
-              ) : null
             ) : null}
           </div>
         </div>

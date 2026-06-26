@@ -13,7 +13,7 @@ import {
   publishInstagramImagePost,
 } from "@/lib/ops/meta-client";
 import { findMetaAccount, resolveMetaConfig } from "@/lib/ops/meta-config";
-import { resolveMetaPublishImageUrl } from "@/lib/ops/meta-instagram-media";
+import { resolvePublishImageUrl } from "@/lib/ops/ops-publish-media";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
 import type {
   OpsContentPackageRecord,
@@ -180,7 +180,7 @@ export async function publishMetaDraft(
         ? `${sanitizedBody.slice(0, 2197).trim()}…`
         : sanitizedBody;
 
-    const image = resolveMetaPublishImageUrl({
+    const image = resolvePublishImageUrl({
       accountId: account.accountId,
       assetLocation: input.assetLocation,
       imageUrl: input.imageUrl,
@@ -315,7 +315,7 @@ export async function publishMetaDraft(
     };
   }
 
-  const image = resolveMetaPublishImageUrl({
+  const image = resolvePublishImageUrl({
     accountId: account.accountId,
     assetLocation: input.assetLocation,
     imageUrl: input.imageUrl,

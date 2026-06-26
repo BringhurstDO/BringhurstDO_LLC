@@ -7,10 +7,15 @@ import {
 } from "@/lib/ops/publishable-copy";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
 import { getReadyXConnection } from "@/lib/ops/x-connection";
-import { publishXPost } from "@/lib/ops/x-client";
+import { publishXPost, uploadXMedia } from "@/lib/ops/x-client";
 import { findXAccount, resolveXConfig } from "@/lib/ops/x-config";
+import {
+  fetchPublicImageBytes,
+  resolvePublishImageUrl,
+} from "@/lib/ops/ops-publish-media";
 import type {
   OpsContentPackageRecord,
+  OpsProjectId,
   PlatformDraft,
   SocialPublishLogRecord,
   SocialPublishResult,
@@ -25,16 +30,25 @@ function nowId() {
 
 export type XDraftPublishInput = {
   accountId: string;
+  assetLocation?: string;
   body: string;
   contentPackageId: string;
+  imageUrl?: string;
   platformDraftId: string;
   publicationTargetId: string;
+  publishingProjectId?: OpsProjectId;
   title?: string;
   trigger: "autopublish" | "manual";
 };
 
 export type XDraftPublishError = {
-  code: "body_invalid" | "config" | "connection" | "not_found" | "publish_failed";
+  code:
+    | "body_invalid"
+    | "config"
+    | "connection"
+    | "media_missing"
+    | "not_found"
+    | "publish_failed";
   message: string;
 };
 
@@ -172,10 +186,30 @@ export async function publishXDraft(
 
   const publishLogId = `social-publish-${nowId()}`;
   const bodyPreview = body.slice(0, 280);
+  const image = resolvePublishImageUrl({
+    accountId: account.accountId,
+    assetLocation: input.assetLocation,
+    imageUrl: input.imageUrl,
+    platform: "X",
+    publishingProjectId: input.publishingProjectId,
+  });
 
   try {
+    let mediaIds: string[] | undefined;
+
+    if (image.ok) {
+      const fetched = await fetchPublicImageBytes(image.imageUrl);
+      const mediaId = await uploadXMedia({
+        accessToken: ready.value.accessToken,
+        bytes: fetched.bytes,
+        contentType: fetched.contentType,
+      });
+      mediaIds = [mediaId];
+    }
+
     const published = await publishXPost({
       accessToken: ready.value.accessToken,
+      mediaIds,
       text: body,
     });
 
@@ -189,8 +223,12 @@ export async function publishXDraft(
       id: publishLogId,
       notes: [
         input.trigger === "autopublish"
-          ? `Operator-approved scheduled publish to X as ${account.label}.`
-          : `Operator-approved manual publish to X as ${account.label}.`,
+          ? image.ok
+            ? `Scheduled autopublish to X as ${account.label}. Image attached.`
+            : `Operator-approved scheduled publish to X as ${account.label}.`
+          : image.ok
+            ? `Operator-approved manual publish to X as ${account.label}. Image attached.`
+            : `Operator-approved manual publish to X as ${account.label}.`,
       ],
       platform: "X",
       platformDraftId: input.platformDraftId,

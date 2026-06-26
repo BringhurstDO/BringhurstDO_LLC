@@ -1,11 +1,12 @@
 import "server-only";
 
 import {
+  X_MEDIA_UPLOAD_URL,
+  X_TWEETS_URL,
   type XAccountConfig,
   type XResolvedConfig,
   X_AUTHORIZATION_URL,
   X_TOKEN_URL,
-  X_TWEETS_URL,
   X_USERS_ME_URL,
 } from "@/lib/ops/x-config";
 import type { SocialAuthorType } from "@/lib/ops/types";
@@ -160,6 +161,7 @@ export async function resolveAuthorIdentity(
 
 export type PublishXPostInput = {
   accessToken: string;
+  mediaIds?: string[];
   text: string;
 };
 
@@ -178,11 +180,53 @@ export type XPostMetric = {
   tweetId: string;
 };
 
+export async function uploadXMedia(input: {
+  accessToken: string;
+  bytes: Uint8Array;
+  contentType: string;
+}): Promise<string> {
+  const form = new FormData();
+  form.append(
+    "media",
+    new Blob([Buffer.from(input.bytes)], { type: input.contentType }),
+    "ops-social-image",
+  );
+
+  const response = await fetch(X_MEDIA_UPLOAD_URL, {
+    body: form,
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+    },
+    method: "POST",
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`X media upload failed (${response.status}): ${text.slice(0, 400)}`);
+  }
+
+  const json = JSON.parse(text) as { media_id_string?: string };
+  const mediaId = json.media_id_string?.trim();
+
+  if (!mediaId) {
+    throw new Error("X media upload did not return media_id_string.");
+  }
+
+  return mediaId;
+}
+
 export async function publishXPost(
   input: PublishXPostInput,
 ): Promise<PublishXPostResult> {
+  const payload: Record<string, unknown> = { text: input.text };
+
+  if (input.mediaIds?.length) {
+    payload.media = { media_ids: input.mediaIds };
+  }
+
   const response = await fetch(X_TWEETS_URL, {
-    body: JSON.stringify({ text: input.text }),
+    body: JSON.stringify(payload),
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
       "Content-Type": "application/json",

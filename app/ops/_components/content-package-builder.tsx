@@ -27,6 +27,7 @@ import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
 import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel";
 import { OpsPackageSocialImagePanel } from "@/app/ops/_components/ops-package-social-image-panel";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
+import { platformSupportsSocialImage } from "@/lib/ops/social-image-utils";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import { removePackageFromRecords } from "@/lib/ops/content-package-mutations";
 import {
@@ -1485,10 +1486,7 @@ export function ContentPackageBuilder({
       current.map((slot) => {
         const target = publicationTargets.find((item) => item.id === slot.targetId);
 
-        if (
-          target?.platform !== "Instagram" &&
-          target?.platform !== "Facebook"
-        ) {
+        if (!target || !platformSupportsSocialImage(target.platform)) {
           return slot;
         }
 
@@ -1552,8 +1550,7 @@ export function ContentPackageBuilder({
         );
 
         return {
-          assetLocation:
-            target.platform === "Instagram" || target.platform === "Facebook"
+          assetLocation: platformSupportsSocialImage(target.platform)
               ? packageSocialImage.trim()
               : "",
           body: draftTemplateBody({
