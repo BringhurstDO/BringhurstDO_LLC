@@ -60,6 +60,7 @@ import type {
 } from "@/lib/ops/types";
 
 type PublishCalendarPanelProps = {
+  initialPackageId?: string;
   initialRecords: OpsContentPackageRecord[];
   publicationTargets: PublicationTarget[];
   storageMode: Extract<OpsStorageMode, "database" | "local-browser">;
@@ -137,12 +138,14 @@ function isContentPackageRecord(value: unknown): value is OpsContentPackageRecor
 }
 
 export function PublishCalendarPanel({
+  initialPackageId = "",
   initialRecords,
   publicationTargets,
   storageMode,
 }: PublishCalendarPanelProps) {
   const storageIsDatabase = storageMode === "database";
   const [records, setRecords] = useState(initialRecords);
+  const [focusPackageId, setFocusPackageId] = useState(initialPackageId.trim());
   const [issues, setIssues] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [platformFilter, setPlatformFilter] = useState<PublicationPlatform | "all">(
@@ -324,11 +327,17 @@ export function PublishCalendarPanel({
 
   const calendarRows = useMemo(() => {
     const rows = buildPublishCalendarRows(records);
-    return filterPublishCalendarRows(rows, {
+    const filtered = filterPublishCalendarRows(rows, {
       includePosted,
       platform: platformFilter,
     });
-  }, [includePosted, platformFilter, records]);
+
+    if (!focusPackageId) {
+      return filtered;
+    }
+
+    return filtered.filter((row) => row.contentPackageId === focusPackageId);
+  }, [focusPackageId, includePosted, platformFilter, records]);
 
   const todayRows = useMemo(
     () => calendarRows.filter((row) => row.timing === "today"),
@@ -1407,6 +1416,22 @@ export function PublishCalendarPanel({
             <CheckCircle2 className="h-4 w-4" aria-hidden />
             {message}
           </div>
+        </div>
+      ) : null}
+
+      {focusPackageId ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+          <p>
+            Showing drafts from your saved series package{" "}
+            <span className="font-mono text-xs">{focusPackageId}</span>.
+          </p>
+          <button
+            type="button"
+            onClick={() => setFocusPackageId("")}
+            className="inline-flex h-8 items-center rounded-md border border-sky-300 bg-white px-3 text-xs font-semibold text-sky-900 hover:bg-sky-100"
+          >
+            Show all packages
+          </button>
         </div>
       ) : null}
 

@@ -5,7 +5,12 @@ import { opsDashboardData } from "@/lib/ops/mock-data";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-export default function OpsPublishCalendarPage() {
+export default async function OpsPublishCalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ package?: string }>;
+}) {
+  const params = await searchParams;
   const storageMode =
     process.env.OPS_STORAGE_MODE === "database" && process.env.DATABASE_URL
       ? "database"
@@ -32,6 +37,7 @@ export default function OpsPublishCalendarPage() {
         </div>
 
         <PublishCalendarPanel
+          initialPackageId={params.package ?? ""}
           initialRecords={[]}
           publicationTargets={publicationTargets}
           storageMode={storageMode}

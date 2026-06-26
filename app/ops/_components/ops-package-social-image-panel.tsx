@@ -64,12 +64,12 @@ export function OpsPackageSocialImagePanel({
     <div className="grid gap-3">
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
         <h3 className="font-sans text-sm font-semibold text-slate-950">
-          Social image for Instagram
+          Social image for Facebook and Instagram
         </h3>
         <p className="mt-1 text-sm leading-6 text-slate-600">
           Attach once at the package level. Ops copies this image onto every
-          Instagram draft when you generate slots or save a series. Upload a new
-          file or pick from the approved catalog.
+          Facebook and Instagram draft when you generate slots or save a series.
+          Upload a new file or pick from the approved catalog.
         </p>
         {showSuggestion ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950">
@@ -92,7 +92,7 @@ export function OpsPackageSocialImagePanel({
         assetLocation={assetLocation}
         catalogScope="all"
         heading="Package social image"
-        description="Used for Instagram publish and autopublish. Facebook posts remain text-first for now."
+        description="Used for Facebook and Instagram publish and autopublish."
         onChange={onChange}
         projectId={projectId}
       />

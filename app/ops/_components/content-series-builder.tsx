@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   AlertTriangle,
@@ -111,6 +112,20 @@ function defaultSeriesStartDate() {
   return `${year}-${month}-${day}`;
 }
 
+function packageImagePreviewUrl(assetLocation: string) {
+  const trimmed = assetLocation.trim();
+
+  if (trimmed.startsWith("https://") || trimmed.startsWith("http://")) {
+    return trimmed;
+  }
+
+  if (typeof window !== "undefined" && trimmed.startsWith("/")) {
+    return `${window.location.origin}${trimmed}`;
+  }
+
+  return trimmed;
+}
+
 function isContentPackageRecord(value: unknown): value is OpsContentPackageRecord {
   if (!value || typeof value !== "object") {
     return false;
@@ -157,7 +172,11 @@ export function ContentSeriesBuilder({
   const [summaryFileName, setSummaryFileName] = useState("");
   const [planLoading, setPlanLoading] = useState(false);
   const [schedulePlan, setSchedulePlan] = useState<OpsAiSeriesPlan | null>(null);
+  const [approvedProposalIds, setApprovedProposalIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const summaryFileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   function openSummaryFilePicker() {
     summaryFileInputRef.current?.click();
@@ -242,6 +261,11 @@ export function ContentSeriesBuilder({
     schedulePreview.length > 0
       ? schedulePreview.length * selectedTargets.length
       : 0;
+  const metaTargetsNeedImage = selectedTargets.some(
+    (target) =>
+      target.platform === "Instagram" || target.platform === "Facebook",
+  );
+  const packageImageSelected = seriesSocialImage.trim().length > 0;
   const selectedPlatformScheduleDefaults = useMemo(
     () =>
       Array.from(new Set(selectedTargets.map((target) => target.platform))).map(
@@ -409,6 +433,7 @@ export function ContentSeriesBuilder({
     setProposals([]);
     setSeriesId("");
     setRunId("");
+    setApprovedProposalIds(new Set());
 
     try {
       const response = await opsFetch("/ops/api/ai/split-series", {
@@ -495,7 +520,27 @@ export function ContentSeriesBuilder({
     }
   }
 
-  async function saveSeriesPackage() {
+  function toggleProposalApproval(proposalId: string) {
+    setApprovedProposalIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(proposalId)) {
+        next.delete(proposalId);
+      } else {
+        next.add(proposalId);
+      }
+
+      return next;
+    });
+  }
+
+  function approveAllProposals() {
+    setApprovedProposalIds(new Set(proposals.map((proposal) => proposal.proposalId)));
+  }
+
+  async function saveSeriesPackage({
+    redirectToCalendar = false,
+  }: { redirectToCalendar?: boolean } = {}) {
     const baseIssues: string[] = [];
 
     if (!seriesTitle.trim()) {
@@ -598,12 +643,16 @@ export function ContentSeriesBuilder({
         packageImage &&
         (target.platform === "Instagram" || target.platform === "Facebook");
 
+      const isApproved = approvedProposalIds.has(proposal.proposalId);
+
       return {
         accountName: target.accountName,
         aiReviewNotes: proposal.safetyNotes,
         approvalRequired: true,
         autopublishEnabled:
-          seriesAutopublish && platformSupportsAutopublish(target.platform),
+          seriesAutopublish &&
+          platformSupportsAutopublish(target.platform) &&
+          isApproved,
         body,
         contentPackageId,
         generatedUrl,
@@ -637,7 +686,7 @@ export function ContentSeriesBuilder({
         seriesIndex: proposal.seriesIndex,
         sourceProjectId: primaryProjectId,
         sourceUpdateId,
-        status: "needs review",
+        status: isApproved ? "approved" : "needs review",
         suggestedScheduleBucketId: platformScheduleBucketId(target.platform),
         suggestedScheduledFor: proposal.suggestedScheduledFor,
         title: proposal.title || seriesTitle,
@@ -725,6 +774,12 @@ export function ContentSeriesBuilder({
           current
             ? `${current} Rebalanced ${changedCount} pending draft date${changedCount === 1 ? "" : "s"} on the publish calendar.`
             : `Rebalanced ${changedCount} pending draft date${changedCount === 1 ? "" : "s"} on the publish calendar.`,
+        );
+      }
+
+      if (redirectToCalendar) {
+        router.push(
+          `/ops/content/calendar?package=${encodeURIComponent(contentPackageId)}`,
         );
       }
     } finally {
@@ -1072,19 +1127,75 @@ export function ContentSeriesBuilder({
                 Review Proposals
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                {proposals.length} drafts · run {runId || "unknown"}
+                {proposals.length} drafts · run {runId || "unknown"} ·{" "}
+                {approvedProposalIds.size} approved
               </p>
             </div>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void saveSeriesPackage()}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-            >
-              <Save className="h-4 w-4" aria-hidden />
-              {saving ? "Saving…" : storageIsDatabase ? "Save Package" : "Save Locally"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={saving || proposals.length === 0}
+                onClick={approveAllProposals}
+                className="inline-flex h-10 items-center rounded-md border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Approve all
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void saveSeriesPackage({ redirectToCalendar: true })}
+                className="inline-flex h-10 items-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              >
+                <Save className="h-4 w-4" aria-hidden />
+                {saving ? "Saving…" : "Save & open calendar"}
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void saveSeriesPackage()}
+                className="inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? "Saving…" : storageIsDatabase ? "Save only" : "Save locally"}
+              </button>
+            </div>
           </div>
+
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Approve drafts here before saving, or approve later on the calendar.
+            Approved drafts appear on the publish calendar ready for autopublish
+            or manual posting.
+          </p>
+
+          {metaTargetsNeedImage && !packageImageSelected ? (
+            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+              No package social image selected. Instagram requires an image to
+              publish; Facebook will post text-only without one. Pick America 250
+              (or another catalog image) above before saving.
+            </div>
+          ) : null}
+
+          {packageImageSelected ? (
+            <div className="mt-4 flex flex-col gap-3 rounded-md border border-sky-200 bg-sky-50 p-4 sm:flex-row sm:items-start">
+              <img
+                alt="Package social image preview"
+                className="h-24 w-24 shrink-0 rounded-md border border-sky-200 bg-white object-cover"
+                src={packageImagePreviewUrl(seriesSocialImage)}
+              />
+              <div className="min-w-0 text-sm text-sky-950">
+                <p className="font-semibold">
+                  Package image will attach on save
+                </p>
+                <p className="mt-1 leading-6">
+                  AI split only generates captions. This image copies onto every
+                  Facebook and Instagram draft when you save the package — it is
+                  not sent to Gemini during split.
+                </p>
+                <p className="mt-2 break-all font-mono text-xs text-sky-800">
+                  {seriesSocialImage.trim()}
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-5 grid gap-6">
             {groupedProposals.map(([date, dateProposals]) => (
@@ -1106,8 +1217,31 @@ export function ContentSeriesBuilder({
                         <StatusPill tone="watch">
                           #{proposal.seriesIndex}
                         </StatusPill>
+                        {packageImageSelected &&
+                        (proposal.platform === "Instagram" ||
+                          proposal.platform === "Facebook") ? (
+                          <StatusPill tone="good">Image on save</StatusPill>
+                        ) : null}
+                        {approvedProposalIds.has(proposal.proposalId) ? (
+                          <StatusPill tone="good">Approved</StatusPill>
+                        ) : null}
                       </div>
                       <p className="mt-1 text-xs text-slate-500">{proposal.title}</p>
+                      {packageImageSelected &&
+                      (proposal.platform === "Instagram" ||
+                        proposal.platform === "Facebook") ? (
+                        <div className="mt-3 flex items-center gap-3 rounded-md border border-slate-200 bg-white p-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            alt="Draft social image preview"
+                            className="h-16 w-16 shrink-0 rounded object-cover"
+                            src={packageImagePreviewUrl(seriesSocialImage)}
+                          />
+                          <p className="text-xs leading-5 text-slate-600">
+                            One image for this post — attached when you save.
+                          </p>
+                        </div>
+                      ) : null}
                       <textarea
                         value={proposal.body}
                         onChange={(event) =>
@@ -1126,6 +1260,21 @@ export function ContentSeriesBuilder({
                           ))}
                         </ul>
                       ) : null}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleProposalApproval(proposal.proposalId)}
+                          className={`inline-flex h-8 items-center rounded-md border px-3 text-xs font-semibold ${
+                            approvedProposalIds.has(proposal.proposalId)
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                              : "border-emerald-300 bg-white text-emerald-900 hover:bg-emerald-50"
+                          }`}
+                        >
+                          {approvedProposalIds.has(proposal.proposalId)
+                            ? "Approved"
+                            : "Approve"}
+                        </button>
+                      </div>
                     </article>
                   ))}
                 </div>

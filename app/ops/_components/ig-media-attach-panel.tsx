@@ -52,9 +52,9 @@ export function IgMediaAttachPanel({
   assetLocation = "",
   catalogScope = "project",
   compact = false,
-  description = "Pick an approved image or upload a new screenshot. Ops publishes this image with your approved caption.",
+  description = "One image per post. Pick from the catalog or upload — only the selected image above is published.",
   disabled = false,
-  heading = "Instagram product screenshot",
+  heading = "Social image",
   onChange,
   projectId,
 }: IgMediaAttachPanelProps) {
@@ -62,6 +62,7 @@ export function IgMediaAttachPanel({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(!compact);
 
   const loadCatalog = useCallback(async () => {
     setLoading(true);
@@ -220,37 +221,67 @@ export function IgMediaAttachPanel({
       ) : null}
 
       {!loading && catalog && catalog.entries.length > 0 ? (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {catalog.entries.map((entry) => {
-            const selected = assetLocation.trim() === entry.assetLocation;
+        <div className="mt-3">
+          {compact && !catalogOpen ? (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => setCatalogOpen(true)}
+              className="inline-flex h-8 items-center rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Browse catalog to change image
+            </button>
+          ) : (
+            <>
+              <p className="text-xs font-semibold text-slate-700">
+                Catalog — pick one image to replace the selection above
+              </p>
+              {compact ? (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setCatalogOpen(false)}
+                  className="mt-2 inline-flex h-7 items-center rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Hide catalog
+                </button>
+              ) : null}
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {catalog.entries.map((entry) => {
+                  const selected = assetLocation.trim() === entry.assetLocation;
 
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                disabled={disabled}
-                onClick={() => onChange(entry.assetLocation)}
-                className={`overflow-hidden rounded-md border text-left transition ${
-                  selected
-                    ? "border-fuchsia-500 ring-2 ring-fuchsia-200"
-                    : "border-slate-200 bg-white hover:border-fuchsia-300"
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewUrl(entry.assetLocation)}
-                  alt={entry.label}
-                  className="h-24 w-full object-cover bg-slate-100"
-                />
-                <div className="px-2 py-2">
-                  <p className="text-xs font-semibold text-slate-900">{entry.label}</p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">
-                    {entry.tags.join(" · ")}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+                  return (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onChange(entry.assetLocation)}
+                      className={`overflow-hidden rounded-md border text-left transition ${
+                        selected
+                          ? "border-fuchsia-500 ring-2 ring-fuchsia-200"
+                          : "border-slate-200 bg-white hover:border-fuchsia-300"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={previewUrl(entry.assetLocation)}
+                        alt={entry.label}
+                        className="h-24 w-full object-cover bg-slate-100"
+                      />
+                      <div className="px-2 py-2">
+                        <p className="text-xs font-semibold text-slate-900">
+                          {entry.label}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          {entry.tags.join(" · ")}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       ) : null}
 
