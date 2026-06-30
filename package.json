@@ -20,6 +20,7 @@
     "ops:check-publishable-copy": "npx tsx scripts/check-publishable-copy.ts",
     "ops:render-america-250": "node scripts/render-america-250-social.mjs",
     "ops:render-syncsoap-progress-ig": "node scripts/render-syncsoap-progress-ig.mjs",
+    "ops:render-product-covers": "node scripts/render-product-social-cover.mjs",
     "ops:check-social-default-image": "npx tsx scripts/check-social-default-image.ts"
   },
   "dependencies": {

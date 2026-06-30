@@ -8,7 +8,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 const catalogEntries = [
   {
-    assetLocation: "/ops-ig/syncsoap-product-screenshot-ig-square.png",
+    assetLocation: "/ops-ig/syncsoap-product-cover-square.png",
     id: "syncsoap-product-screenshot-ig-square",
     label: "SyncSOAP product — IG square",
     projectId: "syncsoap" as const,

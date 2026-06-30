@@ -31,25 +31,25 @@ export const PROJECT_PLATFORM_DEFAULTS: Partial<
   Record<OpsProjectId, Partial<Record<PublicationPlatform | "default", string>>>
 > = {
   bringhurstdo: {
-    default: "/bringhurstdo-social-header.png",
-    Facebook: "/bringhurstdo-social-header.png",
-    Instagram: "/bringhurstdo-social-header.png",
-    LinkedIn: "/bringhurstdo-social-header.png",
-    X: "/bringhurstdo-social-header.png",
+    default: "/ops-ig/bringhurstdo-product-cover-landscape.png",
+    Facebook: "/ops-ig/bringhurstdo-product-cover-facebook.png",
+    Instagram: "/ops-ig/bringhurstdo-product-cover-square.png",
+    LinkedIn: "/ops-ig/bringhurstdo-product-cover-facebook.png",
+    X: "/ops-ig/bringhurstdo-product-cover-landscape.png",
   },
   syncsafety: {
-    default: "/syncsafety-mock.jpg",
-    Facebook: "/syncsafety-mock.jpg",
-    Instagram: "/syncsafety-mock.jpg",
-    LinkedIn: "/syncsafety-mock.jpg",
-    X: "/syncsafety-mock.jpg",
+    default: "/ops-ig/syncsafety-product-cover-landscape.png",
+    Facebook: "/ops-ig/syncsafety-product-cover-facebook.png",
+    Instagram: "/ops-ig/syncsafety-product-cover-square.png",
+    LinkedIn: "/ops-ig/syncsafety-product-cover-facebook.png",
+    X: "/ops-ig/syncsafety-product-cover-landscape.png",
   },
   syncsoap: {
-    default: "/ops-ig/syncsoap-product-screenshot-ig-square.png",
-    Facebook: "/ops-ig/syncsoap-product-screenshot-ig-square.png",
-    Instagram: "/ops-ig/syncsoap-product-screenshot-ig-square.png",
-    LinkedIn: "/ops-ig/syncsoap-product-screenshot-ig-square.png",
-    X: "/ops-ig/syncsoap-product-screenshot-ig-square.png",
+    default: "/ops-ig/syncsoap-product-cover-landscape.png",
+    Facebook: "/ops-ig/syncsoap-product-cover-facebook.png",
+    Instagram: "/ops-ig/syncsoap-product-cover-square.png",
+    LinkedIn: "/ops-ig/syncsoap-product-cover-facebook.png",
+    X: "/ops-ig/syncsoap-product-cover-landscape.png",
   },
 };
 

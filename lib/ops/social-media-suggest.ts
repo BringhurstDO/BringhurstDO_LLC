@@ -38,7 +38,11 @@ export const SOCIAL_CATALOG_HINTS: SocialCatalogHint[] = [
     ],
   },
   {
-    catalogIds: ["syncsoap-product-screenshot", "syncsoap-product-screenshot-ig-square"],
+    catalogIds: [
+      "syncsoap-product-cover-landscape",
+      "syncsoap-product-cover-square",
+      "syncsoap-product-screenshot-ig-square",
+    ],
     label: "SyncSOAP product screenshot",
     patterns: [
       /ambient scribe/i,
@@ -48,13 +52,16 @@ export const SOCIAL_CATALOG_HINTS: SocialCatalogHint[] = [
     ],
   },
   {
-    catalogIds: ["syncsafety-product-mock"],
-    label: "SyncSafety product mock",
-    patterns: [/syncsafety/i, /ehs/i, /safety compliance/i],
+    catalogIds: ["syncsafety-product-cover-landscape", "syncsafety-product-cover-square"],
+    label: "SyncSafety product cover",
+    patterns: [/syncsafety/i, /safety workflow/i, /\behs\b/i, /safety compliance/i],
   },
   {
-    catalogIds: ["bringhurstdo-social-header"],
-    label: "BringhurstDO social header",
+    catalogIds: [
+      "bringhurstdo-product-cover-landscape",
+      "bringhurstdo-product-cover-square",
+    ],
+    label: "BringhurstDO product cover",
     patterns: [/bringhurstdo/i, /build in public/i, /operator note/i],
   },
 ];
