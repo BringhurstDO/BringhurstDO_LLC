@@ -23,6 +23,7 @@ type PublishBody = {
   publicationTargetId?: unknown;
   accountId?: unknown;
   publishingProjectId?: unknown;
+  sourceProjectId?: unknown;
   title?: unknown;
   body?: unknown;
   linkUrl?: unknown;
@@ -102,6 +103,7 @@ export async function POST(request: NextRequest) {
     platformDraftId,
     publicationTargetId,
     publishingProjectId: asProjectId(payload.publishingProjectId),
+    sourceProjectId: asProjectId(payload.sourceProjectId),
     title: title || undefined,
     trigger: "manual",
   });

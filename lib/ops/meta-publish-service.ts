@@ -39,6 +39,7 @@ export type MetaDraftPublishInput = {
   platformDraftId: string;
   publicationTargetId: string;
   publishingProjectId?: OpsProjectId;
+  sourceProjectId?: OpsProjectId;
   title?: string;
   trigger: "autopublish" | "manual";
 };
@@ -183,9 +184,12 @@ export async function publishMetaDraft(
     const image = resolvePublishImageUrl({
       accountId: account.accountId,
       assetLocation: input.assetLocation,
+      body: input.body,
       imageUrl: input.imageUrl,
       platform: "Instagram",
       publishingProjectId: input.publishingProjectId,
+      sourceProjectId: input.sourceProjectId,
+      title: input.title,
     });
 
     if (!image.ok) {
@@ -318,9 +322,12 @@ export async function publishMetaDraft(
   const image = resolvePublishImageUrl({
     accountId: account.accountId,
     assetLocation: input.assetLocation,
+    body: input.body,
     imageUrl: input.imageUrl,
     platform: "Facebook",
     publishingProjectId: input.publishingProjectId,
+    sourceProjectId: input.sourceProjectId,
+    title: input.title,
   });
 
   try {

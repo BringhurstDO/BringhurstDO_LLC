@@ -1,24 +1,9 @@
 import "server-only";
 
 import { resolveOpsPublicOrigin } from "@/lib/ops/ops-public-origin";
+import { listOpsIgMediaCatalog } from "@/lib/ops/ops-ig-media-catalog";
+import { resolveDefaultAssetLocation } from "@/lib/ops/social-default-image";
 import type { OpsProjectId, PublicationPlatform } from "@/lib/ops/types";
-
-const PROJECT_DEFAULT_ASSET: Partial<Record<OpsProjectId, string>> = {
-  bringhurstdo: "/bringhurstdo-social-header.png",
-  syncsafety: "/syncsafety-mock.jpg",
-  syncsoap: "/ops-ig/syncsoap-product-screenshot.png",
-};
-
-const PLATFORM_ASSET_ALIASES: Partial<
-  Record<PublicationPlatform, Record<string, string>>
-> = {
-  Facebook: {
-    "/ops-ig/america-250-square.png": "/ops-ig/america-250-facebook.png",
-  },
-  LinkedIn: {
-    "/ops-ig/america-250-square.png": "/ops-ig/america-250-facebook.png",
-  },
-};
 
 function parseDefaultImagesFromEnv() {
   const raw = process.env.META_INSTAGRAM_DEFAULT_IMAGES?.trim();
@@ -70,25 +55,17 @@ function toAbsolutePublicUrl(origin: string, value: string) {
   return null;
 }
 
-export function platformPreferredAssetLocation(
-  platform: PublicationPlatform | undefined,
-  assetLocation: string | undefined,
-) {
-  const trimmed = assetLocation?.trim();
-
-  if (!trimmed || !platform) {
-    return trimmed;
-  }
-
-  return PLATFORM_ASSET_ALIASES[platform]?.[trimmed] ?? trimmed;
-}
+export { platformPreferredAssetLocation } from "@/lib/ops/social-default-image";
 
 export function resolvePublishImageUrl(input: {
   accountId?: string;
   assetLocation?: string;
+  body?: string;
   imageUrl?: string;
   platform?: PublicationPlatform;
   publishingProjectId?: OpsProjectId;
+  sourceProjectId?: OpsProjectId;
+  title?: string;
 }):
   | { ok: true; imageUrl: string }
   | { ok: false; reason: string } {
@@ -103,19 +80,22 @@ export function resolvePublishImageUrl(input: {
   }
 
   const envDefaults = parseDefaultImagesFromEnv();
-  const preferredAsset = platformPreferredAssetLocation(
-    input.platform,
-    input.assetLocation,
-  );
+  const catalogEntries = listOpsIgMediaCatalog();
+  const resolvedAsset = resolveDefaultAssetLocation({
+    accountId: input.accountId,
+    assetLocation: input.assetLocation,
+    body: input.body,
+    catalogEntries,
+    envDefaults,
+    platform: input.platform,
+    publishingProjectId: input.publishingProjectId,
+    sourceProjectId: input.sourceProjectId,
+    title: input.title,
+  });
+
   const candidates = [
     input.imageUrl,
-    preferredAsset,
-    input.assetLocation,
-    input.accountId ? envDefaults[input.accountId] : undefined,
-    input.publishingProjectId ? envDefaults[input.publishingProjectId] : undefined,
-    input.publishingProjectId
-      ? PROJECT_DEFAULT_ASSET[input.publishingProjectId]
-      : undefined,
+    resolvedAsset,
     process.env.META_INSTAGRAM_DEFAULT_IMAGE_URL?.trim(),
   ];
 

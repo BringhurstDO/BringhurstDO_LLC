@@ -118,7 +118,9 @@ export function OpsPackageSocialImagePanel({
         <p className="mt-1 text-sm leading-6 text-slate-600">
           Attach once at the package level. Ops copies this image onto LinkedIn,
           X, Facebook, and Instagram drafts when keywords or update type match
-          the catalog. Clear the image on any draft that should stay text-only.
+          the catalog. When no image is selected, publish defaults use the source
+          product and post copy — not the posting account brand (e.g. Kyle&apos;s
+          LinkedIn posting SyncSOAP still gets SyncSOAP art).
         </p>
         {showSuggestion ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950">

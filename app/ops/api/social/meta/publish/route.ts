@@ -26,6 +26,7 @@ type PublishBody = {
   platformDraftId?: unknown;
   publicationTargetId?: unknown;
   publishingProjectId?: unknown;
+  sourceProjectId?: unknown;
   title?: unknown;
 };
 
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
     platformDraftId,
     publicationTargetId,
     publishingProjectId: asProjectId(payload.publishingProjectId),
+    sourceProjectId: asProjectId(payload.sourceProjectId),
     title: title || undefined,
     trigger: "manual",
   });

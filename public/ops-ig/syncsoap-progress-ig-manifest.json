@@ -1,0 +1,192 @@
+{
+  "colors": {
+    "accent": "#00A3DA",
+    "border": "#dbe4ef",
+    "muted": "#64748b",
+    "navy": "#0f172a",
+    "washBottom": "#ffffff",
+    "washMid": "#fbfdff",
+    "washTop": "#f0f7fc"
+  },
+  "carouselOrder": [
+    "syncsoap-progress-ig-01-cover.png",
+    "syncsoap-progress-ig-02-product.png",
+    "syncsoap-progress-ig-03-study.png",
+    "syncsoap-progress-ig-04-vision.png",
+    "syncsoap-progress-ig-05-lesion.png",
+    "syncsoap-progress-ig-06-ai.png",
+    "syncsoap-progress-ig-07-security.png",
+    "syncsoap-progress-ig-08-evidence.png",
+    "syncsoap-progress-ig-09-deploy.png",
+    "syncsoap-progress-ig-10-summary.png"
+  ],
+  "logo": "/syncsoap-logo.svg",
+  "outputs": [
+    {
+      "id": "syncsoap-progress-ig-01-cover",
+      "file": "syncsoap-progress-ig-01-cover.png",
+      "label": "SyncSOAP progress — cover",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-01-cover.png",
+      "eyebrow": "Development progress",
+      "title": "Pilot-ready healthcare documentation",
+      "subtitle": "Product, study, vision, security, compliance, evidence, and deployment — verified on demo.",
+      "bullets": []
+    },
+    {
+      "id": "syncsoap-progress-ig-02-product",
+      "file": "syncsoap-progress-ig-02-product.png",
+      "label": "SyncSOAP progress — product & workflow",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-02-product.png",
+      "eyebrow": "Product & clinical workflow",
+      "title": "Scribe workflow, deeper",
+      "subtitle": "Core encounter experience and note quality",
+      "bullets": [
+        "Expanded scribe workflow and encounter experience",
+        "Improved SOAP generation and structured extraction",
+        "Encounter phase and attestation support",
+        "Admin, workspace, dashboard, and export improvements"
+      ]
+    },
+    {
+      "id": "syncsoap-progress-ig-03-study",
+      "file": "syncsoap-progress-ig-03-study.png",
+      "label": "SyncSOAP progress — study & evaluation",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-03-study.png",
+      "eyebrow": "Study & evaluation",
+      "title": "Controlled evaluation workflow",
+      "subtitle": "Study infrastructure and IRB-ready materials",
+      "bullets": [
+        "Structured study start, case, completion, and admin flows",
+        "Study APIs for cases, timing, scoring, and exports",
+        "IRB drafts: consent, eligibility, rubrics, and dictionaries",
+        "Demo verified: /study/start is live"
+      ]
+    },
+    {
+      "id": "syncsoap-progress-ig-04-vision",
+      "file": "syncsoap-progress-ig-04-vision.png",
+      "label": "SyncSOAP progress — image & vision",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-04-vision.png",
+      "eyebrow": "Image & vision workflow",
+      "title": "Image-aware documentation",
+      "subtitle": "Upload paths, camera UX, and vision policy",
+      "bullets": [
+        "Blob upload, presign, stream, proxy, and read-url routes",
+        "Medical camera and encounter image card improvements",
+        "Vision policy, provider logic, and de-ID helpers",
+        "Vision routing docs and policy tests"
+      ]
+    },
+    {
+      "id": "syncsoap-progress-ig-05-lesion",
+      "file": "syncsoap-progress-ig-05-lesion.png",
+      "label": "SyncSOAP progress — lesion assistant",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-05-lesion.png",
+      "eyebrow": "Lesion-description assistant",
+      "title": "Dermatology documentation support",
+      "subtitle": "Assistant component and API verified in demo",
+      "bullets": [
+        "Lesion-description assistant UI component",
+        "API route with service, config, and compose logic",
+        "Documentation for clinical use and integration",
+        "Endpoint behavior verified on demo deployment"
+      ]
+    },
+    {
+      "id": "syncsoap-progress-ig-06-ai",
+      "file": "syncsoap-progress-ig-06-ai.png",
+      "label": "SyncSOAP progress — AI governance",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-06-ai.png",
+      "eyebrow": "AI & model governance",
+      "title": "Stronger model controls",
+      "subtitle": "Policy, registry, and validation",
+      "bullets": [
+        "Model policy, registry, and production allowlist",
+        "SOAP validation logic and eval cases",
+        "Updated FM extraction and generation pipelines",
+        "Retired legacy specialty-enhancement eval paths"
+      ]
+    },
+    {
+      "id": "syncsoap-progress-ig-07-security",
+      "file": "syncsoap-progress-ig-07-security.png",
+      "label": "SyncSOAP progress — security & compliance",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-07-security.png",
+      "eyebrow": "Security, privacy & compliance",
+      "title": "HIPAA-aligned readiness",
+      "subtitle": "Documentation, controls, and safeguards",
+      "bullets": [
+        "Expanded BAA, data flow, SRA, and readiness checklists",
+        "PHI handling SOP and controls traceability matrix",
+        "Upload safeguard verification and MFA policy",
+        "Production guardrails and security static tests"
+      ]
+    },
+    {
+      "id": "syncsoap-progress-ig-08-evidence",
+      "file": "syncsoap-progress-ig-08-evidence.png",
+      "label": "SyncSOAP progress — evidence & audit",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-08-evidence.png",
+      "eyebrow": "Evidence & audit readiness",
+      "title": "Audit-ready artifacts",
+      "subtitle": "Collection scaffolding and questionnaire support",
+      "bullets": [
+        "Local and AWS evidence collection scaffolding",
+        "Evidence index, templates, and run manifest layout",
+        "Security questionnaire maps and gap tracker",
+        "Scheduled tasks for evidence automation"
+      ]
+    },
+    {
+      "id": "syncsoap-progress-ig-09-deploy",
+      "file": "syncsoap-progress-ig-09-deploy.png",
+      "label": "SyncSOAP progress — deployment",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-09-deploy.png",
+      "eyebrow": "Infrastructure & deployment",
+      "title": "Demo redeploy verified",
+      "subtitle": "Docker, ECR, ECS, and live route checks",
+      "bullets": [
+        "Docker image built, pushed to ECR, and redeployed",
+        "ECS service stability confirmed after rollout",
+        "Homepage, health, study start, and lesion routes live",
+        "Runtime config and transcription IAM docs updated"
+      ]
+    },
+    {
+      "id": "syncsoap-progress-ig-10-summary",
+      "file": "syncsoap-progress-ig-10-summary.png",
+      "label": "SyncSOAP progress — summary",
+      "width": 1080,
+      "height": 1080,
+      "assetLocation": "/ops-ig/syncsoap-progress-ig-10-summary.png",
+      "eyebrow": "Overall state",
+      "title": "Beyond AI note generation",
+      "subtitle": "A broader pilot-ready documentation platform",
+      "bullets": [
+        "Study and evaluation infrastructure",
+        "Image-aware and lesion-description workflows",
+        "Compliance, evidence, and security scaffolding",
+        "Admin, workspace, and verified demo deployment"
+      ]
+    }
+  ],
+  "suggestedCaption": "SyncSOAP development progress: from AI note generation toward a pilot-ready healthcare documentation platform. Swipe for product, study, vision, security, evidence, and deployment updates. syncsoap.com"
+}

@@ -707,7 +707,7 @@ export function PublishCalendarPanel({
       `Publish this approved draft to LinkedIn as ${accountStatus.accountLabel ?? draft.accountName}?${
         draft.media.assetLocation?.trim()
           ? " The attached social image will be published with your caption."
-          : " No image is attached — this will post as text only."
+          : " No image is attached — Ops will pick a default from the post topic (source product), not the posting account brand."
       }`,
     );
 
@@ -729,6 +729,7 @@ export function PublishCalendarPanel({
           platformDraftId: draft.id,
           publicationTargetId: draft.publicationTargetId,
           publishingProjectId: draft.publishingProjectId,
+          sourceProjectId: draft.sourceProjectId,
           title: draft.title,
         }),
         headers: { "Content-Type": "application/json" },
@@ -815,6 +816,7 @@ export function PublishCalendarPanel({
           platformDraftId: draft.id,
           publicationTargetId: draft.publicationTargetId,
           publishingProjectId: draft.publishingProjectId,
+          sourceProjectId: draft.sourceProjectId,
           title: draft.title,
         }),
         headers: { "Content-Type": "application/json" },
@@ -875,7 +877,7 @@ export function PublishCalendarPanel({
       `Publish this approved draft to Facebook as ${accountStatus.accountLabel ?? draft.accountName}?${
         draft.media.assetLocation?.trim()
           ? " The attached social image will be published with your caption."
-          : " No image is attached — this will post as text only unless a brand default is configured."
+          : " No image is attached — Ops will pick a default from the post topic (source product), not the posting account brand."
       }`,
     );
 
@@ -898,6 +900,7 @@ export function PublishCalendarPanel({
           platformDraftId: draft.id,
           publicationTargetId: draft.publicationTargetId,
           publishingProjectId: draft.publishingProjectId,
+          sourceProjectId: draft.sourceProjectId,
           title: draft.title,
         }),
         headers: { "Content-Type": "application/json" },
@@ -962,7 +965,7 @@ export function PublishCalendarPanel({
       `Publish this approved draft to Instagram as ${accountStatus.accountLabel ?? draft.accountName}?${
         draft.media.assetLocation?.trim()
           ? " The attached product screenshot will be published with your caption."
-          : " No screenshot is attached — Ops will use a brand default image."
+          : " No screenshot is attached — Ops will pick a default from the post topic (source product)."
       }`,
     );
 
@@ -985,6 +988,7 @@ export function PublishCalendarPanel({
           platformDraftId: draft.id,
           publicationTargetId: draft.publicationTargetId,
           publishingProjectId: draft.publishingProjectId,
+          sourceProjectId: draft.sourceProjectId,
           title: draft.title,
         }),
         headers: { "Content-Type": "application/json" },
@@ -1315,8 +1319,8 @@ export function PublishCalendarPanel({
                 Suggested windows: {platformScheduleDefaults.join("; ")}. X manual
                 posts use the window guidance and one operator-approved API call per
                 post. Instagram autopublish uses your caption plus an attached
-                product screenshot when one is selected; otherwise it falls back
-                to a brand default image.
+                product screenshot when one is selected; otherwise Ops picks a
+                default from the source product and post copy.
               </p>
             ) : null}
             {xDraftsPresent ? (

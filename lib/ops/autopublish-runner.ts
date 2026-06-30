@@ -104,6 +104,7 @@ async function publishAutopublishDraft(
       ...base,
       assetLocation: draft.media.assetLocation,
       publishingProjectId: draft.publishingProjectId,
+      sourceProjectId: draft.sourceProjectId,
     });
   }
 
@@ -113,6 +114,7 @@ async function publishAutopublishDraft(
       assetLocation: draft.media.assetLocation,
       platform: "Instagram",
       publishingProjectId: draft.publishingProjectId,
+      sourceProjectId: draft.sourceProjectId,
     });
   }
 
@@ -122,6 +124,7 @@ async function publishAutopublishDraft(
       assetLocation: draft.media.assetLocation,
       platform: "Facebook",
       publishingProjectId: draft.publishingProjectId,
+      sourceProjectId: draft.sourceProjectId,
     });
   }
 
@@ -129,6 +132,7 @@ async function publishAutopublishDraft(
     ...base,
     assetLocation: draft.media.assetLocation,
     publishingProjectId: draft.publishingProjectId,
+    sourceProjectId: draft.sourceProjectId,
   });
 }
 

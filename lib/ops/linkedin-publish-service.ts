@@ -45,6 +45,7 @@ export type LinkedInDraftPublishInput = {
   platformDraftId: string;
   publicationTargetId: string;
   publishingProjectId?: OpsProjectId;
+  sourceProjectId?: OpsProjectId;
   title?: string;
   trigger: "autopublish" | "manual";
 };
@@ -212,9 +213,12 @@ export async function publishLinkedInDraft(
   const image = resolvePublishImageUrl({
     accountId: account.accountId,
     assetLocation: input.assetLocation,
+    body: input.body,
     imageUrl: input.imageUrl,
     platform: "LinkedIn",
     publishingProjectId: input.publishingProjectId,
+    sourceProjectId: input.sourceProjectId,
+    title: input.title,
   });
 
   try {

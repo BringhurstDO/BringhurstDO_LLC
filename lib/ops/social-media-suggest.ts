@@ -1,4 +1,5 @@
 import { shouldAutoAttachCatalogImage } from "@/lib/ops/social-image-utils";
+import { resolveProjectDefaultCatalogEntry } from "@/lib/ops/social-default-image";
 import type { OpsProjectId, SourceUpdateType } from "@/lib/ops/types";
 
 export type SocialCatalogHint = {
@@ -20,13 +21,30 @@ export const SOCIAL_CATALOG_HINTS: SocialCatalogHint[] = [
     ],
   },
   {
-    catalogIds: ["syncsoap-product-screenshot"],
+    catalogIds: ["syncsoap-progress-ig-01-cover"],
+    label: "SyncSOAP progress carousel",
+    patterns: [
+      /development progress/i,
+      /pilot-ready/i,
+      /pilot ready/i,
+      /study workflow/i,
+      /lesion-description/i,
+      /lesion description/i,
+      /model governance/i,
+      /evidence bundle/i,
+      /hipaa-aligned/i,
+      /syncsoap.*update/i,
+      /syncsoap.*progress/i,
+    ],
+  },
+  {
+    catalogIds: ["syncsoap-product-screenshot", "syncsoap-product-screenshot-ig-square"],
     label: "SyncSOAP product screenshot",
     patterns: [
-      /syncsoap/i,
       /ambient scribe/i,
       /ai scribe/i,
       /provider dashboard/i,
+      /syncsoap.*(?:scribe|dashboard|beta|product)/i,
     ],
   },
   {
@@ -165,12 +183,9 @@ export function resolveAutoPackageSocialImage<
   }
 
   if (shouldAutoAttachCatalogImage(updateType, false)) {
-    const projectDefault = entries.find(
-      (item) =>
-        item.projectId === projectId &&
-        (item.id.includes("product") ||
-          item.id.includes("screenshot") ||
-          item.id.includes("mock")),
+    const projectDefault = resolveProjectDefaultCatalogEntry(
+      entries,
+      projectId,
     );
 
     if (projectDefault) {
