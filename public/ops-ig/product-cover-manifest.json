@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-06-30T03:27:03.031Z",
+  "generatedAt": "2026-06-30T15:10:19.459Z",
   "outputs": [
     {
       "brand": "syncsafety",
-      "facebookPath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\syncsafety-product-cover-facebook.png",
       "landscapePath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\syncsafety-product-cover-landscape.png",
-      "squarePath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\syncsafety-product-cover-square.png"
+      "squarePath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\syncsafety-product-cover-square.png",
+      "facebookPath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\syncsafety-product-cover-facebook.png"
     },
     {
       "brand": "bringhurstdo",
-      "facebookPath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\bringhurstdo-product-cover-facebook.png",
       "landscapePath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\bringhurstdo-product-cover-landscape.png",
-      "squarePath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\bringhurstdo-product-cover-square.png"
+      "squarePath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\bringhurstdo-product-cover-square.png",
+      "facebookPath": "C:\\Users\\aktwi\\SyncApps\\BringhurstDO_LLC\\public\\ops-ig\\bringhurstdo-product-cover-facebook.png"
     },
     {
       "brand": "syncsoap",

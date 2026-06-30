@@ -6,8 +6,140 @@ import sharp from "sharp";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(root, "public", "ops-ig");
+const manifestPath = path.join(outDir, "product-cover-manifest.json");
 
-const SIZE = { width: 1536, height: 1024 };
+const OUTPUT_LAYOUTS = {
+  landscape: {
+    width: 1536,
+    height: 1024,
+    hex: { x: 900, width: 636 },
+    logo: {
+      iconX: 72,
+      iconY: 72,
+      iconSize: 72,
+      textX: 152,
+      textY: 135,
+      textSize: 34,
+      taglineY: 188,
+      taglineSize: 20,
+    },
+    headline: {
+      x: 72,
+      y: 286,
+      mainSize: 56,
+      accentSize: 54,
+      mainGap: 70,
+      accentLineHeight: 60,
+      ruleGap: 26,
+      subheadGap: 50,
+      subheadSize: 21,
+      subheadChars: 48,
+      subheadLineHeight: 30,
+    },
+    phone: { x: 610, y: 128, width: 430 },
+    features: {
+      x: 1188,
+      y: 250,
+      gap: 168,
+      titleSize: 24,
+      bodySize: 17,
+      bodyChars: 32,
+      bodyLineHeight: 23,
+    },
+    footer: {
+      iconX: 64,
+      iconY: 878,
+      iconSize: 68,
+      textX: 150,
+      textY: 926,
+      textSize: 20,
+    },
+  },
+  square: {
+    width: 1080,
+    height: 1080,
+    hex: { x: 650, width: 430 },
+    logo: {
+      iconX: 72,
+      iconY: 70,
+      iconSize: 68,
+      textX: 148,
+      textY: 129,
+      textSize: 32,
+      taglineY: 174,
+      taglineSize: 19,
+    },
+    headline: {
+      x: 72,
+      y: 276,
+      mainSize: 51,
+      accentSize: 48,
+      mainGap: 64,
+      accentLineHeight: 54,
+      ruleGap: 24,
+      subheadGap: 48,
+      subheadSize: 20,
+      subheadChars: 34,
+      subheadLineHeight: 29,
+    },
+    phone: { x: 586, y: 190, width: 420 },
+    features: null,
+    footer: {
+      iconX: 72,
+      iconY: 960,
+      iconSize: 56,
+      textX: 142,
+      textY: 997,
+      textSize: 18,
+    },
+  },
+  facebook: {
+    width: 1200,
+    height: 630,
+    hex: { x: 700, width: 500 },
+    logo: {
+      iconX: 56,
+      iconY: 40,
+      iconSize: 54,
+      textX: 120,
+      textY: 88,
+      textSize: 26,
+      taglineY: 126,
+      taglineSize: 16,
+    },
+    headline: {
+      x: 56,
+      y: 214,
+      mainSize: 42,
+      accentSize: 40,
+      mainGap: 52,
+      accentLineHeight: 45,
+      ruleGap: 18,
+      subheadGap: 40,
+      subheadSize: 16,
+      subheadChars: 36,
+      subheadLineHeight: 23,
+    },
+    phone: { x: 454, y: 20, width: 334 },
+    features: {
+      x: 846,
+      y: 112,
+      gap: 118,
+      titleSize: 21,
+      bodySize: 15,
+      bodyChars: 30,
+      bodyLineHeight: 20,
+    },
+    footer: {
+      iconX: 56,
+      iconY: 548,
+      iconSize: 42,
+      textX: 110,
+      textY: 576,
+      textSize: 16,
+    },
+  },
+};
 
 const BRANDS = {
   syncsafety: {
@@ -27,6 +159,7 @@ const BRANDS = {
     site: "bringhurstdo.com/syncsafety",
     subhead: "Guided recordability, OSHA exports, and less administrative tax.",
     tagline: "Safety workflows for modern teams",
+    titleAccentLines: ["Software handles", "the forms."],
     titleAccent: "Software handles the forms.",
     titleMain: "Focus on the floor.",
     trust: "OSHA 1904 aligned. Audit-ready records.",
@@ -45,7 +178,7 @@ const BRANDS = {
     badgeInk: "#ffffff",
     id: "bringhurstdo",
     logoPath: path.join(root, "public", "Icon-BringhurstDOLLC.svg"),
-    logoCrop: "680 80 680 1180",
+    logoCrop: "300 80 1400 1600",
     nameHtml: `<tspan fill="#247D8A">Bringhurst</tspan><tspan fill="#586B76">DO</tspan>`,
     outputs: {
       landscape: "bringhurstdo-product-cover-landscape.png",
@@ -56,6 +189,7 @@ const BRANDS = {
     subhead:
       "Clinical, industrial, and learning workflow products built practitioner-first.",
     tagline: "Healthcare & industrial venture studio",
+    titleAccentLines: ["We build the", "systems."],
     titleAccent: "We build the systems.",
     titleMain: "Focus on operators.",
     trust: "Practitioner-informed. Security-first.",
@@ -76,6 +210,57 @@ function escapeXml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&apos;");
+}
+
+function wrapText(value, maxChars) {
+  const words = value.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+
+    if (next.length <= maxChars || !current) {
+      current = next;
+      continue;
+    }
+
+    lines.push(current);
+    current = word;
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines;
+}
+
+function textLine({ color, fontSize, weight = 700, x, y, value }) {
+  return `<text x="${x}" y="${y}" font-family="Segoe UI, Arial, sans-serif" font-size="${fontSize}" font-weight="${weight}" fill="${color}">${escapeXml(value)}</text>`;
+}
+
+function textBlock({
+  color,
+  fontSize,
+  lineHeight,
+  lines,
+  weight = 500,
+  x,
+  y,
+}) {
+  return lines
+    .map((line, index) =>
+      textLine({
+        color,
+        fontSize,
+        weight,
+        x,
+        y: y + index * lineHeight,
+        value: line,
+      }),
+    )
+    .join("\n");
 }
 
 async function rasterLogo(brand, size) {
@@ -174,95 +359,186 @@ function studioPhoneMock(accent, secondary) {
 </svg>`);
 }
 
-function backgroundSvg(brand) {
-  const features = brand.features
-    .map((feature, index) => {
-      const y = 250 + index * 168;
+function featureMarkup(brand, layout) {
+  if (!layout.features) {
+    return "";
+  }
 
-      return `<g transform="translate(1188, ${y})">
+  return brand.features
+    .map((feature, index) => {
+      const y = layout.features.y + index * layout.features.gap;
+      const bodyLines = wrapText(feature.body, layout.features.bodyChars);
+
+      return `<g transform="translate(${layout.features.x}, ${y})">
         ${featureIcon(index, brand.accent)}
-        <text x="58" y="20" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="800" fill="${brand.accent}">${escapeXml(feature.title)}</text>
-        <text x="58" y="48" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="500" fill="#64748b">${escapeXml(feature.body)}</text>
+        ${textLine({
+          color: brand.accent,
+          fontSize: layout.features.titleSize,
+          weight: 800,
+          x: 58,
+          y: 20,
+          value: feature.title,
+        })}
+        ${textBlock({
+          color: "#64748b",
+          fontSize: layout.features.bodySize,
+          lineHeight: layout.features.bodyLineHeight,
+          lines: bodyLines,
+          weight: 500,
+          x: 58,
+          y: 48,
+        })}
       </g>`;
     })
     .join("\n");
+}
 
-  return Buffer.from(`<svg width="${SIZE.width}" height="${SIZE.height}" viewBox="0 0 ${SIZE.width} ${SIZE.height}" xmlns="http://www.w3.org/2000/svg">
+function logoLockupMarkup(brand, layout) {
+  return `<text x="${layout.logo.textX}" y="${layout.logo.textY}" font-family="Segoe UI, Arial, sans-serif" font-size="${layout.logo.textSize}" font-weight="800">${brand.nameHtml}</text>
+  ${textLine({
+    color: "#64748b",
+    fontSize: layout.logo.taglineSize,
+    weight: 600,
+    x: layout.logo.textX,
+    y: layout.logo.taglineY,
+    value: brand.tagline,
+  })}`;
+}
+
+function headlineMarkup(brand, layout) {
+  const title = layout.headline;
+  const accentLines = brand.titleAccentLines;
+  const accentStartY = title.y + title.mainGap;
+  const ruleY =
+    accentStartY + accentLines.length * title.accentLineHeight + title.ruleGap;
+  const subheadY = ruleY + title.subheadGap;
+  const subheadLines = wrapText(brand.subhead, title.subheadChars);
+
+  return `${textLine({
+    color: "#0f172a",
+    fontSize: title.mainSize,
+    weight: 800,
+    x: title.x,
+    y: title.y,
+    value: brand.titleMain,
+  })}
+  ${textBlock({
+    color: brand.accent,
+    fontSize: title.accentSize,
+    lineHeight: title.accentLineHeight,
+    lines: accentLines,
+    weight: 800,
+    x: title.x,
+    y: accentStartY,
+  })}
+  <rect x="${title.x}" y="${ruleY}" width="84" height="5" rx="2.5" fill="${brand.accent}"/>
+  ${textBlock({
+    color: "#64748b",
+    fontSize: title.subheadSize,
+    lineHeight: title.subheadLineHeight,
+    lines: subheadLines,
+    weight: 500,
+    x: title.x,
+    y: subheadY,
+  })}`;
+}
+
+function footerMarkup(brand, layout) {
+  return textLine({
+    color: brand.accent,
+    fontSize: layout.footer.textSize,
+    weight: 800,
+    x: layout.footer.textX,
+    y: layout.footer.textY,
+    value: brand.trust,
+  });
+}
+
+function backgroundSvg(brand, layout) {
+  return Buffer.from(`<svg width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="55%" stop-color="#fbfdff"/>
+      <stop offset="58%" stop-color="#fbfdff"/>
       <stop offset="100%" stop-color="#f3f7fb"/>
     </linearGradient>
     <radialGradient id="accentWash" cx="88%" cy="18%" r="42%">
-      <stop offset="0%" stop-color="${brand.accent}" stop-opacity="0.16"/>
+      <stop offset="0%" stop-color="${brand.accent}" stop-opacity="0.14"/>
       <stop offset="100%" stop-color="${brand.accent}" stop-opacity="0"/>
     </radialGradient>
     <pattern id="hex" width="56" height="48" patternUnits="userSpaceOnUse">
       <path d="M28 2 L52 16 L52 32 L28 46 L4 32 L4 16 Z" fill="none" stroke="#cbd5e1" stroke-width="1" opacity="0.28"/>
     </pattern>
   </defs>
-  <rect width="${SIZE.width}" height="${SIZE.height}" fill="url(#bg)"/>
-  <rect width="${SIZE.width}" height="${SIZE.height}" fill="url(#accentWash)"/>
-  <rect x="900" y="0" width="636" height="${SIZE.height}" fill="url(#hex)" opacity="0.55"/>
-
-  <text x="72" y="150" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">${brand.nameHtml}</text>
-  <text x="72" y="188" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#64748b">${escapeXml(brand.tagline)}</text>
-
-  <text x="72" y="286" font-family="Segoe UI, Arial, sans-serif" font-size="58" font-weight="800" fill="#0f172a">${escapeXml(brand.titleMain)}</text>
-  <text x="72" y="358" font-family="Segoe UI, Arial, sans-serif" font-size="58" font-weight="800" fill="${brand.accent}">${escapeXml(brand.titleAccent)}</text>
-  <rect x="72" y="390" width="84" height="5" rx="2.5" fill="${brand.accent}"/>
-  <text x="72" y="442" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="500" fill="#64748b">${escapeXml(brand.subhead)}</text>
-
-  <circle cx="98" cy="918" r="34" fill="${brand.badgeFill}"/>
-  <text x="150" y="926" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="${brand.accent}">${escapeXml(brand.trust)}</text>
-
-  ${features}
+  <rect width="${layout.width}" height="${layout.height}" fill="url(#bg)"/>
+  <rect width="${layout.width}" height="${layout.height}" fill="url(#accentWash)"/>
+  <rect x="${layout.hex.x}" y="0" width="${layout.hex.width}" height="${layout.height}" fill="url(#hex)" opacity="0.55"/>
+  ${logoLockupMarkup(brand, layout)}
+  ${headlineMarkup(brand, layout)}
+  ${footerMarkup(brand, layout)}
+  ${featureMarkup(brand, layout)}
 </svg>`);
 }
 
-async function renderBrandCover(brand) {
-  const [background, logo, mock] = await Promise.all([
-    sharp(backgroundSvg(brand)).png().toBuffer(),
-    rasterLogo(brand, 88),
-    sharp(
-      brand.mock === "safety"
-        ? safetyPhoneMock(brand.accent)
-        : studioPhoneMock(brand.accent, "#FFC107"),
-    )
-      .png()
-      .toBuffer(),
-  ]);
+function mockForBrand(brand) {
+  return brand.mock === "safety"
+    ? safetyPhoneMock(brand.accent)
+    : studioPhoneMock(brand.accent, "#FFC107");
+}
 
-  const landscapePath = path.join(outDir, brand.outputs.landscape);
+async function resizedPng(buffer, width) {
+  return sharp(buffer).resize({ width }).png().toBuffer();
+}
+
+async function renderBrandVariant(brand, variant, layout, logo, footerLogo, mock) {
+  const background = await sharp(backgroundSvg(brand, layout)).png().toBuffer();
+  const phone = await resizedPng(mock, layout.phone.width);
+  const outputPath = path.join(outDir, brand.outputs[variant]);
 
   await sharp(background)
     .composite([
-      { input: logo, left: 72, top: 72 },
-      { input: logo, left: 64, top: 884 },
-      { input: mock, left: 610, top: 128 },
+      {
+        input: await resizedPng(logo, layout.logo.iconSize),
+        left: layout.logo.iconX,
+        top: layout.logo.iconY,
+      },
+      {
+        input: phone,
+        left: layout.phone.x,
+        top: layout.phone.y,
+      },
+      {
+        input: await resizedPng(footerLogo, layout.footer.iconSize),
+        left: layout.footer.iconX,
+        top: layout.footer.iconY,
+      },
     ])
     .png()
-    .toFile(landscapePath);
+    .toFile(outputPath);
 
-  const squarePath = path.join(outDir, brand.outputs.square);
-  await sharp(landscapePath)
-    .extract({ left: 228, top: 0, width: 1024, height: 1024 })
-    .resize(1080, 1080)
-    .png()
-    .toFile(squarePath);
+  return outputPath;
+}
 
-  const facebookPath = path.join(outDir, brand.outputs.facebook);
-  await sharp(landscapePath)
-    .resize(1200, 630, { fit: "cover", position: "centre" })
-    .png()
-    .toFile(facebookPath);
+async function renderBrandCover(brand) {
+  const [logo, footerLogo] = await Promise.all([
+    rasterLogo(brand, 120),
+    rasterLogo(brand, 120),
+  ]);
+  const mock = mockForBrand(brand);
+  const outputs = {};
 
-  return {
-    facebookPath,
-    landscapePath,
-    squarePath,
-  };
+  for (const [variant, layout] of Object.entries(OUTPUT_LAYOUTS)) {
+    outputs[`${variant}Path`] = await renderBrandVariant(
+      brand,
+      variant,
+      layout,
+      logo,
+      footerLogo,
+      mock,
+    );
+  }
+
+  return outputs;
 }
 
 async function syncSyncSoapLandscape() {
@@ -292,11 +568,63 @@ async function syncSyncSoapLandscape() {
   return { facebook, landscape, square };
 }
 
+function readManifestOutputs() {
+  try {
+    const parsed = JSON.parse(readFileSync(manifestPath, "utf8"));
+
+    if (Array.isArray(parsed.outputs)) {
+      return parsed.outputs;
+    }
+  } catch {
+    // Missing or invalid generated metadata should not block image rendering.
+  }
+
+  return [];
+}
+
+function writeMergedManifest(renderedOutputs) {
+  const outputByBrand = new Map();
+
+  for (const output of readManifestOutputs()) {
+    if (output && typeof output.brand === "string") {
+      outputByBrand.set(output.brand, output);
+    }
+  }
+
+  for (const output of renderedOutputs) {
+    outputByBrand.set(output.brand, output);
+  }
+
+  writeFileSync(
+    manifestPath,
+    JSON.stringify(
+      {
+        generatedAt: new Date().toISOString(),
+        outputs: Array.from(outputByBrand.values()),
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+const requested = new Set(
+  process.argv
+    .slice(2)
+    .map((value) => value.toLowerCase())
+    .filter(Boolean),
+);
+const renderAll = requested.size === 0;
+
 mkdirSync(outDir, { recursive: true });
 
 const outputs = [];
 
 for (const brand of Object.values(BRANDS)) {
+  if (!renderAll && !requested.has(brand.id)) {
+    continue;
+  }
+
   const rendered = await renderBrandCover(brand);
   outputs.push({ brand: brand.id, ...rendered });
   console.log(`Rendered ${brand.id}:`);
@@ -305,16 +633,15 @@ for (const brand of Object.values(BRANDS)) {
   console.log(`  ${rendered.facebookPath}`);
 }
 
-const syncsoap = await syncSyncSoapLandscape();
-outputs.push({ brand: "syncsoap", ...syncsoap });
-console.log("Synced syncsoap landscape from base-icons-fixed:");
-console.log(`  ${syncsoap.landscape}`);
-console.log(`  ${syncsoap.square}`);
-console.log(`  ${syncsoap.facebook}`);
+if (renderAll || requested.has("syncsoap")) {
+  const syncsoap = await syncSyncSoapLandscape();
+  outputs.push({ brand: "syncsoap", ...syncsoap });
+  console.log("Synced syncsoap landscape from base-icons-fixed:");
+  console.log(`  ${syncsoap.landscape}`);
+  console.log(`  ${syncsoap.square}`);
+  console.log(`  ${syncsoap.facebook}`);
+}
 
-writeFileSync(
-  path.join(outDir, "product-cover-manifest.json"),
-  JSON.stringify({ generatedAt: new Date().toISOString(), outputs }, null, 2),
-);
+writeMergedManifest(outputs);
 
 console.log("Product social cover renders complete.");
