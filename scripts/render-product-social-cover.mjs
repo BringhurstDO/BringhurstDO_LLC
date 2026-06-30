@@ -83,7 +83,15 @@ const OUTPUT_LAYOUTS = {
       subheadLineHeight: 29,
     },
     phone: { x: 586, y: 190, width: 420 },
-    features: null,
+    features: {
+      x: 72,
+      y: 632,
+      gap: 78,
+      titleSize: 22,
+      bodySize: 16,
+      bodyChars: 32,
+      bodyLineHeight: 21,
+    },
     footer: {
       iconX: 72,
       iconY: 960,
@@ -203,6 +211,16 @@ const BRANDS = {
   },
 };
 
+const topographyPathData = (() => {
+  try {
+    const svg = readFileSync(path.join(root, "public", "topography.svg"), "utf8");
+    const match = svg.match(/\bd=['"]([^'"]+)['"]/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+})();
+
 function escapeXml(value) {
   return value
     .replaceAll("&", "&amp;")
@@ -292,14 +310,35 @@ function featureIcon(index, color) {
   return icons[index % icons.length];
 }
 
+function headerTopographyDefs(accent) {
+  if (!topographyPathData) {
+    return "";
+  }
+
+  return `<defs>
+    <pattern id="headerTopo" patternUnits="userSpaceOnUse" width="190" height="190" viewBox="0 0 600 600">
+      <path d="${topographyPathData}" fill="${accent}"/>
+    </pattern>
+  </defs>`;
+}
+
+function headerTopographyOverlay() {
+  if (!topographyPathData) {
+    return "";
+  }
+
+  return `<rect x="20" y="58" width="390" height="84" fill="url(#headerTopo)" opacity="0.22"/>`;
+}
+
 function safetyPhoneMock(accent) {
   return Buffer.from(`<svg width="430" height="760" viewBox="0 0 430 760" xmlns="http://www.w3.org/2000/svg">
+  ${headerTopographyDefs(accent)}
   <rect x="8" y="8" width="414" height="744" rx="42" fill="#111827"/>
   <rect x="20" y="24" width="390" height="712" rx="34" fill="#f3f4f6"/>
   <rect x="145" y="34" width="140" height="24" rx="12" fill="#111827"/>
-  <rect x="0" y="58" width="430" height="84" fill="#1a1a1a"/>
-  <circle cx="42" cy="98" r="18" fill="${accent}"/>
-  <text x="70" y="104" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#f9fafb">SyncSafety</text>
+  <rect x="20" y="58" width="390" height="84" fill="#1a1a1a"/>
+  ${headerTopographyOverlay()}
+  <text x="78" y="104" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#f9fafb">SyncSafety</text>
   <rect x="24" y="126" width="72" height="24" rx="6" fill="${accent}"/>
   <rect x="104" y="126" width="78" height="24" rx="6" fill="#374151"/>
   <rect x="190" y="126" width="78" height="24" rx="6" fill="#374151"/>
@@ -330,9 +369,8 @@ function studioPhoneMock(accent, secondary) {
   <rect x="8" y="8" width="414" height="744" rx="42" fill="#0f172a"/>
   <rect x="20" y="24" width="390" height="712" rx="34" fill="#f8fafc"/>
   <rect x="145" y="34" width="140" height="24" rx="12" fill="#0f172a"/>
-  <rect x="0" y="58" width="430" height="72" fill="#ffffff" stroke="#e2e8f0"/>
-  <rect x="28" y="78" width="28" height="28" rx="8" fill="${accent}"/>
-  <text x="66" y="98" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#0f172a">BringhurstDO Systems</text>
+  <rect x="20" y="58" width="390" height="72" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="72" y="98" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#0f172a">BringhurstDO Systems</text>
   <text x="28" y="168" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="800" fill="#0f172a">Platform Overview</text>
   <text x="28" y="194" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600" fill="${accent}">ACTIVE PRODUCT LANES</text>
   <rect x="28" y="214" width="118" height="38" rx="19" fill="${accent}"/>
@@ -490,10 +528,19 @@ async function resizedPng(buffer, width) {
   return sharp(buffer).resize({ width }).png().toBuffer();
 }
 
+const HEADER_LOGO_SLOT = {
+  safety: { x: 22, y: 78, size: 42 },
+  studio: { x: 26, y: 72, size: 38 },
+};
+
 async function renderBrandVariant(brand, variant, layout, logo, footerLogo, mock) {
   const background = await sharp(backgroundSvg(brand, layout)).png().toBuffer();
   const phone = await resizedPng(mock, layout.phone.width);
   const outputPath = path.join(outDir, brand.outputs[variant]);
+
+  const phoneScale = layout.phone.width / 430;
+  const headerSlot = HEADER_LOGO_SLOT[brand.mock] ?? HEADER_LOGO_SLOT.studio;
+  const headerLogoSize = Math.max(1, Math.round(headerSlot.size * phoneScale));
 
   await sharp(background)
     .composite([
@@ -506,6 +553,11 @@ async function renderBrandVariant(brand, variant, layout, logo, footerLogo, mock
         input: phone,
         left: layout.phone.x,
         top: layout.phone.y,
+      },
+      {
+        input: await resizedPng(logo, headerLogoSize),
+        left: Math.round(layout.phone.x + headerSlot.x * phoneScale),
+        top: Math.round(layout.phone.y + headerSlot.y * phoneScale),
       },
       {
         input: await resizedPng(footerLogo, layout.footer.iconSize),
