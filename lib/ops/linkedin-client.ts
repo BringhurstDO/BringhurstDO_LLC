@@ -6,6 +6,7 @@ import {
   LINKEDIN_POSTS_URL,
   LINKEDIN_TOKEN_URL,
   LINKEDIN_USERINFO_URL,
+  LINKEDIN_VIDEOS_URL,
   type LinkedInAccountConfig,
   type LinkedInResolvedConfig,
 } from "@/lib/ops/linkedin-config";
@@ -164,6 +165,7 @@ export type PublishLinkedInPostInput = {
   authorUrn: string;
   commentary: string;
   imageUrn?: string;
+  mediaUrn?: string;
 };
 
 export type PublishLinkedInPostResult = {
@@ -269,6 +271,171 @@ export async function uploadLinkedInImage(input: {
   return imageUrn;
 }
 
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function encodeLinkedInUrn(urn: string) {
+  return encodeURIComponent(urn);
+}
+
+export async function uploadLinkedInVideo(input: {
+  accessToken: string;
+  authorUrn: string;
+  bytes: Uint8Array;
+  config: LinkedInResolvedConfig;
+  contentType: string;
+}): Promise<string> {
+  const initResponse = await fetch(`${LINKEDIN_VIDEOS_URL}?action=initializeUpload`, {
+    body: JSON.stringify({
+      initializeUploadRequest: {
+        fileSizeBytes: input.bytes.byteLength,
+        owner: input.authorUrn,
+        uploadCaptions: false,
+        uploadThumbnail: false,
+      },
+    }),
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+      "Content-Type": "application/json",
+      "LinkedIn-Version": input.config.apiVersion,
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
+    method: "POST",
+  });
+
+  const initText = await initResponse.text();
+
+  if (!initResponse.ok) {
+    throw new Error(
+      `LinkedIn video initialize failed (${initResponse.status}): ${initText.slice(0, 400)}`,
+    );
+  }
+
+  const initJson = JSON.parse(initText) as {
+    value?: {
+      uploadInstructions?: Array<{
+        firstByte?: number;
+        lastByte?: number;
+        uploadUrl?: string;
+      }>;
+      uploadToken?: string;
+      video?: string;
+    };
+  };
+
+  const videoUrn = initJson.value?.video?.trim();
+  const instructions = initJson.value?.uploadInstructions ?? [];
+  const uploadToken = initJson.value?.uploadToken ?? "";
+
+  if (!videoUrn || instructions.length === 0) {
+    throw new Error(
+      "LinkedIn video initialize did not return video URN and upload instructions.",
+    );
+  }
+
+  const uploadedPartIds: string[] = [];
+
+  for (const instruction of instructions) {
+    const uploadUrl = instruction.uploadUrl?.trim();
+    const firstByte = instruction.firstByte ?? 0;
+    const lastByte = instruction.lastByte ?? input.bytes.byteLength - 1;
+
+    if (!uploadUrl) {
+      throw new Error("LinkedIn video upload instruction was missing uploadUrl.");
+    }
+
+    const chunk = input.bytes.slice(firstByte, lastByte + 1);
+    const uploadResponse = await fetch(uploadUrl, {
+      body: Buffer.from(chunk),
+      headers: {
+        "Content-Type": input.contentType || "application/octet-stream",
+      },
+      method: "PUT",
+    });
+
+    if (!uploadResponse.ok) {
+      const uploadText = await uploadResponse.text();
+      throw new Error(
+        `LinkedIn video upload failed (${uploadResponse.status}): ${uploadText.slice(0, 400)}`,
+      );
+    }
+
+    const etag =
+      uploadResponse.headers.get("etag")?.replaceAll('"', "").trim() ||
+      uploadResponse.headers.get("ETag")?.replaceAll('"', "").trim();
+
+    if (etag) {
+      uploadedPartIds.push(etag);
+    }
+  }
+
+  const finalizeResponse = await fetch(`${LINKEDIN_VIDEOS_URL}?action=finalizeUpload`, {
+    body: JSON.stringify({
+      finalizeUploadRequest: {
+        uploadToken,
+        uploadedPartIds,
+        video: videoUrn,
+      },
+    }),
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+      "Content-Type": "application/json",
+      "LinkedIn-Version": input.config.apiVersion,
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
+    method: "POST",
+  });
+
+  if (!finalizeResponse.ok) {
+    const finalizeText = await finalizeResponse.text();
+    throw new Error(
+      `LinkedIn video finalize failed (${finalizeResponse.status}): ${finalizeText.slice(0, 400)}`,
+    );
+  }
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const statusUrl = `${LINKEDIN_VIDEOS_URL}/${encodeLinkedInUrn(videoUrn)}`;
+    const statusResponse = await fetch(statusUrl, {
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+        "LinkedIn-Version": input.config.apiVersion,
+        "X-Restli-Protocol-Version": "2.0.0",
+      },
+      method: "GET",
+    });
+    const statusText = await statusResponse.text();
+
+    if (!statusResponse.ok) {
+      throw new Error(
+        `LinkedIn video status failed (${statusResponse.status}): ${statusText.slice(0, 400)}`,
+      );
+    }
+
+    const statusJson = JSON.parse(statusText) as {
+      status?: string;
+      processingStatus?: string;
+    };
+    const status = (
+      statusJson.status ??
+      statusJson.processingStatus ??
+      ""
+    ).toUpperCase();
+
+    if (status === "AVAILABLE" || status === "READY") {
+      return videoUrn;
+    }
+
+    if (status === "FAILED" || status === "PROCESSING_FAILED") {
+      throw new Error("LinkedIn video processing failed after upload.");
+    }
+
+    await sleep(2000);
+  }
+
+  throw new Error("LinkedIn video processing timed out before publish.");
+}
+
 export async function publishLinkedInPost(
   input: PublishLinkedInPostInput,
 ): Promise<PublishLinkedInPostResult> {
@@ -285,10 +452,10 @@ export async function publishLinkedInPost(
     isReshareDisabledByAuthor: false,
   };
 
-  if (input.imageUrn) {
+  if (input.mediaUrn || input.imageUrn) {
     body.content = {
       media: {
-        id: input.imageUrn,
+        id: input.mediaUrn ?? input.imageUrn,
       },
     };
   }

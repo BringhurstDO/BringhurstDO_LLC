@@ -44,6 +44,7 @@ import {
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import { platformSupportsAutopublish } from "@/lib/ops/autopublish-platforms";
 import { platformSupportsSocialImage } from "@/lib/ops/social-image-utils";
+import { mediaTypeFromAssetLocation } from "@/lib/ops/ops-media-kind";
 import {
   findPublishedPostForDraft,
   resolveLatestPerformanceSnapshot,
@@ -1040,9 +1041,11 @@ export function PublishCalendarPanel({
                 ...draft.media,
                 assetLocation: assetLocation.trim() || undefined,
                 mediaSummary: assetLocation.trim()
-                  ? "Approved product screenshot attached for Instagram."
+                  ? "Approved social media attached."
                   : draft.media.mediaSummary,
-                mediaType: assetLocation.trim() ? "screenshot" : draft.media.mediaType,
+                mediaType: assetLocation.trim()
+                  ? mediaTypeFromAssetLocation(assetLocation)
+                  : draft.media.mediaType,
               },
               updatedAt: new Date().toISOString(),
             }
@@ -1051,8 +1054,8 @@ export function PublishCalendarPanel({
     }));
     setMessage(
       assetLocation.trim()
-        ? `Attached Instagram screenshot for ${row.title}.`
-        : `Cleared Instagram screenshot for ${row.title}.`,
+        ? `Attached social media for ${row.title}.`
+        : `Cleared social media for ${row.title}.`,
     );
   }
 

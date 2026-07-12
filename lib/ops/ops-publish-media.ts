@@ -2,6 +2,11 @@ import "server-only";
 
 import { resolveOpsPublicOrigin } from "@/lib/ops/ops-public-origin";
 import { listOpsIgMediaCatalog } from "@/lib/ops/ops-ig-media-catalog";
+import {
+  classifyPublishMediaKind,
+  maxFetchBytesForMediaKind,
+  type OpsPublishMediaKind,
+} from "@/lib/ops/ops-media-kind";
 import { resolveDefaultAssetLocation } from "@/lib/ops/social-default-image";
 import type { OpsProjectId, PublicationPlatform } from "@/lib/ops/types";
 
@@ -115,34 +120,65 @@ export function resolvePublishImageUrl(input: {
 
   return {
     ok: false,
-    reason: `${platformLabel} requires a public HTTPS image. Attach a social image on the package builder or calendar, pick an approved catalog image, or configure brand default images.`,
+    reason: `${platformLabel} requires a public HTTPS media URL. Attach a social image, GIF, or MP4 on the package builder or calendar, pick an approved catalog image, or configure brand default images.`,
   };
 }
 
-export async function fetchPublicImageBytes(imageUrl: string) {
-  const response = await fetch(imageUrl, { cache: "no-store" });
+export async function fetchPublicMediaBytes(mediaUrl: string): Promise<{
+  bytes: Uint8Array;
+  contentType: string;
+  kind: OpsPublishMediaKind;
+}> {
+  const response = await fetch(mediaUrl, { cache: "no-store" });
 
   if (!response.ok) {
-    throw new Error(`Could not fetch publish image (${response.status}).`);
+    throw new Error(`Could not fetch publish media (${response.status}).`);
   }
 
-  const contentType = response.headers.get("content-type")?.split(";")[0]?.trim();
+  const contentType =
+    response.headers.get("content-type")?.split(";")[0]?.trim() ||
+    "application/octet-stream";
+  const kind = classifyPublishMediaKind({ contentType, url: mediaUrl });
 
-  if (!contentType?.startsWith("image/")) {
-    throw new Error("Publish image URL did not return an image content type.");
+  if (
+    !contentType.startsWith("image/") &&
+    contentType !== "video/mp4" &&
+    !contentType.startsWith("video/")
+  ) {
+    throw new Error(
+      "Publish media URL did not return an image or MP4 content type.",
+    );
   }
 
   const bytes = new Uint8Array(await response.arrayBuffer());
 
   if (bytes.length === 0) {
-    throw new Error("Publish image was empty.");
+    throw new Error("Publish media was empty.");
   }
 
-  if (bytes.length > 8 * 1024 * 1024) {
-    throw new Error("Publish image exceeds the 8 MB Ops limit.");
+  const maxBytes = maxFetchBytesForMediaKind(kind);
+
+  if (bytes.length > maxBytes) {
+    const limitMb = Math.round(maxBytes / (1024 * 1024));
+    throw new Error(`Publish media exceeds the ${limitMb} MB Ops limit.`);
   }
 
-  return { bytes, contentType };
+  return { bytes, contentType, kind };
+}
+
+/** @deprecated Prefer fetchPublicMediaBytes — kept for existing image-only callers. */
+export async function fetchPublicImageBytes(imageUrl: string) {
+  const media = await fetchPublicMediaBytes(imageUrl);
+
+  if (media.kind === "video") {
+    throw new Error("Publish image URL returned video content. Use MP4 video publish path.");
+  }
+
+  return { bytes: media.bytes, contentType: media.contentType };
 }
 
 export { platformSupportsSocialImage } from "@/lib/ops/social-image-utils";
+export {
+  classifyPublishMediaKind,
+  mediaTypeFromAssetLocation,
+} from "@/lib/ops/ops-media-kind";

@@ -184,33 +184,183 @@ export async function uploadXMedia(input: {
   accessToken: string;
   bytes: Uint8Array;
   contentType: string;
+  kind?: "image" | "gif" | "video";
 }): Promise<string> {
-  const form = new FormData();
-  form.append(
-    "media",
-    new Blob([Buffer.from(input.bytes)], { type: input.contentType }),
-    "ops-social-image",
-  );
+  const kind = input.kind ?? "image";
+  const useChunked =
+    kind === "video" || kind === "gif" || input.bytes.byteLength > 5 * 1024 * 1024;
 
-  const response = await fetch(X_MEDIA_UPLOAD_URL, {
-    body: form,
+  if (!useChunked) {
+    const form = new FormData();
+    form.append(
+      "media",
+      new Blob([Buffer.from(input.bytes)], { type: input.contentType }),
+      "ops-social-image",
+    );
+
+    const response = await fetch(X_MEDIA_UPLOAD_URL, {
+      body: form,
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+      },
+      method: "POST",
+    });
+
+    const text = await response.text();
+
+    if (!response.ok) {
+      throw new Error(`X media upload failed (${response.status}): ${text.slice(0, 400)}`);
+    }
+
+    const json = JSON.parse(text) as { media_id_string?: string };
+    const mediaId = json.media_id_string?.trim();
+
+    if (!mediaId) {
+      throw new Error("X media upload did not return media_id_string.");
+    }
+
+    return mediaId;
+  }
+
+  return uploadXMediaChunked(input);
+}
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function uploadXMediaChunked(input: {
+  accessToken: string;
+  bytes: Uint8Array;
+  contentType: string;
+  kind?: "image" | "gif" | "video";
+}): Promise<string> {
+  const kind = input.kind ?? "image";
+  const mediaCategory =
+    kind === "video" ? "tweet_video" : kind === "gif" ? "tweet_gif" : "tweet_image";
+
+  const initUrl = new URL(X_MEDIA_UPLOAD_URL);
+  initUrl.searchParams.set("command", "INIT");
+  initUrl.searchParams.set("total_bytes", String(input.bytes.byteLength));
+  initUrl.searchParams.set("media_type", input.contentType);
+  initUrl.searchParams.set("media_category", mediaCategory);
+
+  const initResponse = await fetch(initUrl, {
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
     },
     method: "POST",
   });
+  const initText = await initResponse.text();
 
-  const text = await response.text();
-
-  if (!response.ok) {
-    throw new Error(`X media upload failed (${response.status}): ${text.slice(0, 400)}`);
+  if (!initResponse.ok) {
+    throw new Error(
+      `X media INIT failed (${initResponse.status}): ${initText.slice(0, 400)}`,
+    );
   }
 
-  const json = JSON.parse(text) as { media_id_string?: string };
-  const mediaId = json.media_id_string?.trim();
+  const initJson = JSON.parse(initText) as { media_id_string?: string };
+  const mediaId = initJson.media_id_string?.trim();
 
   if (!mediaId) {
-    throw new Error("X media upload did not return media_id_string.");
+    throw new Error("X media INIT did not return media_id_string.");
+  }
+
+  const chunkSize = 4 * 1024 * 1024;
+  let segmentIndex = 0;
+
+  for (let offset = 0; offset < input.bytes.byteLength; offset += chunkSize) {
+    const chunk = input.bytes.slice(offset, offset + chunkSize);
+    const form = new FormData();
+    form.append("command", "APPEND");
+    form.append("media_id", mediaId);
+    form.append("segment_index", String(segmentIndex));
+    form.append(
+      "media",
+      new Blob([Buffer.from(chunk)], { type: input.contentType }),
+      `ops-chunk-${segmentIndex}`,
+    );
+
+    const appendResponse = await fetch(X_MEDIA_UPLOAD_URL, {
+      body: form,
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+      },
+      method: "POST",
+    });
+
+    if (!appendResponse.ok) {
+      const appendText = await appendResponse.text();
+      throw new Error(
+        `X media APPEND failed (${appendResponse.status}): ${appendText.slice(0, 400)}`,
+      );
+    }
+
+    segmentIndex += 1;
+  }
+
+  const finalizeUrl = new URL(X_MEDIA_UPLOAD_URL);
+  finalizeUrl.searchParams.set("command", "FINALIZE");
+  finalizeUrl.searchParams.set("media_id", mediaId);
+
+  const finalizeResponse = await fetch(finalizeUrl, {
+    headers: {
+      Authorization: `Bearer ${input.accessToken}`,
+    },
+    method: "POST",
+  });
+  const finalizeText = await finalizeResponse.text();
+
+  if (!finalizeResponse.ok) {
+    throw new Error(
+      `X media FINALIZE failed (${finalizeResponse.status}): ${finalizeText.slice(0, 400)}`,
+    );
+  }
+
+  const finalizeJson = JSON.parse(finalizeText) as {
+    processing_info?: { check_after_secs?: number; state?: string };
+  };
+
+  let processing = finalizeJson.processing_info;
+
+  for (let attempt = 0; attempt < 40 && processing; attempt += 1) {
+    if (processing.state === "succeeded") {
+      return mediaId;
+    }
+
+    if (processing.state === "failed") {
+      throw new Error("X media processing failed after upload.");
+    }
+
+    const waitSecs = Math.max(1, processing.check_after_secs ?? 2);
+    await sleep(waitSecs * 1000);
+
+    const statusUrl = new URL(X_MEDIA_UPLOAD_URL);
+    statusUrl.searchParams.set("command", "STATUS");
+    statusUrl.searchParams.set("media_id", mediaId);
+
+    const statusResponse = await fetch(statusUrl, {
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+      },
+      method: "GET",
+    });
+    const statusText = await statusResponse.text();
+
+    if (!statusResponse.ok) {
+      throw new Error(
+        `X media STATUS failed (${statusResponse.status}): ${statusText.slice(0, 400)}`,
+      );
+    }
+
+    const statusJson = JSON.parse(statusText) as {
+      processing_info?: { check_after_secs?: number; state?: string };
+    };
+    processing = statusJson.processing_info;
+
+    if (!processing) {
+      return mediaId;
+    }
   }
 
   return mediaId;

@@ -56,11 +56,11 @@ export const OPS_PLATFORM_READINESS: OpsPlatformReadinessItem[] = [
     allowedNow: [
       "Manual target planning, deterministic/AI draft generation, UTM links",
       "Operator-approved publish and scheduled autopublish when Meta is connected",
-      "Attach approved product screenshots per Instagram draft before publish",
+      "Attach approved product screenshots, GIFs, or MP4s per Instagram draft before publish",
     ],
     blockedBy: [
       "Meta app needs instagram_content_publish in Business Login config",
-      "Instagram API requires a public HTTPS image on every post",
+      "Instagram API requires public HTTPS still image or MP4 on every post (GIF not supported)",
     ],
     nextOperatorAction:
       "Connect all Facebook Pages on /ops/accounts, approve Instagram drafts on the calendar, and enable autopublish per draft.",

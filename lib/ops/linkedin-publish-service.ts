@@ -1,7 +1,11 @@
 import "server-only";
 
 import { getReadyLinkedInConnection } from "@/lib/ops/linkedin-connection";
-import { publishLinkedInPost, uploadLinkedInImage } from "@/lib/ops/linkedin-client";
+import {
+  publishLinkedInPost,
+  uploadLinkedInImage,
+  uploadLinkedInVideo,
+} from "@/lib/ops/linkedin-client";
 import {
   findLinkedInAccount,
   resolveLinkedInConfig,
@@ -16,7 +20,7 @@ import {
   sanitizePublishableBody,
 } from "@/lib/ops/publishable-copy";
 import {
-  fetchPublicImageBytes,
+  fetchPublicMediaBytes,
   resolvePublishImageUrl,
 } from "@/lib/ops/ops-publish-media";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
@@ -222,17 +226,28 @@ export async function publishLinkedInDraft(
   });
 
   try {
-    let imageUrn: string | undefined;
+    let mediaUrn: string | undefined;
 
     if (image.ok) {
-      const fetched = await fetchPublicImageBytes(image.imageUrl);
-      imageUrn = await uploadLinkedInImage({
-        accessToken: ready.value.accessToken,
-        authorUrn: ready.value.authorUrn,
-        bytes: fetched.bytes,
-        config: config.config,
-        contentType: fetched.contentType,
-      });
+      const fetched = await fetchPublicMediaBytes(image.imageUrl);
+
+      if (fetched.kind === "video") {
+        mediaUrn = await uploadLinkedInVideo({
+          accessToken: ready.value.accessToken,
+          authorUrn: ready.value.authorUrn,
+          bytes: fetched.bytes,
+          config: config.config,
+          contentType: fetched.contentType,
+        });
+      } else {
+        mediaUrn = await uploadLinkedInImage({
+          accessToken: ready.value.accessToken,
+          authorUrn: ready.value.authorUrn,
+          bytes: fetched.bytes,
+          config: config.config,
+          contentType: fetched.contentType,
+        });
+      }
     }
 
     const published = await publishLinkedInPost({
@@ -240,7 +255,7 @@ export async function publishLinkedInDraft(
       authorUrn: ready.value.authorUrn,
       commentary: body,
       config: config.config,
-      imageUrn,
+      mediaUrn,
     });
 
     const postedAt = new Date().toISOString();

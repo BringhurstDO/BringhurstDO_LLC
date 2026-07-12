@@ -295,12 +295,41 @@ export type PublishFacebookPagePostResult = {
 
 export async function publishFacebookPagePost(input: {
   imageUrl?: string;
+  mediaKind?: "image" | "gif" | "video";
   message: string;
   pageAccessToken: string;
   pageId: string;
 }): Promise<PublishFacebookPagePostResult> {
   const message = input.message.trim();
   const imageUrl = input.imageUrl?.trim();
+  const mediaKind = input.mediaKind ?? "image";
+
+  if (imageUrl && mediaKind === "video") {
+    const videoUrl = `${META_GRAPH_URL}/${input.pageId}/videos`;
+    const response = await fetch(videoUrl, {
+      body: JSON.stringify({
+        access_token: input.pageAccessToken,
+        description: message,
+        file_url: imageUrl,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    const json = await readGraphJson<{ id?: string }>(
+      response,
+      "Meta Facebook video publish failed",
+    );
+
+    if (!json.id) {
+      throw new Error("Meta Facebook video publish did not return a video id.");
+    }
+
+    return {
+      platformPostId: json.id,
+      postUrl: `https://www.facebook.com/${json.id}`,
+    };
+  }
 
   if (imageUrl) {
     const photoUrl = `${META_GRAPH_URL}/${input.pageId}/photos`;
@@ -368,8 +397,9 @@ async function sleep(ms: number) {
 async function waitForInstagramContainerReady(
   creationId: string,
   pageAccessToken: string,
+  maxAttempts = 12,
 ) {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const url = new URL(`${META_GRAPH_URL}/${creationId}`);
     url.searchParams.set("fields", "status_code");
     url.searchParams.set("access_token", pageAccessToken);
@@ -388,7 +418,7 @@ async function waitForInstagramContainerReady(
       throw new Error("Instagram media container processing failed.");
     }
 
-    await sleep(1500);
+    await sleep(2000);
   }
 
   throw new Error("Instagram media container timed out before publish.");
@@ -456,6 +486,69 @@ export async function publishInstagramImagePost(input: {
 
   if (!publishJson.id) {
     throw new Error("Meta Instagram publish did not return a media id.");
+  }
+
+  const postUrl = await fetchInstagramPermalink(
+    publishJson.id,
+    input.pageAccessToken,
+  );
+
+  return {
+    platformPostId: publishJson.id,
+    postUrl,
+  };
+}
+
+export async function publishInstagramVideoPost(input: {
+  caption: string;
+  igUserId: string;
+  pageAccessToken: string;
+  videoUrl: string;
+}): Promise<PublishInstagramImagePostResult> {
+  const containerUrl = `${META_GRAPH_URL}/${input.igUserId}/media`;
+  const containerResponse = await fetch(containerUrl, {
+    body: JSON.stringify({
+      access_token: input.pageAccessToken,
+      caption: input.caption,
+      media_type: "REELS",
+      video_url: input.videoUrl,
+    }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+
+  const containerJson = await readGraphJson<{ id?: string }>(
+    containerResponse,
+    "Meta Instagram video container failed",
+  );
+
+  if (!containerJson.id) {
+    throw new Error("Meta Instagram video container did not return an id.");
+  }
+
+  await waitForInstagramContainerReady(
+    containerJson.id,
+    input.pageAccessToken,
+    40,
+  );
+
+  const publishUrl = `${META_GRAPH_URL}/${input.igUserId}/media_publish`;
+  const publishResponse = await fetch(publishUrl, {
+    body: JSON.stringify({
+      access_token: input.pageAccessToken,
+      creation_id: containerJson.id,
+    }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+
+  const publishJson = await readGraphJson<{ id?: string }>(
+    publishResponse,
+    "Meta Instagram video publish failed",
+  );
+
+  if (!publishJson.id) {
+    throw new Error("Meta Instagram video publish did not return a media id.");
   }
 
   const postUrl = await fetchInstagramPermalink(

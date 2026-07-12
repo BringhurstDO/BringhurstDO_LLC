@@ -9,6 +9,7 @@ import type { OpsProjectId } from "@/lib/ops/types";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function jsonNoStore(body: unknown, status = 200) {
   return NextResponse.json(body, {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
   if (!uploadStatus.configured) {
     return jsonNoStore(
       {
-        error: uploadStatus.reason ?? "Screenshot upload is not configured.",
+        error: uploadStatus.reason ?? "Media upload is not configured.",
       },
       503,
     );
@@ -71,10 +72,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
+    const inferredType =
+      file.type ||
+      (file.name.toLowerCase().endsWith(".gif")
+        ? "image/gif"
+        : file.name.toLowerCase().endsWith(".mp4")
+          ? "video/mp4"
+          : file.name.toLowerCase().endsWith(".png")
+            ? "image/png"
+            : file.name.toLowerCase().endsWith(".webp")
+              ? "image/webp"
+              : "image/jpeg");
     const uploaded = await uploadOpsIgScreenshot({
       bytes,
-      contentType: file.type || "image/jpeg",
-      originalName: file.name || "screenshot.jpg",
+      contentType: inferredType,
+      originalName: file.name || "social-media.jpg",
       projectId,
     });
 
@@ -88,7 +100,7 @@ export async function POST(request: NextRequest) {
     return jsonNoStore(
       {
         error:
-          error instanceof Error ? error.message : "Screenshot upload failed.",
+          error instanceof Error ? error.message : "Media upload failed.",
       },
       400,
     );

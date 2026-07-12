@@ -11,8 +11,10 @@ import {
 import {
   publishFacebookPagePost,
   publishInstagramImagePost,
+  publishInstagramVideoPost,
 } from "@/lib/ops/meta-client";
 import { findMetaAccount, resolveMetaConfig } from "@/lib/ops/meta-config";
+import { classifyPublishMediaKind } from "@/lib/ops/ops-media-kind";
 import { resolvePublishImageUrl } from "@/lib/ops/ops-publish-media";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
 import type {
@@ -202,6 +204,19 @@ export async function publishMetaDraft(
       };
     }
 
+    const mediaKind = classifyPublishMediaKind({ url: image.imageUrl });
+
+    if (mediaKind === "gif") {
+      return {
+        ok: false,
+        error: {
+          code: "media_missing",
+          message:
+            "Instagram does not accept GIF uploads via Ops. Attach an MP4 (published as a Reel) or a still JPEG/PNG/WebP image.",
+        },
+      };
+    }
+
     const ready = await getReadyInstagramPublishConnection(config.config, account);
 
     if (!ready.ok) {
@@ -215,16 +230,25 @@ export async function publishMetaDraft(
     }
 
     try {
-      const published = await publishInstagramImagePost({
-        caption,
-        igUserId: account.instagramBusinessAccountId,
-        imageUrl: image.imageUrl,
-        pageAccessToken: ready.value.accessToken,
-      });
+      const published =
+        mediaKind === "video"
+          ? await publishInstagramVideoPost({
+              caption,
+              igUserId: account.instagramBusinessAccountId,
+              pageAccessToken: ready.value.accessToken,
+              videoUrl: image.imageUrl,
+            })
+          : await publishInstagramImagePost({
+              caption,
+              igUserId: account.instagramBusinessAccountId,
+              imageUrl: image.imageUrl,
+              pageAccessToken: ready.value.accessToken,
+            });
       const postedAt = new Date().toISOString();
       const publishLogId = `meta-publish-${nowId()}`;
       const bodyPreview =
         caption.length > 280 ? `${caption.slice(0, 280).trim()}…` : caption;
+      const mediaLabel = mediaKind === "video" ? "Video" : "Image";
 
       const logRecord: SocialPublishLogRecord = {
         accountId: account.accountId,
@@ -235,8 +259,8 @@ export async function publishMetaDraft(
         id: publishLogId,
         notes: [
           input.trigger === "autopublish"
-            ? `Scheduled autopublish to Instagram as ${account.label}. Image: ${image.imageUrl}`
-            : `Operator-approved manual publish to Instagram as ${account.label}. Image: ${image.imageUrl}`,
+            ? `Scheduled autopublish to Instagram as ${account.label}. ${mediaLabel}: ${image.imageUrl}`
+            : `Operator-approved manual publish to Instagram as ${account.label}. ${mediaLabel}: ${image.imageUrl}`,
         ],
         platform: "Meta",
         platformDraftId: input.platformDraftId,
@@ -331,8 +355,12 @@ export async function publishMetaDraft(
   });
 
   try {
+    const mediaKind = image.ok
+      ? classifyPublishMediaKind({ url: image.imageUrl })
+      : "image";
     const published = await publishFacebookPagePost({
       imageUrl: image.ok ? image.imageUrl : undefined,
+      mediaKind: image.ok ? mediaKind : undefined,
       message: sanitizedBody,
       pageAccessToken: ready.value.accessToken,
       pageId: account.pageId,
@@ -343,6 +371,8 @@ export async function publishMetaDraft(
       sanitizedBody.length > 280
         ? `${sanitizedBody.slice(0, 280).trim()}…`
         : sanitizedBody;
+    const mediaLabel =
+      mediaKind === "video" ? "Video" : mediaKind === "gif" ? "GIF" : "Image";
 
     const logRecord: SocialPublishLogRecord = {
       accountId: account.accountId,
@@ -354,10 +384,10 @@ export async function publishMetaDraft(
       notes: [
         input.trigger === "autopublish"
           ? image.ok
-            ? `Scheduled autopublish to Facebook as ${account.label}. Image: ${image.imageUrl}`
+            ? `Scheduled autopublish to Facebook as ${account.label}. ${mediaLabel}: ${image.imageUrl}`
             : `Scheduled autopublish to Facebook as ${account.label}.`
           : image.ok
-            ? `Operator-approved manual publish to Facebook as ${account.label}. Image: ${image.imageUrl}`
+            ? `Operator-approved manual publish to Facebook as ${account.label}. ${mediaLabel}: ${image.imageUrl}`
             : `Operator-approved manual publish to Facebook as ${account.label}.`,
       ],
       platform: "Meta",

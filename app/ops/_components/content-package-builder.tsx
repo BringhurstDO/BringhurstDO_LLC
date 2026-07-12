@@ -28,6 +28,7 @@ import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel"
 import { OpsPackageSocialImagePanel } from "@/app/ops/_components/ops-package-social-image-panel";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { platformSupportsSocialImage } from "@/lib/ops/social-image-utils";
+import { mediaTypeFromAssetLocation } from "@/lib/ops/ops-media-kind";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import { removePackageFromRecords } from "@/lib/ops/content-package-mutations";
 import {
@@ -1494,11 +1495,13 @@ export function ContentPackageBuilder({
           ...slot,
           assetLocation: trimmed,
           mediaSummary: trimmed
-            ? `Package social image attached for ${target.platform}.`
+            ? `Package social media attached for ${target.platform}.`
             : slot.mediaSummary,
-          mediaType: trimmed ? "screenshot" : slot.mediaType,
+          mediaType: trimmed
+            ? mediaTypeFromAssetLocation(trimmed)
+            : slot.mediaType,
           visualHook: trimmed
-            ? "Approved social image from package."
+            ? "Approved social media from package."
             : slot.visualHook,
         };
       }),
@@ -3492,10 +3495,10 @@ export function ContentPackageBuilder({
                                 updateDraftSlot(slot.id, {
                                   assetLocation,
                                   mediaSummary: assetLocation.trim()
-                                    ? "Approved product screenshot attached for Instagram."
+                                    ? "Approved social media attached for Instagram."
                                     : slot.mediaSummary,
                                   mediaType: assetLocation.trim()
-                                    ? "screenshot"
+                                    ? mediaTypeFromAssetLocation(assetLocation)
                                     : slot.mediaType,
                                 })
                               }

@@ -7,6 +7,7 @@ import type { OpsProjectId, SocialPublishResult } from "@/lib/ops/types";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
+export const maxDuration = 120;
 
 function jsonNoStore(body: unknown, status = 200) {
   return NextResponse.json(body, {

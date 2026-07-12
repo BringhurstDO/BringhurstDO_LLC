@@ -4,6 +4,7 @@ import { ImageIcon, Loader2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
+import { isVideoAssetLocation } from "@/lib/ops/ops-media-kind";
 import type { OpsProjectId } from "@/lib/ops/types";
 
 type CatalogEntry = {
@@ -52,9 +53,9 @@ export function IgMediaAttachPanel({
   assetLocation = "",
   catalogScope = "project",
   compact = false,
-  description = "One image per post. Pick from the catalog or upload — only the selected image above is published.",
+  description = "One media file per post. Pick from the catalog or upload a JPEG, PNG, WebP, GIF, or MP4 — only the selection above is published.",
   disabled = false,
-  heading = "Social image",
+  heading = "Social media",
   onChange,
   projectId,
 }: IgMediaAttachPanelProps) {
@@ -121,7 +122,7 @@ export function IgMediaAttachPanel({
       };
 
       if (!response.ok || !payload.assetLocation) {
-        throw new Error(payload.error ?? "Screenshot upload failed.");
+        throw new Error(payload.error ?? "Media upload failed.");
       }
 
       onChange(payload.assetLocation);
@@ -129,7 +130,7 @@ export function IgMediaAttachPanel({
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : "Screenshot upload failed.",
+          : "Media upload failed.",
       );
     } finally {
       setUploading(false);
@@ -152,12 +153,21 @@ export function IgMediaAttachPanel({
 
       {selectedPreview ? (
         <div className="mt-3 overflow-hidden rounded-md border border-fuchsia-200 bg-white">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={selectedPreview}
-            alt="Selected Instagram media preview"
-            className="max-h-48 w-full object-contain bg-slate-950/5"
-          />
+          {isVideoAssetLocation(assetLocation) ? (
+            <video
+              src={selectedPreview}
+              controls
+              playsInline
+              className="max-h-48 w-full bg-slate-950/5 object-contain"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={selectedPreview}
+              alt="Selected social media preview"
+              className="max-h-48 w-full object-contain bg-slate-950/5"
+            />
+          )}
           <div className="border-t border-fuchsia-100 px-3 py-2 text-xs text-slate-600">
             <span className="font-semibold text-slate-800">Selected:</span>{" "}
             <span className="break-all font-mono">{assetLocation}</span>
@@ -165,8 +175,9 @@ export function IgMediaAttachPanel({
         </div>
       ) : (
         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-          No screenshot selected yet. Instagram will fall back to a brand default
-          image unless you attach one here.
+          No media selected yet. Instagram will fall back to a brand default
+          image unless you attach one here. GIFs are supported on Facebook, X,
+          and LinkedIn; Instagram needs an MP4 or still image.
         </p>
       )}
 
@@ -183,10 +194,10 @@ export function IgMediaAttachPanel({
           ) : (
             <Upload className="h-3.5 w-3.5" aria-hidden />
           )}
-          {uploading ? "Uploading…" : "Upload screenshot"}
+          {uploading ? "Uploading…" : "Upload media"}
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4"
             disabled={disabled || uploading || !catalog?.upload.configured}
             className="sr-only"
             onChange={(event) => {
@@ -207,7 +218,7 @@ export function IgMediaAttachPanel({
             onClick={() => onChange("")}
             className="inline-flex h-8 items-center rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
-            Clear image
+            Clear media
           </button>
         ) : null}
       </div>

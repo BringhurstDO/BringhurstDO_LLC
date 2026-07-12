@@ -10,7 +10,7 @@ import { getReadyXConnection } from "@/lib/ops/x-connection";
 import { publishXPost, uploadXMedia } from "@/lib/ops/x-client";
 import { findXAccount, resolveXConfig } from "@/lib/ops/x-config";
 import {
-  fetchPublicImageBytes,
+  fetchPublicMediaBytes,
   resolvePublishImageUrl,
 } from "@/lib/ops/ops-publish-media";
 import type {
@@ -202,11 +202,12 @@ export async function publishXDraft(
     let mediaIds: string[] | undefined;
 
     if (image.ok) {
-      const fetched = await fetchPublicImageBytes(image.imageUrl);
+      const fetched = await fetchPublicMediaBytes(image.imageUrl);
       const mediaId = await uploadXMedia({
         accessToken: ready.value.accessToken,
         bytes: fetched.bytes,
         contentType: fetched.contentType,
+        kind: fetched.kind,
       });
       mediaIds = [mediaId];
     }

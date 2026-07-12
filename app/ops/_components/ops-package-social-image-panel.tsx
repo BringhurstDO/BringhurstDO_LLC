@@ -113,14 +113,16 @@ export function OpsPackageSocialImagePanel({
     <div className="grid gap-3">
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
         <h3 className="font-sans text-sm font-semibold text-slate-950">
-          Social image for connected platforms
+          Social media for connected platforms
         </h3>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          Attach once at the package level. Ops copies this image onto LinkedIn,
+          Attach once at the package level. Ops copies this media onto LinkedIn,
           X, Facebook, and Instagram drafts when keywords or update type match
-          the catalog. When no image is selected, publish defaults use the source
-          product and post copy — not the posting account brand (e.g. Kyle&apos;s
-          LinkedIn posting SyncSOAP still gets SyncSOAP art).
+          the catalog. JPEG/PNG/WebP, GIF, and MP4 are supported. Instagram
+          rejects GIFs — use MP4 or a still there. When no media is selected,
+          publish defaults use the source product and post copy — not the posting
+          account brand (e.g. Kyle&apos;s LinkedIn posting SyncSOAP still gets
+          SyncSOAP art).
         </p>
         {showSuggestion ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-950">
@@ -142,8 +144,8 @@ export function OpsPackageSocialImagePanel({
       <IgMediaAttachPanel
         assetLocation={assetLocation}
         catalogScope="all"
-        heading="Package social image"
-        description="One image per post on LinkedIn, X, Facebook, and Instagram. Remove before save if a draft should be text-only."
+        heading="Package social media"
+        description="One media file per post on LinkedIn, X, Facebook, and Instagram (JPEG/PNG/WebP, GIF, or MP4). Remove before save if a draft should be text-only."
         onChange={onChange}
         projectId={projectId}
       />

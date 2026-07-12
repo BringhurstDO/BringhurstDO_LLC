@@ -5,15 +5,11 @@ import path from "node:path";
 
 import { put } from "@vercel/blob";
 
+import {
+  isAllowedOpsUploadContentType,
+  maxUploadBytesForContentType,
+} from "@/lib/ops/ops-media-kind";
 import type { OpsProjectId } from "@/lib/ops/types";
-
-const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
-const ALLOWED_CONTENT_TYPES = new Set([
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-]);
 
 export type OpsMediaUploadResult = {
   assetLocation: string;
@@ -29,7 +25,7 @@ function sanitizeFileStem(name: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-  return stem || "screenshot";
+  return stem || "social-media";
 }
 
 function extensionForContentType(contentType: string) {
@@ -38,6 +34,10 @@ function extensionForContentType(contentType: string) {
       return "png";
     case "image/webp":
       return "webp";
+    case "image/gif":
+      return "gif";
+    case "video/mp4":
+      return "mp4";
     default:
       return "jpg";
   }
@@ -68,7 +68,7 @@ export function opsMediaUploadStatus() {
     configured: false,
     mode: null,
     reason:
-      "Set BLOB_READ_WRITE_TOKEN on Vercel for production screenshot uploads, or pick an approved catalog image.",
+      "Set BLOB_READ_WRITE_TOKEN on Vercel for production media uploads, or pick an approved catalog image.",
   };
 }
 
@@ -80,16 +80,19 @@ export async function uploadOpsIgScreenshot(input: {
 }): Promise<OpsMediaUploadResult> {
   const contentType = input.contentType.trim().toLowerCase();
 
-  if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
-    throw new Error("Upload must be a JPEG, PNG, or WebP image.");
+  if (!isAllowedOpsUploadContentType(contentType)) {
+    throw new Error("Upload must be a JPEG, PNG, WebP, GIF, or MP4 file.");
   }
 
   if (input.bytes.byteLength === 0) {
     throw new Error("Upload file is empty.");
   }
 
-  if (input.bytes.byteLength > MAX_UPLOAD_BYTES) {
-    throw new Error("Upload must be 4 MB or smaller for Instagram publishing.");
+  const maxBytes = maxUploadBytesForContentType(contentType);
+
+  if (input.bytes.byteLength > maxBytes) {
+    const limitMb = Math.round(maxBytes / (1024 * 1024));
+    throw new Error(`Upload must be ${limitMb} MB or smaller for this media type.`);
   }
 
   const extension = extensionForContentType(contentType);

@@ -20,6 +20,7 @@ export const LINKEDIN_TOKEN_URL =
   "https://www.linkedin.com/oauth/v2/accessToken";
 export const LINKEDIN_POSTS_URL = "https://api.linkedin.com/rest/posts";
 export const LINKEDIN_IMAGES_URL = "https://api.linkedin.com/rest/images";
+export const LINKEDIN_VIDEOS_URL = "https://api.linkedin.com/rest/videos";
 export const LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo";
 
 export const LINKEDIN_DEFAULT_ACCOUNT_ID = "account-bringhurstdo-linkedin";
