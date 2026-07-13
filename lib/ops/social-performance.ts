@@ -5,7 +5,9 @@ import type {
 } from "@/lib/ops/types";
 
 const snapshotSourcePriority: Record<PerformanceSnapshot["source"], number> = {
-  "x-api-weekly": 2,
+  "meta-api-weekly": 3,
+  "x-api-weekly": 3,
+  "linkedin-import": 2,
   manual: 1,
 };
 
@@ -73,7 +75,12 @@ export function buildSocialPerformanceRows(
         continue;
       }
 
-      if (post.platform !== "X" && post.platform !== "LinkedIn") {
+      if (
+        post.platform !== "X" &&
+        post.platform !== "LinkedIn" &&
+        post.platform !== "Facebook" &&
+        post.platform !== "Instagram"
+      ) {
         continue;
       }
 

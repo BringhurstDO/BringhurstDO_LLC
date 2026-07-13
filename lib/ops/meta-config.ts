@@ -34,6 +34,8 @@ export type MetaConfigStatus =
 const FACEBOOK_PAGE_SCOPES = [
   "pages_show_list",
   "pages_manage_posts",
+  "pages_read_engagement",
+  "read_insights",
   "instagram_content_publish",
   "business_management",
 ];
@@ -41,7 +43,10 @@ const FACEBOOK_PAGE_SCOPES = [
 const INSTAGRAM_SCOPES = [
   "instagram_basic",
   "instagram_content_publish",
+  "instagram_manage_insights",
   "pages_show_list",
+  "pages_read_engagement",
+  "read_insights",
   "business_management",
 ];
 

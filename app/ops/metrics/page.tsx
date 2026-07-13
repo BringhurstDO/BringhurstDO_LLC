@@ -58,8 +58,8 @@ export default async function OpsMetricsPage() {
         title="Weekly Scorecard & Social Performance"
         description={
           storageIsDatabase
-            ? "X post metrics are live from Postgres (weekly cron + manual refresh). Weekly scorecard and manual ledger below remain mock until Phase 11."
-            : "Enable OPS_STORAGE_MODE=database for live X metrics. Scorecard layout below is mock sample data."
+            ? "X and Meta post metrics sync from Postgres (weekly cron + refresh). Import LinkedIn Aggregate Analytics Excel to attach LinkedIn post metrics without storing the workbook. Weekly scorecard below remains mock until Phase 11."
+            : "Enable OPS_STORAGE_MODE=database for live social metrics. Scorecard layout below is mock sample data."
         }
       />
 
@@ -201,7 +201,7 @@ export default async function OpsMetricsPage() {
         <MockDataPanel
           phase="Phase 10"
           title="Future platform read-sync (not connected)"
-          description="Meta and LinkedIn API analytics remain placeholders. X is live above when database persistence is enabled."
+          description="Meta and LinkedIn API placeholders are below for reference. Live X / Meta refresh and LinkedIn Excel import are in the panel above when database persistence is enabled."
         >
           <div className="grid gap-4 lg:grid-cols-3">
             {socialMetricPlaceholders.map((placeholder) => (

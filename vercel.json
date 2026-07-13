@@ -43,6 +43,10 @@
     {
       "path": "/api/cron/ops-x-metrics",
       "schedule": "0 15 * * 3"
+    },
+    {
+      "path": "/api/cron/ops-meta-metrics",
+      "schedule": "0 16 * * 3"
     }
   ],
   "headers": [

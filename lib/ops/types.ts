@@ -58,7 +58,27 @@ export type WeeklyScorecardMetricId =
   | "revenue";
 
 export type ManualMetricSource = "manual" | "imported" | "future-read-only";
-export type PerformanceSnapshotSource = "manual" | "x-api-weekly";
+export type PerformanceSnapshotSource =
+  | "manual"
+  | "x-api-weekly"
+  | "linkedin-import"
+  | "meta-api-weekly";
+
+export const PERFORMANCE_SNAPSHOT_SOURCES = [
+  "manual",
+  "x-api-weekly",
+  "linkedin-import",
+  "meta-api-weekly",
+] as const satisfies readonly PerformanceSnapshotSource[];
+
+export function isPerformanceSnapshotSource(
+  value: unknown,
+): value is PerformanceSnapshotSource {
+  return (
+    typeof value === "string" &&
+    (PERFORMANCE_SNAPSHOT_SOURCES as readonly string[]).includes(value)
+  );
+}
 
 export type SourceUpdateType =
   | "product-update"

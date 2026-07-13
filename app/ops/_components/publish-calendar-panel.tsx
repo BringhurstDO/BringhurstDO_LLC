@@ -1284,7 +1284,10 @@ export function PublishCalendarPanel({
         ) : null}
 
         {row.postStatus === "posted" &&
-        (row.platform === "X" || row.platform === "LinkedIn") ? (
+        (row.platform === "X" ||
+          row.platform === "LinkedIn" ||
+          row.platform === "Facebook" ||
+          row.platform === "Instagram") ? (
           <CalendarPostPerformance
             comments={performanceSnapshot?.numericMetrics.comments ?? null}
             capturedAt={performanceSnapshot?.capturedAt ?? null}
