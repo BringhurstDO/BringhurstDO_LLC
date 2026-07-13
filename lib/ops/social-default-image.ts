@@ -17,13 +17,13 @@ export const PLATFORM_ASSET_ALIASES: Partial<
 > = {
   Facebook: {
     "/ops-ig/america-250-square.png": "/ops-ig/america-250-facebook.png",
-    "/ops-ig/syncsoap-progress-ig-01-cover.png":
-      "/ops-ig/syncsoap-product-screenshot-ig-square.png",
+    "/ops-ig/syncsoap-product-screenshot-ig-square.png":
+      "/ops-ig/syncsoap-product-cover-landscape.png",
   },
   LinkedIn: {
     "/ops-ig/america-250-square.png": "/ops-ig/america-250-facebook.png",
-    "/ops-ig/syncsoap-progress-ig-01-cover.png":
-      "/ops-ig/syncsoap-product-screenshot-ig-square.png",
+    "/ops-ig/syncsoap-product-screenshot-ig-square.png":
+      "/ops-ig/syncsoap-product-cover-landscape.png",
   },
 };
 
@@ -46,9 +46,9 @@ export const PROJECT_PLATFORM_DEFAULTS: Partial<
   },
   syncsoap: {
     default: "/ops-ig/syncsoap-product-cover-landscape.png",
-    Facebook: "/ops-ig/syncsoap-product-cover-facebook.png",
-    Instagram: "/ops-ig/syncsoap-product-cover-square.png",
-    LinkedIn: "/ops-ig/syncsoap-product-cover-facebook.png",
+    Facebook: "/ops-ig/syncsoap-product-cover-landscape.png",
+    Instagram: "/ops-ig/syncsoap-product-screenshot-ig-square.png",
+    LinkedIn: "/ops-ig/syncsoap-product-cover-landscape.png",
     X: "/ops-ig/syncsoap-product-cover-landscape.png",
   },
 };
