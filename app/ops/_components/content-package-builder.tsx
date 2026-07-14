@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   AlertTriangle,
+  CalendarClock,
   CheckCircle2,
   Copy,
   ClipboardCheck,
@@ -19,6 +20,7 @@ import {
   Megaphone,
   Plus,
   Save,
+  Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -27,6 +29,9 @@ import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
 import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel";
 import { OpsPackageSocialImagePanel } from "@/app/ops/_components/ops-package-social-image-panel";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
+import { SinglePostAiEnhancer } from "@/app/ops/_components/single-post-ai-enhancer";
+import type { OpsAiVisibleContext } from "@/lib/ops/ai-visible-context";
+import { platformSupportsAutopublish } from "@/lib/ops/autopublish-platforms";
 import { platformSupportsSocialImage } from "@/lib/ops/social-image-utils";
 import { mediaTypeFromAssetLocation } from "@/lib/ops/ops-media-kind";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
@@ -42,7 +47,11 @@ import {
   buildPostPacket,
   buildPublishableCopy,
 } from "@/lib/ops/post-packet";
-import { platformScheduleBucketId } from "@/lib/ops/platform-schedule-defaults";
+import {
+  DEFAULT_OPS_SCHEDULE_TIMEZONE,
+  OPS_SCHEDULE_BUCKETS,
+  platformScheduleBucketId,
+} from "@/lib/ops/platform-schedule-defaults";
 import {
   DEFAULT_DRAFT_OPERATOR_NOTES,
   DEFAULT_DRAFT_SAFETY_NOTES,
@@ -72,6 +81,7 @@ import type {
   OpsProductionEffort,
   OpsProjectId,
   OpsProjectSummary,
+  OpsScheduleBucketId,
   PerformanceSnapshot,
   PlatformDraft,
   PlatformDraftStatus,
@@ -1103,12 +1113,16 @@ export function ContentPackageBuilder({
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceType, setSourceType] =
     useState<SourceUpdateType>("product-update");
-  const [sourceDate, setSourceDate] = useState("2026-06-06");
+  const [sourceDate, setSourceDate] = useState(() => currentCaptureDate());
   const [sourceSummary, setSourceSummary] = useState("");
   const [sourceNotes, setSourceNotes] = useState("");
   const [packageSocialImage, setPackageSocialImage] = useState("");
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
   const [draftSlots, setDraftSlots] = useState<DraftSlotInput[]>([]);
+  const [scheduledFor, setScheduledFor] = useState("");
+  const [scheduleBucketId, setScheduleBucketId] =
+    useState<OpsScheduleBucketId>("morning");
+  const [autopublishEnabled, setAutopublishEnabled] = useState(false);
   const [records, setRecords] = useState<LocalContentPackageRecord[]>(initialRecords);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveIssues, setSaveIssues] = useState<string[]>([]);
@@ -1149,10 +1163,20 @@ export function ContentPackageBuilder({
   const storageWarning = storageIsDatabase
     ? "Content packages are saved through the protected Ops Postgres adapter. Keep JSON exports as a backup until database backups and restore drills are verified."
     : "Content packages are saved with the localStorage adapter on this device and browser. Export JSON before clearing browser data, switching devices, or testing in another browser.";
-  const saveButtonLabel = storageIsDatabase ? "Save Package" : "Save Locally";
-  const saveButtonHelper = storageIsDatabase
-    ? "Saves to the protected Ops database after metadata-only validation."
-    : "Saves to this browser only after metadata-only validation.";
+  const saveButtonLabel = isCreateFocus
+    ? scheduledFor
+      ? "Save And Schedule Post"
+      : "Save Post"
+    : storageIsDatabase
+      ? "Save Package"
+      : "Save Locally";
+  const saveButtonHelper = isCreateFocus
+    ? scheduledFor
+      ? "Creates the destination drafts and adds them to the selected date and time window."
+      : "Creates the destination drafts now; scheduling can be added later."
+    : storageIsDatabase
+      ? "Saves to the protected Ops database after metadata-only validation."
+      : "Saves to this browser only after metadata-only validation.";
   const saveSuccessMessage = storageIsDatabase
     ? "Content package saved to the Ops database after metadata-only validation."
     : "Content package saved locally after metadata-only validation.";
@@ -1405,6 +1429,96 @@ export function ContentPackageBuilder({
     aiStatus.enabled,
     storageIsDatabase,
   ]);
+  const singlePostAiContext = useMemo<OpsAiVisibleContext | null>(() => {
+    if (
+      !sourceTitle.trim() ||
+      !sourceSummary.trim() ||
+      aiPreviewSafetyIssues.length > 0
+    ) {
+      return null;
+    }
+
+    const primaryTarget = selectedTargets.find(
+      (target) => !targetIsBlocked(target),
+    );
+
+    return {
+      audienceRules: selectedAudienceProfiles.map((profile) => ({
+        audience: profile.label,
+        contentUse: profile.contentUse,
+        safetyNotes: profile.safetyNotes,
+      })),
+      brandRules: selectedBrandProfiles.map((profile) => ({
+        allowedTopics: profile.allowedTopics,
+        brand: profile.displayName,
+        prohibitedClaims: profile.prohibitedClaims,
+        requiredDisclaimers: profile.requiredDisclaimers,
+        sourceBoundary: profile.sourceBoundary,
+        voiceTone: profile.voiceTone,
+      })),
+      contentPackageId: "content-package-single-post-preview",
+      excludedData:
+        "No PHI, patient identifiers, encounter text, transcripts, clinical payloads, private customer or pilot names, credentials, private messages, raw logs, cookies, tokens, OAuth data, audience exports, secret values, or sensitive internal security findings unless manually rewritten as public-safe marketing language.",
+      manualReviewRequired: true,
+      platformDrafts: [
+        {
+          accountName: primaryTarget?.accountName ?? "Single social post",
+          body: sourceSummary.trim(),
+          generatedUrl:
+            primaryTarget?.defaultDestinationUrl ?? "https://www.bringhurstdo.com",
+          id: "platform-draft-single-post-preview",
+          media: {
+            creativeAngle: "build-in-public",
+            mediaSummary: packageSocialImage.trim()
+              ? "Approved package social media selected."
+              : "No media selected.",
+            mediaType: packageSocialImage.trim()
+              ? mediaTypeFromAssetLocation(packageSocialImage)
+              : "none",
+            productionEffort: "low",
+            reuseStatus: "new",
+            visualHook: packageSocialImage.trim()
+              ? "Approved package social media."
+              : "Text-only post.",
+          },
+          platform: primaryTarget?.platform ?? "Social",
+          title: sourceTitle.trim(),
+        },
+      ],
+      publicationTargets: selectedTargets.map((target) => ({
+        accountName: target.accountName,
+        audience: target.audience,
+        destinationUrl: target.defaultDestinationUrl,
+        platform: target.platform,
+        postingMode: target.postingMode,
+        publicHandle: target.publicHandle,
+        sourceBoundary: target.sourceBoundary,
+        spendMode: target.spendMode,
+      })),
+      reviewChecklist: draftReviewChecklist,
+      sourceUpdate: {
+        sourceBoundary:
+          "Metadata-only business/product update; internal notes are excluded from AI context.",
+        sourceDate,
+        sourceProjectId: primaryProjectId,
+        summary: sourceSummary.trim(),
+        title: sourceTitle.trim(),
+        updateType: sourceType,
+      },
+    };
+  }, [
+    aiPreviewSafetyIssues.length,
+    draftReviewChecklist,
+    packageSocialImage,
+    primaryProjectId,
+    selectedAudienceProfiles,
+    selectedBrandProfiles,
+    selectedTargets,
+    sourceDate,
+    sourceSummary,
+    sourceTitle,
+    sourceType,
+  ]);
 
   const weeklyQueueRows = useMemo(() => buildWeeklyQueueRows(records), [records]);
   const weeklyQueueGroups = useMemo(
@@ -1523,6 +1637,14 @@ export function ContentPackageBuilder({
       return;
     }
 
+    if (
+      target &&
+      !selectedTargetIds.includes(targetId) &&
+      selectedTargetIds.length === 0
+    ) {
+      setScheduleBucketId(platformScheduleBucketId(target.platform));
+    }
+
     setSelectedTargetIds((current) =>
       current.includes(targetId)
         ? current.filter((id) => id !== targetId)
@@ -1530,8 +1652,50 @@ export function ContentPackageBuilder({
     );
   }
 
-  function generateDraftSlots() {
+  function buildDraftSlotInputs(activeTargets: PublicationTarget[]) {
     const packageSlug = slugify(sourceTitle);
+
+    return activeTargets.map((target, index): DraftSlotInput => {
+      const campaign = campaignName(sourceTitle, target);
+      const hasPackageImage =
+        platformSupportsSocialImage(target.platform) &&
+        Boolean(packageSocialImage.trim());
+      const destinationUrl = buildUtmForTarget(
+        target,
+        campaign,
+        `${target.id}_${index + 1}`,
+      );
+
+      return {
+        assetLocation: hasPackageImage ? packageSocialImage.trim() : "",
+        body: draftTemplateBody({
+          campaign,
+          destinationUrl,
+          sourceSummary,
+          sourceTitle,
+          target,
+        }),
+        creativeAngle: "build-in-public",
+        id: `slot-${packageSlug}-${target.id}`,
+        mediaSummary: hasPackageImage
+          ? `Package social media attached for ${target.platform}.`
+          : "No media planned.",
+        mediaType: hasPackageImage
+          ? mediaTypeFromAssetLocation(packageSocialImage)
+          : "none",
+        productionEffort: "low",
+        reuseStatus: "new",
+        status: "drafted",
+        targetId: target.id,
+        title: sourceTitle || `${target.accountName} draft`,
+        visualHook: hasPackageImage
+          ? "Approved social media from package."
+          : "Text-only post.",
+      };
+    });
+  }
+
+  function generateDraftSlots() {
     const activeTargets = selectedTargets.filter(
       (target) => !targetIsBlocked(target),
     );
@@ -1543,39 +1707,7 @@ export function ContentPackageBuilder({
       return;
     }
 
-    setDraftSlots(
-      activeTargets.map((target, index) => {
-        const campaign = campaignName(sourceTitle, target);
-        const destinationUrl = buildUtmForTarget(
-          target,
-          campaign,
-          `${target.id}_${index + 1}`,
-        );
-
-        return {
-          assetLocation: platformSupportsSocialImage(target.platform)
-              ? packageSocialImage.trim()
-              : "",
-          body: draftTemplateBody({
-            campaign,
-            destinationUrl,
-            sourceSummary,
-            sourceTitle,
-            target,
-          }),
-          creativeAngle: "build-in-public",
-          id: `slot-${packageSlug}-${target.id}`,
-          mediaSummary: "No media planned.",
-          mediaType: "none",
-          productionEffort: "low",
-          reuseStatus: "new",
-          status: "drafted",
-          targetId: target.id,
-          title: sourceTitle || `${target.accountName} draft`,
-          visualHook: "Text-only post.",
-        };
-      }),
-    );
+    setDraftSlots(buildDraftSlotInputs(activeTargets));
     setSaveIssues([]);
   }
 
@@ -1900,11 +2032,35 @@ export function ContentPackageBuilder({
       );
     }
 
-    if (draftSlots.length === 0) {
-      baseIssues.push("Generate or manually add at least one draft slot.");
+    const slotsToSave = isCreateFocus
+      ? buildDraftSlotInputs(
+          selectedTargets.filter((target) => !targetIsBlocked(target)),
+        )
+      : draftSlots;
+
+    if (slotsToSave.length === 0) {
+      baseIssues.push(
+        isCreateFocus
+          ? "Select at least one active destination."
+          : "Generate or manually add at least one draft slot.",
+      );
     }
 
-    const blockedDraftTargets = draftSlots
+    if (isCreateFocus && scheduledFor) {
+      if (scheduledFor < currentCaptureDate()) {
+        baseIssues.push("Choose today or a future date for this post.");
+      }
+
+      if (new Date(`${scheduledFor}T12:00:00`).getDay() === 0) {
+        baseIssues.push("Sunday is unavailable for content generation and posting.");
+      }
+    }
+
+    if (isCreateFocus && autopublishEnabled && !scheduledFor) {
+      baseIssues.push("Choose a publish date before enabling automatic publishing.");
+    }
+
+    const blockedDraftTargets = slotsToSave
       .map((slot) =>
         publicationTargets.find((item) => item.id === slot.targetId),
       )
@@ -1961,11 +2117,11 @@ export function ContentPackageBuilder({
       publicationTargetIds: selectedTargets.map((target) => target.id),
       sourceProjectIds: [primaryProjectId],
       sourceUpdateId,
-      status: "drafting",
+      status: isCreateFocus && autopublishEnabled ? "approved" : "drafting",
       title: sourceTitle,
       updatedAt: createdAt,
     };
-    const platformDrafts = draftSlots.map((slot, index): PlatformDraft => {
+    const platformDrafts = slotsToSave.map((slot, index): PlatformDraft => {
       const target =
         publicationTargets.find((item) => item.id === slot.targetId) ??
         selectedTargets[0];
@@ -2011,8 +2167,20 @@ export function ContentPackageBuilder({
         safetyNotes: [...DEFAULT_DRAFT_SAFETY_NOTES],
         sourceUpdateId,
         sourceProjectId: primaryProjectId,
-        status: slot.status,
-        suggestedScheduleBucketId: platformScheduleBucketId(target.platform),
+        autopublishEnabled:
+          isCreateFocus &&
+          Boolean(scheduledFor) &&
+          autopublishEnabled &&
+          platformSupportsAutopublish(target.platform),
+        status:
+          isCreateFocus && autopublishEnabled && scheduledFor
+            ? "approved"
+            : slot.status,
+        suggestedScheduledFor:
+          isCreateFocus && scheduledFor ? scheduledFor : undefined,
+        suggestedScheduleBucketId: isCreateFocus
+          ? scheduleBucketId
+          : platformScheduleBucketId(target.platform),
         title: slot.title || sourceTitle,
         updatedAt: createdAt,
         utmCampaignId: `utm-${packageSlug}-${target.id}-${index + 1}-${idSuffix}`,
@@ -2077,7 +2245,17 @@ export function ContentPackageBuilder({
     const nextRecords = [record, ...records];
 
     if (await persistRecords(nextRecords)) {
-      setSaveMessage(saveSuccessMessage);
+      setSaveMessage(
+        isCreateFocus
+          ? scheduledFor
+            ? `Post saved for ${scheduledFor} in the ${scheduleBucketId} window${
+                autopublishEnabled
+                  ? ". Automatic publishing is enabled for supported connected platforms."
+                  : "."
+              }`
+            : "Post saved. Add a date later from the publish calendar when you are ready."
+          : saveSuccessMessage,
+      );
     }
   }
 
@@ -2628,7 +2806,119 @@ export function ContentPackageBuilder({
         ) : null}
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      {isCreateFocus ? (
+        <section className="order-3 rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-5">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <CalendarClock className="h-4 w-4" aria-hidden />
+              Schedule And Save
+            </div>
+            <h2 className="mt-1 font-sans text-base font-semibold text-slate-950">
+              Finish This Post
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              Saving automatically creates the destination-specific records.
+              Add a date and window now, or leave the date blank to keep it as
+              an unscheduled draft.
+            </p>
+          </div>
+
+          <div className="grid gap-5 p-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                Publish date
+                <input
+                  type="date"
+                  min={currentCaptureDate()}
+                  value={scheduledFor}
+                  onChange={(event) => setScheduledFor(event.target.value)}
+                  className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-slate-700">
+                Time window
+                <select
+                  value={scheduleBucketId}
+                  onChange={(event) =>
+                    setScheduleBucketId(
+                      event.target.value as OpsScheduleBucketId,
+                    )
+                  }
+                  className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
+                >
+                  {OPS_SCHEDULE_BUCKETS.map((bucket) => (
+                    <option key={bucket.id} value={bucket.id}>
+                      {bucket.localTime} - {bucket.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs font-normal text-slate-500">
+                  {DEFAULT_OPS_SCHEDULE_TIMEZONE}; Sundays are unavailable.
+                </span>
+              </label>
+            </div>
+
+            <label className="flex items-start gap-3 border-l-4 border-violet-400 bg-violet-50 p-4 text-sm text-violet-950">
+              <input
+                type="checkbox"
+                checked={autopublishEnabled}
+                onChange={(event) =>
+                  setAutopublishEnabled(event.target.checked)
+                }
+                className="mt-1 h-4 w-4"
+              />
+              <span>
+                <span className="flex items-center gap-2 font-semibold">
+                  <Sparkles className="h-4 w-4" aria-hidden />
+                  Approve and publish automatically
+                </span>
+                <span className="mt-1 block leading-6 text-violet-800">
+                  Applies only to supported connected social platforms. Without
+                  this selection, the post remains scheduled for manual review.
+                </span>
+              </span>
+            </label>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={saveContentPackage}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-700"
+              >
+                <Save className="h-4 w-4" aria-hidden />
+                {saveButtonLabel}
+              </button>
+              <p className="text-sm text-slate-500">{saveButtonHelper}</p>
+            </div>
+
+            {saveMessage ? (
+              <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium leading-6 text-emerald-800">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                {saveMessage}
+              </div>
+            ) : null}
+
+            {saveIssues.length > 0 ? (
+              <div className="grid gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                <div className="flex items-start gap-3 font-medium">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  Fix these before saving.
+                </div>
+                <ul className="space-y-2">
+                  {saveIssues.slice(0, 12).map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      <section
+        className={`${isCreateFocus ? "order-1" : ""} rounded-lg border border-slate-200 bg-white shadow-sm`}
+      >
         <div className="border-b border-slate-200 p-5">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <FilePlus2 className="h-4 w-4" />
@@ -2696,7 +2986,7 @@ export function ContentPackageBuilder({
           </label>
 
           <label className="grid gap-2 text-sm font-semibold text-slate-700">
-            Source update summary
+            {isCreateFocus ? "Post text" : "Source update summary"}
             {isCreateFocus ? (
               <span className="text-xs font-normal leading-5 text-slate-500">
                 One update only — does not split into multiple posts. Use{" "}
@@ -2713,6 +3003,14 @@ export function ContentPackageBuilder({
               className="min-h-28 rounded-lg border border-slate-300 bg-white p-3 text-sm leading-6 text-slate-800"
             />
           </label>
+
+          {isCreateFocus ? (
+            <SinglePostAiEnhancer
+              aiStatus={aiStatus}
+              aiVisibleContext={singlePostAiContext}
+              onApply={setSourceSummary}
+            />
+          ) : null}
 
           <label className="grid gap-2 text-sm font-semibold text-slate-700">
             Internal notes
@@ -3223,7 +3521,9 @@ export function ContentPackageBuilder({
       </>
       ) : null}
 
-      <section className="min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section
+        className={`${isCreateFocus ? "order-2" : ""} min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm`}
+      >
         <div className="border-b border-slate-200 p-5">
           <h2 className="font-sans text-base font-semibold text-slate-950">
             Select Products, Accounts, And Platforms
@@ -3275,7 +3575,9 @@ export function ContentPackageBuilder({
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section
+        className={`${isCreateFocus ? "hidden" : ""} rounded-lg border border-slate-200 bg-white shadow-sm`}
+      >
         <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="font-sans text-base font-semibold text-slate-950">
@@ -3586,7 +3888,9 @@ export function ContentPackageBuilder({
         </div>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section
+        className={`${isCreateFocus ? "hidden" : ""} rounded-lg border border-slate-200 bg-white shadow-sm`}
+      >
         <div className="border-b border-slate-200 p-5">
           <h2 className="font-sans text-base font-semibold text-slate-950">
             {savedPackagesTitle}

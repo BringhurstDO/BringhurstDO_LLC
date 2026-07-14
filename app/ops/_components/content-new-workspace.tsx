@@ -30,7 +30,7 @@ type ContentNewWorkspaceProps = {
 type CreateMode = "series" | "single";
 
 export function ContentNewWorkspace(props: ContentNewWorkspaceProps) {
-  const [mode, setMode] = useState<CreateMode>("series");
+  const [mode, setMode] = useState<CreateMode>("single");
 
   return (
     <div className="grid min-w-0 max-w-full gap-6 overflow-x-clip">
@@ -39,11 +39,23 @@ export function ContentNewWorkspace(props: ContentNewWorkspaceProps) {
           What are you creating?
         </h2>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          Paste or upload a weekly summary to split into scheduled posts, or
-          build one source update into platform draft slots manually.
+          Draft, enhance, schedule, and save one post here. Use the weekly
+          summary option only when one update should become several posts.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("single")}
+            className={`inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
+              mode === "single"
+                ? "bg-slate-950 text-white"
+                : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+            }`}
+          >
+            <FilePlus2 className="h-4 w-4" aria-hidden />
+            Single post
+          </button>
           <button
             type="button"
             onClick={() => setMode("series")}
@@ -55,18 +67,6 @@ export function ContentNewWorkspace(props: ContentNewWorkspaceProps) {
           >
             <Sparkles className="h-4 w-4" aria-hidden />
             Split weekly summary
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("single")}
-            className={`inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-semibold transition ${
-              mode === "single"
-                ? "bg-slate-950 text-white"
-                : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
-            }`}
-          >
-            <FilePlus2 className="h-4 w-4" aria-hidden />
-            Single source update
           </button>
           <Link
             href="/ops/content/calendar"

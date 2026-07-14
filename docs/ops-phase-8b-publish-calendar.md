@@ -1,21 +1,23 @@
 # Phase 8B - Publish Calendar
 
-Phase 8B adds a calendar-first view of saved content packages and series splits.
-Suggested dates from Phase 8A become an operator-facing publish queue. Later
-Phase 8C work adds bucketed autopublish for supported platforms, but approval
-remains mandatory.
+Phase 8B adds an operator-facing calendar for reviewing saved single posts and
+series splits. A single post can now be dated, assigned a time bucket, and opted
+into supported autopublish directly from `/ops/content/new`; the calendar is the
+overview and rescheduling surface rather than a required second creation step.
 
 ## Operator Flow
 
-1. Open `/ops/content/calendar`.
-2. Review **Today**, **Overdue**, and upcoming date groups.
-3. For each draft:
+1. Draft a single post on `/ops/content/new`, choose destinations, and optionally
+   set its publish date, time bucket, and autopublish approval before saving.
+2. Open `/ops/content/calendar` when reviewing or changing the broader queue.
+3. Review **Today**, **Overdue**, and upcoming date groups.
+4. For each draft:
    - Approve when copy is ready.
    - Reschedule by editing the suggested date.
    - Choose a schedule bucket: 09:00, 12:00, 15:00, 18:00, or 21:00.
    - Toggle autopublish only for supported platforms after review.
    - Publish manually when needed from the calendar buttons.
-4. Posted drafts can be shown via the **Show posted** filter.
+5. Posted drafts can be shown via the **Show posted** filter.
 
 ## Calendar Timing States
 

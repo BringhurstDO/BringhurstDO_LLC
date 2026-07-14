@@ -26,7 +26,7 @@ export default function OpsNewContentPackagePage() {
       <OpsPageHeader
         eyebrow="Content creation"
         title="New Content"
-        description="Split a weekly summary into platform posts with AI, or build one source update into draft slots. Use the publish calendar to schedule and post."
+        description="Draft one post, enhance it with AI, choose destinations, and schedule it without leaving this page. Weekly summaries can still be split into a multi-post series."
       />
 
       <div className={`${opsShellClass} grid min-w-0 gap-6 py-6`}>
@@ -35,7 +35,7 @@ export default function OpsNewContentPackagePage() {
             {storageIsDatabase ? "Durable database save" : "Local browser save"}
           </BoundaryPill>
           <BoundaryPill>
-            {aiStatus.enabled ? "AI split + improve enabled" : "AI disabled"}
+            {aiStatus.enabled ? "AI enhance + series split enabled" : "AI disabled"}
           </BoundaryPill>
           <BoundaryPill>Manual approval before posting</BoundaryPill>
           <BoundaryPill>No PHI or clinical payloads</BoundaryPill>
