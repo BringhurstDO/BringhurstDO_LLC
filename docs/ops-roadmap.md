@@ -4,7 +4,7 @@ Living roadmap for the private Ops console. Use this when pivoting tools (e.g.
 Cursor → Codex) so the next agent understands **what shipped**, **what is in
 progress**, and **what is intentionally deferred**.
 
-Last updated: 2026-06-15 (mock data highlighting, Phase 9 scaffold).
+Last updated: 2026-07-13 (weekly social scorecard rollup; Phase 10 + partial Phase 11).
 
 ## Product goal
 
@@ -28,17 +28,19 @@ clinical data into Ops.
 | 8C | Scheduled LinkedIn autopublish (opt-in per draft, approved only) | Vercel cron + calendar |
 | 8D | Platform schedule **planning buckets** (morning/midday/evening guidance) | calendar + series UI |
 | 8E | Platform connection readiness preflight | `/ops/accounts` |
-| 9 (in progress) | X + Meta OAuth scaffold (config, status, connect stub) | `/ops/accounts`, `/ops/api/social/x/*`, `/ops/api/social/meta/*` |
+| 9 (partial) | X + Meta OAuth, publish, and weekly metrics readback | `/ops/accounts`, `/ops/metrics`, cron |
+| 10 (partial) | Social metrics into `performanceSnapshots` + weekly social scorecard rollup | `/ops/metrics`, `/ops`, `/ops/reports` |
+| 11 (partial) | Live social weekly totals; business/project metrics still mock | same |
 | — | Marketing context export (brand + saved packages for AI) | `/ops/reports`, `GET /ops/api/marketing-context` |
 | — | Overview live content snapshot (when DB mode) | `/ops` |
 
-**Production notes (2026-06):**
+**Production notes (2026-07):**
 
 - Vercel deploys `main`.
 - Kyle personal LinkedIn connected; org pages blocked pending Community Management API.
 - Legacy mock **content packages**, **idea bank**, and **draft queue** removed from seeds; saved packages are source of truth.
-- `/ops` overview shows live content stats when `OPS_STORAGE_MODE=database`; metrics/scorecard remain Phase 11 placeholders.
-- **Red highlight** = mock sample data to ignore; **amber** = static repo config; **green** = live Postgres / LinkedIn.
+- `/ops` overview shows live content stats + weekly social totals when `OPS_STORAGE_MODE=database`. Followers/clicks/leads/spend/revenue and project health stay red mock.
+- **Red highlight** = mock sample data to ignore; **amber** = static repo config; **green** = live Postgres / social.
 
 ## Content workflow (end-to-end today)
 
@@ -75,8 +77,8 @@ targets, recent packages, upcoming drafts, and posted copy previews — metadata
 - Instagram, Facebook, X OAuth or publish APIs (Phase 9)
 - Autopublish for non-LinkedIn platforms
 - Per-draft scheduled times enforced by cron
-- Read-only social metrics sync into scorecard (Phase 10)
-- Live project/AWS metrics on `/ops`, `/ops/metrics`, `/ops/reports` scorecard (Phase 11)
+- Persisted manual scorecard ledger (followers, clicks, leads, conversations, spend, revenue)
+- Live project/AWS metrics on `/ops/projects` and remaining Phase 11 report narrative
 - Email or push “post today” reminders
 - Browser-local packages in server-side marketing context export (DB only)
 
@@ -91,13 +93,20 @@ OAuth callback + publish routes pending external API approval. See
 | Instagram / Facebook | Meta Business verification, app review |
 | X | OAuth app + posting API approval |
 
-### Phase 10 — Metrics read sync
+### Phase 10 — Metrics read sync (mostly done)
 
-Pull impressions/clicks from connected accounts into performance snapshots.
+Pull impressions/engagement from connected accounts into `performanceSnapshots`
+(X weekly API, Meta weekly API, LinkedIn Excel import). Weekly social scorecard
+cards roll up posts + impressions/reactions/comments/saves for the current Ops
+week (Mon–Sun, America/New_York). Website clicks still not available from these
+APIs (snapshots store 0).
 
-### Phase 11 — Dashboard live data
+### Phase 11 — Dashboard live data (partial)
 
-Replace remaining mock on `/ops/metrics`, `/ops/reports` scorecard, `/ops/projects` health with Postgres or external feeds.
+**Done:** live weekly social totals on `/ops`, `/ops/metrics`, `/ops/reports`.
+
+**Still mock (red):** followers, website clicks, leads, conversations, spend,
+revenue; manual metric entry ledger; project health / AWS; weekly report narrative.
 
 ### Phase 12 (candidate) — Per-draft schedule buckets + multi-cron autopublish
 

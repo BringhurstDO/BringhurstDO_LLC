@@ -18,6 +18,10 @@ Supported sheets: DISCOVERY, ENGAGEMENT (period total only), TOP POSTS, FOLLOWER
 
 Inbound metrics (LinkedIn Excel import, Meta weekly API, X weekly API) overwrite manual zero placeholders for the same published post. The metrics table prefers ingest sources over `manual`.
 
+## Weekly social scorecard
+
+`/ops/metrics`, `/ops`, and `/ops/reports` roll up posts published in the current Ops week (Monday–Sunday, `America/New_York`) plus the latest snapshot totals for impressions, reactions, comments, and saves (`buildWeeklySocialScorecard`). Business scorecard chips (followers, website clicks, leads, conversations, spend, revenue) stay mock until separate feeds land.
+
 ## Meta Facebook / Instagram insights
 
 ### Operator setup

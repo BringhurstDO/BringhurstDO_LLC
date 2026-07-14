@@ -18,12 +18,14 @@ import {
   StaticConfigShell,
 } from "@/app/ops/_components/ops-data-status";
 import { opsShellClass } from "@/app/ops/_components/ops-ui";
+import { WeeklySocialScorecardSection } from "@/app/ops/_components/weekly-social-scorecard-section";
 import { buildContentWorkflowSnapshot } from "@/lib/ops/content-workflow-snapshot";
 import { buildOpsDoctorSummary } from "@/lib/ops/doctor";
 import { loadOpsContentRecords } from "@/lib/ops/load-content-records";
 import { loadOpsRunHistory } from "@/lib/ops/run-history";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 import {
+  buildWeeklySocialScorecard,
   buildXPerformanceSummary,
   formatPerformanceCapturedAt,
 } from "@/lib/ops/social-performance";
@@ -145,13 +147,16 @@ export default async function OpsPage() {
   const doctor = await buildOpsDoctorSummary(snapshot);
   const runHistory = await loadOpsRunHistory(8);
   const xPerformance = buildXPerformanceSummary(records);
+  const storageIsDatabase = source === "database";
+  const weeklySocialScorecard = storageIsDatabase
+    ? buildWeeklySocialScorecard(records)
+    : null;
   const accountStatusCounts = Object.fromEntries(
     accountStatuses.map((status) => [
       status,
       accountRegistry.filter((account) => account.status === status).length,
     ]),
   ) as Record<OpsAccountStatus, number>;
-  const storageIsDatabase = source === "database";
 
   return (
     <main className="min-h-dvh">
@@ -167,9 +172,9 @@ export default async function OpsPage() {
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               Content workflow, publish calendar, and marketing context for
-              metadata-only operator work. X post metrics are live when Postgres
-              persistence is enabled; project scorecard stays placeholder until
-              Phase 11.
+              metadata-only operator work. Social weekly totals are live when
+              Postgres persistence is enabled; project health and business
+              scorecard metrics stay mock until later Phase 11 wiring.
             </p>
           </div>
 
@@ -551,10 +556,29 @@ export default async function OpsPage() {
           </section>
         ) : null}
 
+        {weeklySocialScorecard ? (
+          <div className="grid gap-4">
+            <WeeklySocialScorecardSection
+              compact
+              scorecard={weeklySocialScorecard}
+            />
+            <p className="text-sm text-slate-600">
+              Full social table and remaining business metrics live on{" "}
+              <Link
+                href="/ops/metrics"
+                className="font-semibold text-slate-900 underline"
+              >
+                Metrics
+              </Link>
+              .
+            </p>
+          </div>
+        ) : null}
+
         <MockDataShell
           phase="Phase 11"
-          title="Project metrics & weekly scorecard"
-          description="Placeholder layout only. No live AWS, project health, or weekly scorecard read-sync is connected."
+          title="Project health & business scorecard"
+          description="Still mock. AWS/project health, followers, website clicks, leads, conversations, spend, and revenue are not fed by social APIs yet."
         >
           <p className="text-sm leading-6 text-red-900/90">
             Use{" "}
@@ -565,8 +589,8 @@ export default async function OpsPage() {
             <Link href="/ops/metrics" className="font-semibold underline">
               Metrics
             </Link>{" "}
-            to preview the mock layouts (highlighted in red) until Phase 10–11
-            wiring.
+            for the remaining red mock layouts. Social weekly totals above are
+            live when database persistence is on.
           </p>
         </MockDataShell>
 

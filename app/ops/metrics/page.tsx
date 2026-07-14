@@ -4,7 +4,6 @@ import {
   MessageCircle,
   MousePointerClick,
   ReceiptText,
-  Send,
   Users,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -22,34 +21,54 @@ import {
   StatusPill,
 } from "@/app/ops/_components/ops-ui";
 import { SocialPerformancePanel } from "@/app/ops/_components/social-performance-panel";
+import { WeeklySocialScorecardSection } from "@/app/ops/_components/weekly-social-scorecard-section";
 import { loadOpsContentRecords } from "@/lib/ops/load-content-records";
 import { opsDashboardData } from "@/lib/ops/mock-data";
-import { buildSocialPerformanceRows } from "@/lib/ops/social-performance";
+import {
+  buildSocialPerformanceRows,
+  buildWeeklySocialScorecard,
+} from "@/lib/ops/social-performance";
 import type { WeeklyScorecardMetricId } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-const metricIcons = {
+const MOCK_SCORECARD_IDS = [
+  "followers",
+  "websiteClicks",
+  "leads",
+  "conversations",
+  "spend",
+  "revenue",
+] as const satisfies readonly WeeklyScorecardMetricId[];
+
+const mockMetricIcons = {
   conversations: MessageCircle,
   followers: Users,
   leads: Handshake,
-  posts: Send,
   revenue: ReceiptText,
   spend: CircleDollarSign,
   websiteClicks: MousePointerClick,
-} satisfies Record<WeeklyScorecardMetricId, ComponentType<{ className?: string }>>;
+} satisfies Record<
+  (typeof MOCK_SCORECARD_IDS)[number],
+  ComponentType<{ className?: string }>
+>;
 
 export default async function OpsMetricsPage() {
   const {
     manualMetricEntries,
-    socialMetricPlaceholders,
     weeklyReport,
     weeklyScorecard,
   } = opsDashboardData;
   const { records, source } = await loadOpsContentRecords();
   const storageIsDatabase = source === "database";
   const socialPerformanceRows = buildSocialPerformanceRows(records);
+  const weeklySocialScorecard = storageIsDatabase
+    ? buildWeeklySocialScorecard(records)
+    : null;
+  const remainingMockScorecard = weeklyScorecard.filter((metric) =>
+    (MOCK_SCORECARD_IDS as readonly string[]).includes(metric.id),
+  );
 
   return (
     <main>
@@ -58,8 +77,8 @@ export default async function OpsMetricsPage() {
         title="Weekly Scorecard & Social Performance"
         description={
           storageIsDatabase
-            ? "X and Meta post metrics sync from Postgres (weekly cron + refresh). Import LinkedIn Aggregate Analytics Excel to attach LinkedIn post metrics without storing the workbook. Weekly scorecard below remains mock until Phase 11."
-            : "Enable OPS_STORAGE_MODE=database for live social metrics. Scorecard layout below is mock sample data."
+            ? "X, Meta, and LinkedIn post metrics sync into Postgres. Weekly social totals (posts + engagement) roll up live below; followers, clicks, leads, conversations, spend, and revenue stay mock until wired."
+            : "Enable OPS_STORAGE_MODE=database for live social metrics. Business scorecard metrics below remain mock sample data."
         }
       />
 
@@ -74,18 +93,32 @@ export default async function OpsMetricsPage() {
           />
         )}
 
-        <MockDataBanner phase="Phase 11" title="Weekly scorecard is still mock" />
+        {weeklySocialScorecard ? (
+          <WeeklySocialScorecardSection scorecard={weeklySocialScorecard} />
+        ) : (
+          <MockDataBanner
+            phase="Phase 11"
+            title="Weekly social scorecard needs Postgres"
+            description="Live posts/impressions/reactions/comments/saves roll up once database persistence is enabled."
+          />
+        )}
+
+        <MockDataBanner
+          phase="Phase 11"
+          title="Business scorecard metrics still mock"
+          description="Followers, website clicks, leads, conversations, spend, and revenue are not fed by social APIs yet — stay red until manual persistence or other feeds land."
+        />
 
         <div className="flex flex-wrap gap-2">
-          <BoundaryPill>Manual entry/import first</BoundaryPill>
-          <BoundaryPill>Read-only social placeholders</BoundaryPill>
-          <BoundaryPill>No posting APIs</BoundaryPill>
+          <BoundaryPill>Social weekly totals live when DB-backed</BoundaryPill>
+          <BoundaryPill>Business metrics remain manual</BoundaryPill>
           <BoundaryPill>No ad-spend mutation</BoundaryPill>
         </div>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {weeklyScorecard.map((metric) => {
-            const Icon = metricIcons[metric.id];
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {remainingMockScorecard.map((metric) => {
+            const Icon =
+              mockMetricIcons[metric.id as (typeof MOCK_SCORECARD_IDS)[number]];
 
             return (
               <article
@@ -195,49 +228,6 @@ export default async function OpsMetricsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </MockDataPanel>
-
-        <MockDataPanel
-          phase="Phase 10"
-          title="Future platform read-sync (not connected)"
-          description="Meta and LinkedIn API placeholders are below for reference. Live X / Meta refresh and LinkedIn Excel import are in the panel above when database persistence is enabled."
-        >
-          <div className="grid gap-4 lg:grid-cols-3">
-            {socialMetricPlaceholders.map((placeholder) => (
-              <article
-                key={placeholder.id}
-                className={`${mockDataInnerClass} p-4`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="font-sans text-base font-semibold text-slate-950">
-                      {placeholder.platform}
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
-                      {placeholder.sourceBoundary}
-                    </p>
-                  </div>
-                  <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-800">
-                    {placeholder.status}
-                  </span>
-                </div>
-                <dl className="mt-4 grid gap-3 text-sm">
-                  <div>
-                    <dt className="text-slate-500">Future metrics</dt>
-                    <dd className="mt-1 font-medium text-slate-900">
-                      {placeholder.futureMetrics.join(", ")}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Forbidden</dt>
-                    <dd className="mt-1 font-medium text-slate-900">
-                      {placeholder.forbiddenData.join(", ")}
-                    </dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
           </div>
         </MockDataPanel>
       </div>

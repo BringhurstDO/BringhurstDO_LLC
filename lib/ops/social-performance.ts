@@ -183,6 +183,207 @@ export function buildXPerformanceSummary(
   };
 }
 
+const OPS_SCORECARD_TIME_ZONE = "America/New_York";
+
+export type WeeklySocialPlatformBreakdown = {
+  comments: number;
+  impressions: number;
+  platform: PublicationPlatform;
+  posts: number;
+  postsWithMetrics: number;
+  reactions: number;
+  saves: number;
+};
+
+export type WeeklySocialScorecard = {
+  byPlatform: WeeklySocialPlatformBreakdown[];
+  comments: number;
+  impressions: number;
+  lastCapturedAt: string | null;
+  posts: number;
+  postsWithMetrics: number;
+  reactions: number;
+  saves: number;
+  sources: PerformanceSnapshot["source"][];
+  weekEnd: string;
+  weekStart: string;
+};
+
+function zonedCalendarDate(
+  date: Date,
+  timeZone = OPS_SCORECARD_TIME_ZONE,
+): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function parseCalendarDate(value: string): { day: number; month: number; year: number } | null {
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+}
+
+function addCalendarDays(ymd: string, days: number): string {
+  const parsed = parseCalendarDate(ymd);
+  if (!parsed) {
+    return ymd;
+  }
+
+  const next = new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day + days, 12));
+  return next.toISOString().slice(0, 10);
+}
+
+/** Monday=0 … Sunday=6 for a YYYY-MM-DD calendar date. */
+function mondayBasedWeekday(ymd: string): number {
+  const parsed = parseCalendarDate(ymd);
+  if (!parsed) {
+    return 0;
+  }
+
+  const weekday = new Date(
+    Date.UTC(parsed.year, parsed.month - 1, parsed.day, 12),
+  ).getUTCDay();
+  return weekday === 0 ? 6 : weekday - 1;
+}
+
+export function resolveOpsWeekBounds(
+  reference: Date = new Date(),
+  weekStart?: string,
+  weekEnd?: string,
+): { weekEnd: string; weekStart: string } {
+  if (weekStart && weekEnd) {
+    return { weekStart, weekEnd };
+  }
+
+  const today = zonedCalendarDate(reference);
+  const start = addCalendarDays(today, -mondayBasedWeekday(today));
+  return {
+    weekStart: start,
+    weekEnd: addCalendarDays(start, 6),
+  };
+}
+
+function postedCalendarDate(postedAt: string | null): string | null {
+  if (!postedAt?.trim()) {
+    return null;
+  }
+
+  if (parseCalendarDate(postedAt.trim())) {
+    return postedAt.trim();
+  }
+
+  const date = new Date(postedAt);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return zonedCalendarDate(date);
+}
+
+function emptyPlatformBreakdown(
+  platform: PublicationPlatform,
+): WeeklySocialPlatformBreakdown {
+  return {
+    comments: 0,
+    impressions: 0,
+    platform,
+    posts: 0,
+    postsWithMetrics: 0,
+    reactions: 0,
+    saves: 0,
+  };
+}
+
+/**
+ * Weekly social rollup for scorecard cards: posts published in the Ops week
+ * (Mon–Sun, America/New_York) plus latest snapshot engagement totals.
+ */
+export function buildWeeklySocialScorecard(
+  records: OpsContentPackageRecord[],
+  weekStart?: string,
+  weekEnd?: string,
+  reference: Date = new Date(),
+): WeeklySocialScorecard {
+  const bounds = resolveOpsWeekBounds(reference, weekStart, weekEnd);
+  const rows = buildSocialPerformanceRows(records).filter((row) => {
+    const postedOn = postedCalendarDate(row.postedAt);
+    return (
+      postedOn !== null &&
+      postedOn >= bounds.weekStart &&
+      postedOn <= bounds.weekEnd
+    );
+  });
+
+  const byPlatformMap = new Map<PublicationPlatform, WeeklySocialPlatformBreakdown>();
+  const sources = new Set<PerformanceSnapshot["source"]>();
+  let comments = 0;
+  let impressions = 0;
+  let reactions = 0;
+  let saves = 0;
+  let postsWithMetrics = 0;
+  const capturedAts: string[] = [];
+
+  for (const row of rows) {
+    const bucket =
+      byPlatformMap.get(row.platform) ?? emptyPlatformBreakdown(row.platform);
+    bucket.posts += 1;
+
+    const hasMetrics =
+      row.impressions !== null ||
+      row.reactions !== null ||
+      row.comments !== null ||
+      row.saves !== null;
+
+    if (hasMetrics) {
+      postsWithMetrics += 1;
+      bucket.postsWithMetrics += 1;
+      impressions += row.impressions ?? 0;
+      reactions += row.reactions ?? 0;
+      comments += row.comments ?? 0;
+      saves += row.saves ?? 0;
+      bucket.impressions += row.impressions ?? 0;
+      bucket.reactions += row.reactions ?? 0;
+      bucket.comments += row.comments ?? 0;
+      bucket.saves += row.saves ?? 0;
+      if (row.source) {
+        sources.add(row.source);
+      }
+      if (row.capturedAt) {
+        capturedAts.push(row.capturedAt);
+      }
+    }
+
+    byPlatformMap.set(row.platform, bucket);
+  }
+
+  return {
+    byPlatform: [...byPlatformMap.values()].sort((left, right) =>
+      left.platform.localeCompare(right.platform),
+    ),
+    comments,
+    impressions,
+    lastCapturedAt: capturedAts.sort().at(-1) ?? null,
+    posts: rows.length,
+    postsWithMetrics,
+    reactions,
+    saves,
+    sources: [...sources].sort(),
+    weekEnd: bounds.weekEnd,
+    weekStart: bounds.weekStart,
+  };
+}
+
 export function formatPerformanceCapturedAt(capturedAt: string | null) {
   if (!capturedAt) {
     return "Not captured yet";

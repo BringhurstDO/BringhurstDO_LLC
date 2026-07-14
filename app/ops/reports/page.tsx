@@ -9,6 +9,7 @@ import {
   mockDataInnerClass,
 } from "@/app/ops/_components/ops-data-status";
 import { OpsPageHeader, OpsPanel, opsShellClass, StatusPill } from "@/app/ops/_components/ops-ui";
+import { WeeklySocialScorecardSection } from "@/app/ops/_components/weekly-social-scorecard-section";
 import {
   jsonExportFile,
   markdownExportFile,
@@ -17,14 +18,32 @@ import {
 import { loadOpsContentRecords } from "@/lib/ops/load-content-records";
 import { buildOpsMarketingContext } from "@/lib/ops/marketing-context";
 import { opsDashboardData } from "@/lib/ops/mock-data";
+import { buildWeeklySocialScorecard } from "@/lib/ops/social-performance";
+import type { WeeklyScorecardMetricId } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+
+const MOCK_SCORECARD_IDS = [
+  "followers",
+  "websiteClicks",
+  "leads",
+  "conversations",
+  "spend",
+  "revenue",
+] as const satisfies readonly WeeklyScorecardMetricId[];
 
 export default async function OpsReportsPage() {
   const { projectHealthSnapshots, weeklyReport, weeklyScorecard } =
     opsDashboardData;
   const { records, source } = await loadOpsContentRecords();
+  const storageIsDatabase = source === "database";
+  const weeklySocialScorecard = storageIsDatabase
+    ? buildWeeklySocialScorecard(records)
+    : null;
+  const remainingMockScorecard = weeklyScorecard.filter((metric) =>
+    (MOCK_SCORECARD_IDS as readonly string[]).includes(metric.id),
+  );
   const marketingContext = buildOpsMarketingContext(records);
   const weeklyReportExportFiles = [
     jsonExportFile("ops-weekly-report", "JSON", weeklyReport),
@@ -48,20 +67,20 @@ export default async function OpsReportsPage() {
       <OpsPageHeader
         eyebrow="Operator reports"
         title="Reports"
-        description="Export marketing context for AI review (Gemini, ChatGPT, etc.) from saved packages. Weekly scorecard below remains placeholder until Phase 11."
+        description="Export marketing context for AI review from saved packages. Social weekly totals are live when Postgres is on; business scorecard chips and project health stay mock (red)."
       />
 
       <div className={`${opsShellClass} grid gap-6 py-6`}>
         <OpsPanel
           title="Marketing Context Export"
           eyebrow={
-            source === "database"
+            storageIsDatabase
               ? `${marketingContext.recordCount} saved packages`
               : "Database storage required"
           }
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              {source === "database" ? <LiveDataBadge label="Live · Postgres" /> : null}
+              {storageIsDatabase ? <LiveDataBadge label="Live · Postgres" /> : null}
               <ExportButtons files={marketingContextExportFiles} />
             </div>
           }
@@ -72,7 +91,7 @@ export default async function OpsReportsPage() {
             Paste into Gemini or attach when planning new series — no PHI or
             credentials.
           </p>
-          {source === "database" ? (
+          {storageIsDatabase ? (
             <div className="mt-4 flex flex-wrap gap-2">
               <a
                 href="/ops/api/marketing-context"
@@ -110,9 +129,17 @@ export default async function OpsReportsPage() {
           </p>
         </MockDataPanel>
 
-        <MockDataPanel phase="Phase 11" title="Weekly Scorecard" eyebrow="Sample metrics">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            {weeklyScorecard.map((metric) => (
+        {weeklySocialScorecard ? (
+          <WeeklySocialScorecardSection scorecard={weeklySocialScorecard} />
+        ) : null}
+
+        <MockDataPanel
+          phase="Phase 11"
+          title="Business scorecard (still mock)"
+          eyebrow="Not fed by social APIs"
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {remainingMockScorecard.map((metric) => (
               <article
                 key={metric.id}
                 className={`${mockDataInnerClass} p-4`}
