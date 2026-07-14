@@ -34,10 +34,6 @@ export function heuristicSeriesBody(
         ? `${title} — ${firstSentence}`
         : `${title}\n\n${firstSentence}`;
 
-  if (slot.platform === "Instagram") {
-    body = `${body}\n\n#America250 #BuildInPublic`;
-  }
-
   return prepareSeriesPublishableBody(truncateBody(body, slot.bodyMaxChars));
 }
 

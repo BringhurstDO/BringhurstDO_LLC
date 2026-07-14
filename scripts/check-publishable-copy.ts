@@ -169,6 +169,10 @@ function assertNoPublishableArtifacts(label: string, body: string) {
   if (containsPublishableArtifact(body)) {
     throw new Error(`${label} still contains internal publishable artifacts:\n${body}`);
   }
+
+  if (/\b(?:https?:\/\/|www\.)\S+/i.test(body)) {
+    throw new Error(`${label} still contains a public URL:\n${body}`);
+  }
 }
 
 const record = buildSampleRecord();

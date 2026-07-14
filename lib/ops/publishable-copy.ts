@@ -67,12 +67,20 @@ const STRIP_LINE_PATTERNS = [
   /^for [^.!?]+,\s*the useful signal is simple/i,
   /^for general[.!?]?$/i,
   /^for investors[.!?]?$/i,
+  /^read more:\s*$/i,
+  /^learn more:\s*$/i,
 ] as const;
+
+const PUBLIC_URL_PATTERN = /\b(?:https?:\/\/|www\.)[^\s)\]>"']+/gi;
 
 export function containsPublishableArtifact(text: string) {
   return PUBLISHABLE_BODY_FORBIDDEN_PATTERNS.some((pattern) =>
     pattern.test(text),
   );
+}
+
+export function containsPublicUrl(text: string) {
+  return PUBLIC_URL_PATTERN.test(text);
 }
 
 export function stripTemplateArtifacts(body: string) {
@@ -90,18 +98,20 @@ export function stripTemplateArtifacts(body: string) {
 export function stripPublicUrlsFromBody(body: string) {
   return body
     .replace(/\r\n/g, "\n")
-    .replace(/https?:\/\/[^\s)\]>]+/gi, "")
+    .replace(PUBLIC_URL_PATTERN, "")
+    .replace(/^(?:read more|learn more):\s*$/gim, "")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
 
-export function prepareSeriesPublishableBody(body: string) {
-  return sanitizePublishableBody(stripPublicUrlsFromBody(body));
-}
-
+/**
+ * Publishable social copy: strip template/operator artifacts and public URLs.
+ * Destination/UTM links stay on the draft record (`generatedUrl`), not in body.
+ * Hashtags are allowed; do not invent long hashtag stacks here.
+ */
 export function sanitizePublishableBody(body: string) {
-  let next = stripTemplateArtifacts(body);
+  let next = stripTemplateArtifacts(stripPublicUrlsFromBody(body));
 
   for (const pattern of PUBLISHABLE_BODY_FORBIDDEN_PATTERNS) {
     next = next.replace(pattern, "");
@@ -114,8 +124,14 @@ export function sanitizePublishableBody(body: string) {
     .trim();
 }
 
+export function prepareSeriesPublishableBody(body: string) {
+  return sanitizePublishableBody(body);
+}
+
 export function draftHasLegacyTemplateArtifacts(body: string) {
-  return containsPublishableArtifact(body) || STRIP_LINE_PATTERNS.some((pattern) =>
-    pattern.test(body),
+  return (
+    containsPublishableArtifact(body) ||
+    containsPublicUrl(body) ||
+    STRIP_LINE_PATTERNS.some((pattern) => pattern.test(body))
   );
 }

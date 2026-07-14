@@ -62,10 +62,14 @@ function collapseRepeatedPunctuation(value: string) {
     .replace(/([!?])\.+/g, "$1");
 }
 
+/**
+ * Keep destination/UTM on the draft record only. Bodies stay link-free.
+ * Legacy callers that used to inject `generatedUrl` now strip URLs instead.
+ */
 export function bodyWithGeneratedUrl(
   body: string,
-  generatedUrl: string,
-  { appendIfMissing = true } = {},
+  _generatedUrl = "",
+  _options: { appendIfMissing?: boolean } = {},
 ) {
   const trimmed = body.trim();
 
@@ -73,13 +77,12 @@ export function bodyWithGeneratedUrl(
     return "";
   }
 
-  const urlPattern = /https?:\/\/[^\s)]+/g;
-
-  if (trimmed.match(urlPattern)) {
-    return collapseRepeatedPunctuation(trimmed.replace(urlPattern, generatedUrl));
-  }
-
   return collapseRepeatedPunctuation(
-    appendIfMissing ? `${trimmed}\n\n${generatedUrl}` : trimmed,
+    trimmed
+      .replace(/\b(?:https?:\/\/|www\.)[^\s)\]>"']+/gi, "")
+      .replace(/^(?:read more|learn more):\s*$/gim, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim(),
   );
 }

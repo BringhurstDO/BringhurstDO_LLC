@@ -37,6 +37,7 @@ import {
   formatCalendarDateWithWeekday,
   isSundayDate,
 } from "@/lib/ops/schedule-date-utils";
+import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import {
   formatPlatformScheduleDefault,
   OPS_SCHEDULE_BUCKETS,
@@ -86,7 +87,7 @@ const CALENDAR_BODY_PREVIEW_CHARS = 160;
 
 function CalendarDraftBody({ body, platform }: { body: string; platform: PublicationPlatform }) {
   const [expanded, setExpanded] = useState(false);
-  const trimmed = body.trim();
+  const trimmed = sanitizePublishableBody(body);
   const isLong = trimmed.length > CALENDAR_BODY_PREVIEW_CHARS;
   const preview = isLong
     ? `${trimmed.slice(0, CALENDAR_BODY_PREVIEW_CHARS).trim()}…`
@@ -1107,7 +1108,9 @@ export function PublishCalendarPanel({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-sans text-sm font-semibold text-slate-950">
-                  {row.accountName} / {row.platform}
+                  {row.accountName.includes(row.platform)
+                    ? row.accountName
+                    : `${row.accountName} / ${row.platform}`}
                 </h3>
                 <StatusPill tone="good">posted</StatusPill>
                 {row.seriesIndex ? (
@@ -1115,7 +1118,9 @@ export function PublishCalendarPanel({
                 ) : null}
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                {row.packageTitle} · {row.title}
+                {row.packageTitle === row.title
+                  ? row.packageTitle
+                  : `${row.packageTitle} · ${row.title}`}
               </p>
               <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
                 <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -1165,7 +1170,9 @@ export function PublishCalendarPanel({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-sans text-sm font-semibold text-slate-950">
-                {row.accountName} / {row.platform}
+                {row.accountName.includes(row.platform)
+                  ? row.accountName
+                  : `${row.accountName} / ${row.platform}`}
               </h3>
               <StatusPill tone={timingTone[row.timing]}>{row.timing}</StatusPill>
               <StatusPill tone="neutral">{row.draftStatus}</StatusPill>
@@ -1177,7 +1184,9 @@ export function PublishCalendarPanel({
               ) : null}
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {row.packageTitle} · {row.title}
+              {row.packageTitle === row.title
+                ? row.packageTitle
+                : `${row.packageTitle} · ${row.title}`}
             </p>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
               <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden />

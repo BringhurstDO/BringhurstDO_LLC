@@ -288,8 +288,8 @@ function collapseRepeatedPunctuation(value: string) {
 
 function bodyWithGeneratedUrl(
   body: string,
-  generatedUrl: string,
-  { appendIfMissing = true } = {},
+  _generatedUrl = "",
+  _options: { appendIfMissing?: boolean } = {},
 ) {
   const trimmed = body.trim();
 
@@ -297,14 +297,13 @@ function bodyWithGeneratedUrl(
     return "";
   }
 
-  const urlPattern = /https?:\/\/[^\s)]+/g;
-
-  if (trimmed.match(urlPattern)) {
-    return collapseRepeatedPunctuation(trimmed.replace(urlPattern, generatedUrl));
-  }
-
   return collapseRepeatedPunctuation(
-    appendIfMissing ? `${trimmed}\n\n${generatedUrl}` : trimmed,
+    trimmed
+      .replace(/\b(?:https?:\/\/|www\.)[^\s)\]>"']+/gi, "")
+      .replace(/^(?:read more|learn more):\s*$/gim, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim(),
   );
 }
 
@@ -484,16 +483,14 @@ function draftLooksGenerated(
 function generatedDraftNeedsRepair(
   draft: PlatformDraft,
 ) {
-  const urls = draft.body.match(/https?:\/\/[^\s)]+/g) ?? [];
+  const hasPublicUrl = /\b(?:https?:\/\/|www\.)\S+/i.test(draft.body);
 
   return (
     !draft.body.trim() ||
     draft.body.includes("..") ||
     draft.body.includes("Should help me.\n\nBuilt for") ||
-    urls.some((url) => url !== draft.generatedUrl) ||
-    (urls.length === 0 && draft.platform !== "X") ||
-    (draft.platform === "X" && draft.body.length > xSinglePostLimit) ||
-    (draft.platform === "X" && !draft.body.includes(draft.generatedUrl))
+    hasPublicUrl ||
+    (draft.platform === "X" && draft.body.length > xSinglePostLimit)
   );
 }
 
@@ -533,24 +530,14 @@ function normalizePlatformDraft(
         sourceTitle: sourceUpdate.title,
         target: target as PublicationTarget,
       })
-    : bodyWithGeneratedUrl(migratedDraft.body, migratedDraft.generatedUrl, {
-        appendIfMissing: false,
-      });
+    : bodyWithGeneratedUrl(migratedDraft.body, migratedDraft.generatedUrl);
   const safeBody =
     migratedDraft.platform === "X" &&
     repairedBody.length > xSinglePostLimit &&
     canRegenerate
-      ? xDraftBody(
-          sourceUpdate.title,
-          sourceUpdate.summary,
-          migratedDraft.generatedUrl,
-        )
+      ? xDraftBody(sourceUpdate.title, sourceUpdate.summary)
       : repairedBody;
-  const normalizedBody = sanitizePublishableBody(
-    bodyWithGeneratedUrl(safeBody, migratedDraft.generatedUrl, {
-      appendIfMissing: canRegenerate,
-    }),
-  );
+  const normalizedBody = sanitizePublishableBody(safeBody);
   const migrationNote =
     needsRepair && !canRegenerate
       ? "Internal: draft body looked manually edited or target metadata was unavailable, so it was not regenerated automatically."
@@ -924,7 +911,8 @@ You are helping draft public marketing/social content from a metadata-only Bring
 - Do not claim diagnosis, treatment, billing, legal, safety, financial, compliance, ROI, or clinical outcomes unless directly supported in the allowed context below.
 - Keep SyncSOAP content metadata-only: product positioning, workflow burden, aggregate readiness, and public-safe marketing language only.
 - Manual human review is required before posting. Do not provide autoposting, API, OAuth, database, or ad-spend instructions.
-- Preserve every exact UTM URL if you include a link.
+- Never include URLs, links, or http/https/www in draft bodies. Destination/UTM links stay in Ops metadata for the operator — not in publishable copy.
+- Hashtags are allowed sparingly when natural; do not pad posts with hashtag stacks.
 
 ## Included Context
 - Metadata-only source update title, summary, type, date, and source project.
@@ -972,10 +960,10 @@ Return revised drafts separately for LinkedIn, Instagram, and X when those platf
 
 For each requested platform, return:
 1. Draft title
-2. Draft body
+2. Draft body (publishable copy only; no URLs)
 3. Suggested media note using only the provided media metadata
 4. Safety notes and claims to review
-5. Exact UTM URL used
+5. Destination/UTM URL from context for operator reference only (do not put it in the body)
 
 Keep the drafts practical, public-safe, and aligned with the selected brand and audience rules.`;
 }
@@ -2135,7 +2123,9 @@ export function ContentPackageBuilder({
           sourceTitle,
           target,
         });
-      const body = bodyWithGeneratedUrl(slot.body.trim() || templateBody, generatedUrl);
+      const body = sanitizePublishableBody(
+        slot.body.trim() || templateBody,
+      );
       const publishingProjectId = target.projectId ?? primaryProjectId;
 
       return {

@@ -85,26 +85,28 @@ New package exports distinguish source scope from publishing scope:
   with new linked IDs instead of replacing the existing package.
 - `Copy Post Packet` copies all platform draft slots, draft bodies, generated
   UTM URLs, posted state, public post URLs, and safety notes for manual review.
-- Generated slots use deterministic platform templates only. LinkedIn receives
-  a professional founder/product update, Instagram receives a shorter caption
-  with line breaks and hashtags, and X receives concise copy kept under platform
-  length limits.
-- Draft bodies that include a URL must use the exact `generatedUrl` saved on the
-  draft. LinkedIn publishing is stricter: Ops rejects visible URLs and attached
-  link cards when posting to LinkedIn, even though the generated UTM URL remains
-  available for manual tracking/copy packets.
+- Generated slots use deterministic platform templates only. Bodies are
+  **link-free** — destination/UTM URLs stay on the draft record (`generatedUrl`)
+  for operator reference and post packets, not in publishable copy. Hashtags are
+  allowed sparingly (Instagram may include a single product tag); do not pad
+  posts with hashtag stacks. X stays within platform length limits without
+  truncating for a URL.
+- `sanitizePublishableBody` strips public URLs and template/operator artifacts
+  on create, AI improve, calendar display, and publish. LinkedIn (and Ops policy
+  for all platforms) rejects publishing bodies that still contain URLs.
 - Older exported packages are migrated on import to add explicit source and
   publishing project fields, numeric metric mirrors, and corrected capture
   dates where older exports used the source date.
 - Older generated draft bodies are regenerated only when they match known
-  deterministic-template fingerprints. Drafts that appear manually edited are
-  preserved with a migration note instead of being overwritten silently.
+  deterministic-template fingerprints (including legacy bodies that still embed
+  URLs). Drafts that appear manually edited are preserved with a migration note
+  instead of being overwritten silently.
 - `Repair Generated Drafts` can be run manually on a saved package to re-apply
   the current deterministic templates to recognized generated draft bodies.
 - The weekly queue is derived from saved local package records and groups drafts
   into ready, not posted, posted, and missing metrics.
-- Every platform draft slot keeps a generated UTM URL so manual posts have a
-  campaign link before publishing.
+- Every platform draft slot keeps a generated UTM URL for operator tracking /
+  post packets — not for pasting into the social body.
 - Facebook targets remain disabled unless their account status is `active`.
   Active Facebook draft slots are manual-only and still require approval before
   posting.

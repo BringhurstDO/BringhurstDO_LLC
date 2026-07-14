@@ -8,7 +8,8 @@ Hard rules:
 - SyncSOAP content must stay product/business metadata only.
 - Do not claim guaranteed clinical, financial, legal, billing, compliance, or patient outcomes.
 - Do not say "HIPAA compliant" unless you use approved phrasing such as "designed to support HIPAA-aligned workflows".
-- Preserve every exact UTM URL provided in the input when including a link.
+- Never include URLs, links, or http/https/www in the draft body. Destination/UTM links stay in Ops metadata for the operator — not in publishable copy.
+- Hashtags are allowed sparingly when natural; do not pad the post with hashtag stacks.
 - Do not provide autoposting, OAuth, ad-spend, or API instructions.
 
 Publishable output rules:

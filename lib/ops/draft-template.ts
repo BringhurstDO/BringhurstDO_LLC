@@ -112,25 +112,18 @@ function xSummaryExcerpt(summary: string, maxLength: number) {
   return cleanXExcerptEnding(clipped.slice(0, wordBoundary));
 }
 
-export function xDraftBody(title: string, summary: string, url: string) {
+/** Link-free X body. Destination URLs belong on `generatedUrl`, not in copy. */
+export function xDraftBody(title: string, summary: string, _destinationUrl = "") {
   const cleanTitle = cleanTemplateInput(title, "Product update");
   const prefix = /[!?]$/.test(cleanTitle) ? `${cleanTitle} ` : `${cleanTitle}: `;
-  const suffix = ` ${url}`;
-  const budget = xSinglePostLimit - prefix.length - suffix.length;
+  const budget = xSinglePostLimit - prefix.length;
 
   if (budget >= 40) {
     const summaryLine = xSummaryExcerpt(summary, budget);
-
-    return collapseRepeatedPunctuation(`${prefix}${summaryLine}${suffix}`);
+    return collapseRepeatedPunctuation(`${prefix}${summaryLine}`);
   }
 
-  return collapseRepeatedPunctuation(`${cleanTitle} ${url}`);
-}
-
-function hashtagValue(value: string) {
-  const tag = value.replace(/^@/, "").replace(/[^a-zA-Z0-9]+/g, "");
-
-  return tag ? `#${tag}` : "";
+  return collapseRepeatedPunctuation(truncateAtWord(cleanTitle, xSinglePostLimit));
 }
 
 function productHashtag(target: PublicationTarget) {
@@ -159,8 +152,12 @@ export function blockedTargetOperatorNotes(target: PublicationTarget) {
   ];
 }
 
+/**
+ * Deterministic draft bodies are link-free. UTM destination stays on the draft
+ * record for operator reference. Instagram may include a single product hashtag.
+ */
 export function draftTemplateBody({
-  destinationUrl,
+  destinationUrl: _destinationUrl,
   sourceSummary,
   sourceTitle,
   target,
@@ -177,49 +174,30 @@ export function draftTemplateBody({
     "A product and operator update is ready for review.",
   );
   const productTag = productHashtag(target);
-  const accountTag = hashtagValue(target.publicHandle);
 
   if (target.platform === "Facebook" && targetIsBlocked(target)) {
-    return sanitizePublishableBody(
-      [title, "", summary, "", destinationUrl].join("\n"),
-    );
+    return sanitizePublishableBody([title, "", summary].join("\n"));
   }
 
   if (target.platform === "LinkedIn") {
-    return sanitizePublishableBody(
-      [title, "", summary, "", `Read more: ${destinationUrl}`].join("\n"),
-    );
+    return sanitizePublishableBody([title, "", summary].join("\n"));
   }
 
   if (target.platform === "Instagram") {
     return sanitizePublishableBody(
-      [
-        title,
-        "",
-        sentenceExcerpt(summary, 180),
-        "",
-        destinationUrl,
-        "",
-        [productTag, accountTag, "#OperatorNotes", "#BuildInPublic"]
-          .filter(Boolean)
-          .join(" "),
-      ].join("\n"),
+      [title, "", sentenceExcerpt(summary, 200), "", productTag].join("\n"),
     );
   }
 
   if (target.platform === "X") {
-    return sanitizePublishableBody(xDraftBody(title, summary, destinationUrl));
+    return sanitizePublishableBody(xDraftBody(title, summary));
   }
 
   if (target.platform === "Facebook") {
-    return sanitizePublishableBody(
-      [title, "", summary, "", `Learn more: ${destinationUrl}`].join("\n"),
-    );
+    return sanitizePublishableBody([title, "", summary].join("\n"));
   }
 
-  return sanitizePublishableBody(
-    [title, "", summary, "", destinationUrl].join("\n"),
-  );
+  return sanitizePublishableBody([title, "", summary].join("\n"));
 }
 
 export function draftLooksLikeLegacyGeneratedBody(body: string) {
