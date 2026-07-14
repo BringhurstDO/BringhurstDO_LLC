@@ -25,13 +25,11 @@ export function heuristicSeriesBody(
   const { summary, title } = context.series;
   const firstSentence = summary.split(/(?<=[.!?])\s+/)[0]?.trim() ?? summary.trim();
 
-  let body =
-    slot.seriesIndex === 1
-      ? slot.platform === "X"
-        ? `${title}: ${firstSentence}`
-        : `${title}\n\n${summary.trim()}`
-      : slot.platform === "X"
-        ? `${title} — ${firstSentence}`
+  const body =
+    slot.platform === "X"
+      ? firstSentence
+      : slot.seriesIndex === 1
+        ? `${title}\n\n${summary.trim()}`
         : `${title}\n\n${firstSentence}`;
 
   return prepareSeriesPublishableBody(truncateBody(body, slot.bodyMaxChars));
