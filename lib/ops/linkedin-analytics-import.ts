@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createDatabaseOpsPersistenceAdapter } from "@/lib/ops/persistence-db";
+import { replacePerformanceSnapshot } from "@/lib/ops/social-performance";
 import type {
   OpsContentPackageRecord,
   PerformanceSnapshot,
@@ -60,12 +61,44 @@ function normalizeLinkedInUrl(value: string) {
     .replace(/\/+$/, "");
 }
 
-function extractLinkedInShareId(value: string) {
-  const normalized = normalizeLinkedInUrl(value);
-  const match = normalized.match(/-([a-z0-9_-]{6,})$/i) ??
-    normalized.match(/\/(?:posts|activity|feed\/update)\/[^/]*?([a-z0-9_-]{8,})/i);
+/**
+ * Extract LinkedIn activity/share numeric ids from Ops URNs and Excel vanity URLs.
+ *
+ * Ops stores: urn:li:share:7478… + feed/update/urn%3Ali%3Ashare%3A7478…
+ * Excel TOP POSTS: /posts/kyle-…-share-7478…-unOr
+ */
+export function extractLinkedInActivityIds(value: string): string[] {
+  if (!value.trim()) {
+    return [];
+  }
 
-  return match?.[1]?.toLowerCase() ?? "";
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch {
+    // keep raw
+  }
+
+  const ids = new Set<string>();
+
+  for (const match of decoded.matchAll(
+    /urn:li:(?:share|ugcPost|activity):(\d{10,})/gi,
+  )) {
+    ids.add(match[1]);
+  }
+
+  for (const match of decoded.matchAll(
+    /(?:share|activity|ugcPost)[_:-](\d{10,})/gi,
+  )) {
+    ids.add(match[1]);
+  }
+
+  const bare = decoded.trim().match(/^(\d{15,})$/);
+  if (bare) {
+    ids.add(bare[1]);
+  }
+
+  return [...ids];
 }
 
 function publishedPostUrls(post: {
@@ -82,7 +115,7 @@ function findMatchingPublishedPost(
   importUrl: string,
 ) {
   const normalizedImport = normalizeLinkedInUrl(importUrl);
-  const shareId = extractLinkedInShareId(importUrl);
+  const importIds = extractLinkedInActivityIds(importUrl);
 
   for (const record of records) {
     for (const post of record.publishedPosts) {
@@ -91,14 +124,25 @@ function findMatchingPublishedPost(
       }
 
       const urls = publishedPostUrls(post);
+      const opsIds = [
+        ...extractLinkedInActivityIds(post.platformPostId ?? ""),
+        ...urls.flatMap((url) => extractLinkedInActivityIds(url)),
+      ];
 
-      if (urls.some((url) => url === normalizedImport || url.includes(normalizedImport) || normalizedImport.includes(url))) {
+      if (
+        importIds.length > 0 &&
+        opsIds.some((id) => importIds.includes(id))
+      ) {
         return { post, record };
       }
 
       if (
-        shareId &&
-        urls.some((url) => url.includes(shareId))
+        urls.some(
+          (url) =>
+            url === normalizedImport ||
+            url.includes(normalizedImport) ||
+            normalizedImport.includes(url),
+        )
       ) {
         return { post, record };
       }
@@ -131,6 +175,7 @@ function upsertLinkedInImportSnapshot(
       `LinkedIn Aggregate Analytics import (${metric.periodLabel || "period unknown"}).`,
       `Matched TOP POSTS URL: ${metric.postUrl}`,
       "Engagements mapped to reactions. Comments/saves not provided in Aggregate export TOP POSTS columns.",
+      "Import metrics replace manual placeholders for this post.",
     ],
     numericMetrics: {
       clicks: 0,
@@ -147,16 +192,10 @@ function upsertLinkedInImportSnapshot(
 
   return {
     ...record,
-    performanceSnapshots: [
-      ...record.performanceSnapshots.filter(
-        (item) =>
-          !(
-            item.publishedPostId === publishedPostId &&
-            item.source === "linkedin-import"
-          ),
-      ),
+    performanceSnapshots: replacePerformanceSnapshot(
+      record.performanceSnapshots,
       snapshot,
-    ],
+    ),
   };
 }
 

@@ -2,6 +2,7 @@ import "server-only";
 
 import { createDatabaseOpsPersistenceAdapter } from "@/lib/ops/persistence-db";
 import { opsDashboardData } from "@/lib/ops/mock-data";
+import { replacePerformanceSnapshot } from "@/lib/ops/social-performance";
 import { getReadyXConnection } from "@/lib/ops/x-connection";
 import { findXAccount, resolveXConfig } from "@/lib/ops/x-config";
 import { lookupXPostMetrics } from "@/lib/ops/x-client";
@@ -99,6 +100,7 @@ function upsertSnapshot(
     notes: [
       "Weekly X API readback for Ops-published post id.",
       "Clicks are not collected from X public metrics.",
+      "API metrics replace manual placeholders for this post.",
     ],
     numericMetrics: {
       clicks: 0,
@@ -115,16 +117,10 @@ function upsertSnapshot(
 
   return {
     ...record,
-    performanceSnapshots: [
-      ...record.performanceSnapshots.filter(
-        (item) =>
-          !(
-            item.publishedPostId === publishedPostId &&
-            item.source === "x-api-weekly"
-          ),
-      ),
+    performanceSnapshots: replacePerformanceSnapshot(
+      record.performanceSnapshots,
       snapshot,
-    ],
+    ),
   };
 }
 

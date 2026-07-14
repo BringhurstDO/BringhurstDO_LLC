@@ -15,6 +15,7 @@ import {
 } from "@/lib/ops/meta-config";
 import { opsDashboardData } from "@/lib/ops/mock-data";
 import { createDatabaseOpsPersistenceAdapter } from "@/lib/ops/persistence-db";
+import { replacePerformanceSnapshot } from "@/lib/ops/social-performance";
 import type {
   OpsContentPackageRecord,
   PerformanceSnapshot,
@@ -108,6 +109,7 @@ function upsertMetaSnapshot(
     notes: [
       `Weekly Meta API readback for Ops-published ${platform} post.`,
       "Clicks are not collected from Meta post insights in this v1.",
+      "API metrics replace manual placeholders for this post.",
     ],
     numericMetrics: {
       clicks: 0,
@@ -124,16 +126,10 @@ function upsertMetaSnapshot(
 
   return {
     ...record,
-    performanceSnapshots: [
-      ...record.performanceSnapshots.filter(
-        (item) =>
-          !(
-            item.publishedPostId === publishedPostId &&
-            item.source === "meta-api-weekly"
-          ),
-      ),
+    performanceSnapshots: replacePerformanceSnapshot(
+      record.performanceSnapshots,
       snapshot,
-    ],
+    ),
   };
 }
 

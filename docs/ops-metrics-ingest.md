@@ -6,9 +6,15 @@
 2. Open `/ops/metrics` (database persistence required).
 3. Click **Import LinkedIn Excel** and pick the file.
 4. Ops parses the workbook **in the browser**, POSTs only compact JSON (period totals + TOP POSTS URL metrics), and **does not store the Excel file**.
-5. Matched posts upsert `performanceSnapshots` with source `linkedin-import`. Unmatched TOP POSTS URLs are listed in the UI.
+5. Matched posts upsert `performanceSnapshots` with source `linkedin-import` and **replace any manual placeholders** for those posts. Unmatched TOP POSTS URLs are listed in the UI (usually posts that were never published through Ops).
+
+Matching uses the LinkedIn share/activity numeric id, so Excel vanity URLs (`/posts/…-share-7478…-unOr`) align with Ops URN URLs (`urn:li:share:7478…`).
 
 Supported sheets: DISCOVERY, ENGAGEMENT (period total only), TOP POSTS, FOLLOWERS. DEMOGRAPHICS are ignored on purpose.
+
+## Source of truth
+
+Inbound metrics (LinkedIn Excel import, Meta weekly API, X weekly API) overwrite manual zero placeholders for the same published post. The metrics table prefers ingest sources over `manual`.
 
 ## Meta Facebook / Instagram insights
 
@@ -27,6 +33,11 @@ Supported sheets: DISCOVERY, ENGAGEMENT (period total only), TOP POSTS, FOLLOWER
 - Snapshots use source `meta-api-weekly` and replace the prior Meta snapshot per post.
 - Lookback default is 28 days.
 - Empty insights usually mean missing scopes, App Review pending, or post IDs older than insights entitlement.
+- Facebook post insights use `post_media_view` / reaction metrics (not deprecated `post_impressions*`, which Graph rejects after the June 2026 Insights migration). Metrics are fetched one-at-a-time so one invalid name does not fail the whole post.
+- Common Graph errors:
+  - `#100` / `valid insights metric` → deprecated metric name (Ops should already avoid `post_impressions*`).
+  - `#100` / `Unsupported get request` / subcode `33` → wrong Page token for that post, deleted post, or missing Page analyze access.
+  - `#10` on Instagram → token missing `instagram_manage_insights` (reconnect after adding it to the Login config).
 
 ## Storage boundary
 

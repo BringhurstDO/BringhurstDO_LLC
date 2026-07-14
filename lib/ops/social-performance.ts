@@ -11,6 +11,36 @@ const snapshotSourcePriority: Record<PerformanceSnapshot["source"], number> = {
   manual: 1,
 };
 
+/**
+ * Incoming platform/import metrics are source of truth for a published post.
+ * Replace same-source rows and drop manual placeholders when an ingest source arrives.
+ */
+export function replacePerformanceSnapshot(
+  snapshots: PerformanceSnapshot[],
+  next: PerformanceSnapshot,
+): PerformanceSnapshot[] {
+  const ingestOverwritesManual = next.source !== "manual";
+
+  return [
+    ...snapshots.filter((item) => {
+      if (item.publishedPostId !== next.publishedPostId) {
+        return true;
+      }
+
+      if (item.source === next.source) {
+        return false;
+      }
+
+      if (ingestOverwritesManual && item.source === "manual") {
+        return false;
+      }
+
+      return true;
+    }),
+    next,
+  ];
+}
+
 export function findPublishedPostForDraft(
   record: OpsContentPackageRecord,
   draftId: string,

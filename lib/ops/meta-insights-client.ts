@@ -32,14 +32,19 @@ function metricValue(rows: InsightsMetricRow[], names: string[]) {
   return 0;
 }
 
-async function fetchInsights(input: {
+/**
+ * Fetch one metric at a time. Graph rejects the entire batched request when any
+ * metric name is deprecated/invalid (common after the June 2026 Page Insights
+ * migration away from post_impressions*).
+ */
+async function fetchInsightMetric(input: {
   accessToken: string;
-  metric: string[];
+  metric: string;
   objectId: string;
   period?: string;
-}) {
+}): Promise<InsightsMetricRow | null> {
   const url = new URL(`${META_GRAPH_URL}/${input.objectId}/insights`);
-  url.searchParams.set("metric", input.metric.join(","));
+  url.searchParams.set("metric", input.metric);
   url.searchParams.set("access_token", input.accessToken);
 
   if (input.period) {
@@ -50,13 +55,61 @@ async function fetchInsights(input: {
   const text = await response.text();
 
   if (!response.ok) {
-    throw new Error(
-      `Meta insights failed (${response.status}): ${text.slice(0, 400)}`,
-    );
+    // Permission / object errors should surface to the caller.
+    if (
+      text.includes("does not have permission") ||
+      text.includes("Unsupported get request") ||
+      text.includes("error_subcode\":33")
+    ) {
+      throw new Error(
+        `Meta insights failed (${response.status}): ${text.slice(0, 400)}`,
+      );
+    }
+
+    // Invalid/deprecated metric names are skipped so others can still load.
+    return null;
   }
 
   const json = JSON.parse(text) as { data?: InsightsMetricRow[] };
-  return Array.isArray(json.data) ? json.data : [];
+  const row = Array.isArray(json.data) ? json.data[0] : null;
+  return row ?? null;
+}
+
+async function fetchInsightMetrics(input: {
+  accessToken: string;
+  metrics: string[];
+  objectId: string;
+  period?: string;
+}) {
+  const rows: InsightsMetricRow[] = [];
+  let hardError: Error | null = null;
+
+  for (const metric of input.metrics) {
+    try {
+      const row = await fetchInsightMetric({
+        accessToken: input.accessToken,
+        metric,
+        objectId: input.objectId,
+        period: input.period,
+      });
+
+      if (row) {
+        rows.push(row);
+      }
+    } catch (error) {
+      hardError =
+        error instanceof Error
+          ? error
+          : new Error("Meta insights request failed.");
+      break;
+    }
+  }
+
+  if (hardError && rows.length === 0) {
+    throw hardError;
+  }
+
+  return rows;
 }
 
 export type MetaPostInsightMetrics = {
@@ -67,51 +120,30 @@ export type MetaPostInsightMetrics = {
 };
 
 /**
- * Facebook Page post insights. Prefer view-based metrics; fall back to legacy
- * impression/reaction metric names while Graph still serves them.
+ * Facebook Page post insights using post-June-2026 media-view metrics.
+ * Intentionally omits deprecated post_impressions* names (Graph returns
+ * "The value must be a valid insights metric" for those).
  */
 export async function lookupFacebookPostInsights(input: {
   accessToken: string;
   pagePostId: string;
 }): Promise<MetaPostInsightMetrics> {
-  const preferredMetrics = [
-    "post_media_view",
-    "post_total_media_view_unique",
-    "post_impressions",
-    "post_impressions_unique",
-    "post_reactions_by_type_total",
-    "post_reactions_like_total",
-    "post_activity_by_action_type",
-  ];
-
-  let rows: InsightsMetricRow[] = [];
-
-  try {
-    rows = await fetchInsights({
-      accessToken: input.accessToken,
-      metric: preferredMetrics,
-      objectId: input.pagePostId,
-      period: "lifetime",
-    });
-  } catch {
-    // Retry a smaller legacy set — App Review / deprecations vary by token.
-    rows = await fetchInsights({
-      accessToken: input.accessToken,
-      metric: [
-        "post_impressions",
-        "post_reactions_by_type_total",
-        "post_activity_by_action_type",
-      ],
-      objectId: input.pagePostId,
-      period: "lifetime",
-    });
-  }
+  const rows = await fetchInsightMetrics({
+    accessToken: input.accessToken,
+    metrics: [
+      "post_media_view",
+      "post_total_media_view_unique",
+      "post_reactions_by_type_total",
+      "post_reactions_like_total",
+      "post_activity_by_action_type",
+    ],
+    objectId: input.pagePostId,
+    period: "lifetime",
+  });
 
   const impressions = metricValue(rows, [
     "post_media_view",
-    "post_impressions",
     "post_total_media_view_unique",
-    "post_impressions_unique",
   ]);
   const reactions = metricValue(rows, [
     "post_reactions_by_type_total",
@@ -139,33 +171,22 @@ export async function lookupInstagramMediaInsights(input: {
   accessToken: string;
   igMediaId: string;
 }): Promise<MetaPostInsightMetrics> {
-  const metrics = [
-    "views",
-    "reach",
-    "impressions",
-    "likes",
-    "comments",
-    "saved",
-    "total_interactions",
-  ];
+  // Prefer current IG metric names; older impression aliases are tried last.
+  const rows = await fetchInsightMetrics({
+    accessToken: input.accessToken,
+    metrics: [
+      "views",
+      "reach",
+      "total_interactions",
+      "likes",
+      "comments",
+      "saved",
+      "impressions",
+    ],
+    objectId: input.igMediaId,
+  });
 
-  let rows: InsightsMetricRow[] = [];
-
-  try {
-    rows = await fetchInsights({
-      accessToken: input.accessToken,
-      metric: metrics,
-      objectId: input.igMediaId,
-    });
-  } catch {
-    rows = await fetchInsights({
-      accessToken: input.accessToken,
-      metric: ["impressions", "reach", "likes", "comments", "saved"],
-      objectId: input.igMediaId,
-    });
-  }
-
-  const impressions = metricValue(rows, ["views", "impressions", "reach"]);
+  const impressions = metricValue(rows, ["views", "reach", "impressions"]);
   const reactions = metricValue(rows, ["likes", "total_interactions"]);
   const comments = metricValue(rows, ["comments"]);
   const saves = metricValue(rows, ["saved"]);
