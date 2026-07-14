@@ -544,7 +544,7 @@ export function ContentSeriesBuilder({
     const baseIssues: string[] = [];
 
     if (!seriesTitle.trim()) {
-      baseIssues.push("Series title is required.");
+      baseIssues.push("Package title is required.");
     }
 
     if (!seriesSummary.trim()) {
@@ -847,7 +847,11 @@ export function ContentSeriesBuilder({
           </label>
 
           <label className="grid gap-2 text-sm font-semibold text-slate-700 lg:col-span-2">
-            Series title
+            Package title
+            <span className="text-xs font-normal leading-5 text-slate-500">
+              Ops label for the calendar and campaign tracking — not part of the
+              posts themselves.
+            </span>
             <input
               value={seriesTitle}
               onChange={(event) => setSeriesTitle(event.target.value)}

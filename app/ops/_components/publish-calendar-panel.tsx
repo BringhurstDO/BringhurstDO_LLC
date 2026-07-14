@@ -37,7 +37,6 @@ import {
   formatCalendarDateWithWeekday,
   isSundayDate,
 } from "@/lib/ops/schedule-date-utils";
-import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import {
   formatPlatformScheduleDefault,
   OPS_SCHEDULE_BUCKETS,
@@ -202,9 +201,33 @@ export function PublishCalendarPanel({
         }
 
         const migratedRecords = loaded.contentPackages.filter(isContentPackageRecord);
+        let bodiesChanged = false;
+        const cleanedRecords = migratedRecords.map((record) => {
+          let recordChanged = false;
+          const platformDrafts = record.platformDrafts.map((draft) => {
+            const nextBody = sanitizePublishableBody(draft.body, {
+              title: draft.title || record.contentPackage.title,
+            });
+            if (nextBody === draft.body) {
+              return draft;
+            }
+            recordChanged = true;
+            bodiesChanged = true;
+            return { ...draft, body: nextBody };
+          });
 
-        if (isMounted && migratedRecords.length > 0) {
-          setRecords(migratedRecords);
+          return recordChanged ? { ...record, platformDrafts } : record;
+        });
+
+        if (isMounted && cleanedRecords.length > 0) {
+          setRecords(cleanedRecords);
+          if (bodiesChanged) {
+            try {
+              await adapter.saveContentPackages(cleanedRecords);
+            } catch {
+              // Display still uses sanitized calendar rows even if persist fails.
+            }
+          }
         }
       } catch {
         if (isMounted) {
@@ -726,7 +749,7 @@ export function PublishCalendarPanel({
         body: JSON.stringify({
           accountId,
           assetLocation: draft.media.assetLocation,
-          body: sanitizePublishableBody(draft.body),
+          body: sanitizePublishableBody(draft.body, { title: draft.title }),
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platformDraftId: draft.id,
@@ -813,7 +836,7 @@ export function PublishCalendarPanel({
         body: JSON.stringify({
           accountId,
           assetLocation: draft.media.assetLocation,
-          body: sanitizePublishableBody(draft.body),
+          body: sanitizePublishableBody(draft.body, { title: draft.title }),
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platformDraftId: draft.id,
@@ -896,7 +919,7 @@ export function PublishCalendarPanel({
         body: JSON.stringify({
           accountId,
           assetLocation: draft.media.assetLocation,
-          body: sanitizePublishableBody(draft.body),
+          body: sanitizePublishableBody(draft.body, { title: draft.title }),
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platform: "Facebook",
@@ -984,7 +1007,7 @@ export function PublishCalendarPanel({
         body: JSON.stringify({
           accountId,
           assetLocation: draft.media.assetLocation,
-          body: sanitizePublishableBody(draft.body),
+          body: sanitizePublishableBody(draft.body, { title: draft.title }),
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platform: "Instagram",

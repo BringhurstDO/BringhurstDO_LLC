@@ -216,4 +216,16 @@ if (containsLinkedInPublishUrl("Clean text-only LinkedIn post.")) {
   throw new Error("LinkedIn publish URL detector blocked clean text.");
 }
 
+const titlePrefixed =
+  "SyncSOAP Tuning: When scaling clinical operations, stability is just as critical as functionality https://www.bringhurstdo.com/syncsoap?utm_source=x";
+const cleanedX = sanitizePublishableBody(titlePrefixed, {
+  title: "SyncSOAP Tuning",
+});
+if (cleanedX.includes("http") || cleanedX.includes("SyncSOAP Tuning")) {
+  throw new Error(`X sanitize failed to strip title/URL:\n${cleanedX}`);
+}
+if (!cleanedX.includes("When scaling clinical operations")) {
+  throw new Error(`X sanitize removed the post copy:\n${cleanedX}`);
+}
+
 console.log("Publishable copy checks passed.");

@@ -459,7 +459,7 @@ function migrateDraftInternalNotes(draft: PlatformDraft): PlatformDraft {
 function draftLooksGenerated(
   draft: PlatformDraft,
   sourceUpdate: SourceUpdate,
-  target: PublicationTarget | undefined,
+  _target: PublicationTarget | undefined,
 ) {
   if (draftLooksLikeLegacyGeneratedBody(draft.body)) {
     return true;
@@ -467,9 +467,8 @@ function draftLooksGenerated(
 
   if (
     draft.platform === "X" &&
-    draft.body.startsWith(`${sourceUpdate.title.trim()}:`) &&
-    target &&
-    /\bfor [a-z ]+[.!?]?$/i.test(draft.body.trim())
+    sourceUpdate.title.trim() &&
+    draft.body.startsWith(`${sourceUpdate.title.trim()}:`)
   ) {
     return true;
   }
@@ -482,14 +481,20 @@ function draftLooksGenerated(
 
 function generatedDraftNeedsRepair(
   draft: PlatformDraft,
+  sourceUpdate?: SourceUpdate,
 ) {
   const hasPublicUrl = /\b(?:https?:\/\/|www\.)\S+/i.test(draft.body);
+  const hasTitlePrefix =
+    draft.platform === "X" &&
+    Boolean(sourceUpdate?.title.trim()) &&
+    draft.body.startsWith(`${sourceUpdate!.title.trim()}:`);
 
   return (
     !draft.body.trim() ||
     draft.body.includes("..") ||
     draft.body.includes("Should help me.\n\nBuilt for") ||
     hasPublicUrl ||
+    hasTitlePrefix ||
     (draft.platform === "X" && draft.body.length > xSinglePostLimit)
   );
 }
@@ -520,7 +525,7 @@ function normalizePlatformDraft(
   );
   const looksGenerated = draftLooksGenerated(migratedDraft, sourceUpdate, target);
   const needsRepair =
-    generatedDraftNeedsRepair(migratedDraft) ||
+    generatedDraftNeedsRepair(migratedDraft, sourceUpdate) ||
     draftLooksLikeLegacyGeneratedBody(migratedDraft.body);
   const canRegenerate = Boolean(looksGenerated && needsRepair && target);
   const repairedBody = canRegenerate

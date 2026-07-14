@@ -112,18 +112,25 @@ function xSummaryExcerpt(summary: string, maxLength: number) {
   return cleanXExcerptEnding(clipped.slice(0, wordBoundary));
 }
 
-/** Link-free X body. Destination URLs belong on `generatedUrl`, not in copy. */
-export function xDraftBody(title: string, summary: string, _destinationUrl = "") {
-  const cleanTitle = cleanTemplateInput(title, "Product update");
-  const prefix = /[!?]$/.test(cleanTitle) ? `${cleanTitle} ` : `${cleanTitle}: `;
-  const budget = xSinglePostLimit - prefix.length;
+/**
+ * Link-free X body. Package/source titles stay in Ops metadata — do not prefix
+ * them into the tweet (they eat the 280 budget and read like internal labels).
+ * Destination URLs belong on `generatedUrl`, not in copy.
+ */
+export function xDraftBody(
+  _title: string,
+  summary: string,
+  _destinationUrl = "",
+) {
+  const summaryLine = xSummaryExcerpt(summary, xSinglePostLimit);
 
-  if (budget >= 40) {
-    const summaryLine = xSummaryExcerpt(summary, budget);
-    return collapseRepeatedPunctuation(`${prefix}${summaryLine}`);
+  if (summaryLine) {
+    return collapseRepeatedPunctuation(summaryLine);
   }
 
-  return collapseRepeatedPunctuation(truncateAtWord(cleanTitle, xSinglePostLimit));
+  return collapseRepeatedPunctuation(
+    truncateAtWord("Product update", xSinglePostLimit),
+  );
 }
 
 function productHashtag(target: PublicationTarget) {

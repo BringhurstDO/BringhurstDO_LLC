@@ -80,6 +80,7 @@ export function containsPublishableArtifact(text: string) {
 }
 
 export function containsPublicUrl(text: string) {
+  PUBLIC_URL_PATTERN.lastIndex = 0;
   return PUBLIC_URL_PATTERN.test(text);
 }
 
@@ -106,12 +107,35 @@ export function stripPublicUrlsFromBody(body: string) {
 }
 
 /**
+ * Remove an Ops package/source title prefix from publishable copy.
+ * Titles belong in calendar metadata, not as "Title: …" tweet lead-ins.
+ */
+export function stripOpsTitlePrefix(body: string, title = "") {
+  const cleanTitle = title.trim().replace(/\s+/g, " ");
+  if (!cleanTitle) {
+    return body.trim();
+  }
+
+  let next = body.replace(/\r\n/g, "\n").trim();
+  const escaped = cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const prefix = new RegExp(`^${escaped}\\s*[:\\-—–]\\s*`, "i");
+
+  if (prefix.test(next)) {
+    next = next.replace(prefix, "").trim();
+  }
+
+  return next;
+}
+
+/**
  * Publishable social copy: strip template/operator artifacts and public URLs.
  * Destination/UTM links stay on the draft record (`generatedUrl`), not in body.
  * Hashtags are allowed; do not invent long hashtag stacks here.
  */
-export function sanitizePublishableBody(body: string) {
-  let next = stripTemplateArtifacts(stripPublicUrlsFromBody(body));
+export function sanitizePublishableBody(body: string, options?: { title?: string }) {
+  let next = stripTemplateArtifacts(
+    stripPublicUrlsFromBody(stripOpsTitlePrefix(body, options?.title)),
+  );
 
   for (const pattern of PUBLISHABLE_BODY_FORBIDDEN_PATTERNS) {
     next = next.replace(pattern, "");

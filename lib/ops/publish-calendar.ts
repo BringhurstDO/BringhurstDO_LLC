@@ -7,6 +7,7 @@ import type {
   PublishedPostStatus,
 } from "@/lib/ops/types";
 import { formatPlatformScheduleWindow } from "@/lib/ops/platform-schedule-defaults";
+import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import {
   draftScheduleWarnings,
   formatCalendarDateWithWeekday,
@@ -142,13 +143,18 @@ export function buildPublishCalendarRows(
         (postStatus === "posted"
           ? calendarDateFromPostedAt(postedAt)
           : undefined);
+      const sanitizedBody = sanitizePublishableBody(draft.body, {
+        title: draft.title || record.contentPackage.title,
+      });
       const bodyPreview =
-        draft.body.length > 160 ? `${draft.body.slice(0, 160).trim()}…` : draft.body;
+        sanitizedBody.length > 160
+          ? `${sanitizedBody.slice(0, 160).trim()}…`
+          : sanitizedBody;
 
       return {
         accountName: draft.accountName,
         autopublishEnabled: Boolean(draft.autopublishEnabled),
-        body: draft.body,
+        body: sanitizedBody,
         bodyPreview,
         calendarDate,
         contentPackageId: record.contentPackage.id,

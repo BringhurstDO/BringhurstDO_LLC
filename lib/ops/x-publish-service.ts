@@ -140,7 +140,7 @@ export async function publishXDraft(
     };
   }
 
-  const body = sanitizePublishableBody(input.body);
+  const body = sanitizePublishableBody(input.body, { title: input.title });
 
   if (!body.trim()) {
     return {
