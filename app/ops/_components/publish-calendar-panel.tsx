@@ -27,6 +27,7 @@ import {
   formatScheduledPublishLabel,
   groupPublishCalendarRows,
   localCalendarDate,
+  POSTED_CALENDAR_LOOKBACK_DAYS,
   type PublishCalendarRow,
   type PublishCalendarTiming,
 } from "@/lib/ops/publish-calendar";
@@ -1075,28 +1076,88 @@ export function PublishCalendarPanel({
         : null;
     const accountId = targetAccountIdById.get(row.publicationTargetId);
     const accountStatus = linkedInAccountStatus(accountId);
+    const isPosted = row.postStatus === "posted" || row.timing === "posted";
     const canPublishLinkedIn =
       row.platform === "LinkedIn" &&
       row.draftStatus === "approved" &&
-      row.postStatus !== "posted" &&
+      !isPosted &&
       accountStatus?.connected;
     const xStatusForRow = xAccountStatus(accountId);
     const canPublishX =
       row.platform === "X" &&
       row.draftStatus === "approved" &&
-      row.postStatus !== "posted" &&
+      !isPosted &&
       xStatusForRow?.connected;
     const metaStatusForRow = metaAccountStatus(accountId);
     const canPublishFacebook =
       row.platform === "Facebook" &&
       row.draftStatus === "approved" &&
-      row.postStatus !== "posted" &&
+      !isPosted &&
       metaStatusForRow?.connected;
     const canPublishInstagram =
       row.platform === "Instagram" &&
       row.draftStatus === "approved" &&
-      row.postStatus !== "posted" &&
+      !isPosted &&
       metaStatusForRow?.connected;
+
+    if (isPosted) {
+      return (
+        <article className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-sans text-sm font-semibold text-slate-950">
+                  {row.accountName} / {row.platform}
+                </h3>
+                <StatusPill tone="good">posted</StatusPill>
+                {row.seriesIndex ? (
+                  <StatusPill tone="neutral">#{row.seriesIndex}</StatusPill>
+                ) : null}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {row.packageTitle} · {row.title}
+              </p>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {formatScheduledPublishLabel(row.calendarDate, {
+                  posted: true,
+                })}
+              </p>
+            </div>
+          </div>
+
+          {row.postedUrl ? (
+            <p className="mt-3 break-all text-xs text-slate-500">
+              <a
+                href={row.postedUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-slate-800"
+              >
+                {row.postedUrl}
+              </a>
+            </p>
+          ) : null}
+
+          {row.platform === "X" ||
+          row.platform === "LinkedIn" ||
+          row.platform === "Facebook" ||
+          row.platform === "Instagram" ? (
+            <CalendarPostPerformance
+              comments={performanceSnapshot?.numericMetrics.comments ?? null}
+              capturedAt={performanceSnapshot?.capturedAt ?? null}
+              impressions={
+                performanceSnapshot?.numericMetrics.impressions ?? null
+              }
+              platform={row.platform}
+              reactions={performanceSnapshot?.numericMetrics.reactions ?? null}
+              saves={performanceSnapshot?.numericMetrics.saves ?? null}
+              source={performanceSnapshot?.source ?? null}
+            />
+          ) : null}
+        </article>
+      );
+    }
 
     return (
       <article className="rounded-lg border border-slate-200 bg-white p-4">
@@ -1140,7 +1201,7 @@ export function PublishCalendarPanel({
                 <IgMediaAttachPanel
                   assetLocation={draft.media.assetLocation ?? ""}
                   compact
-                  disabled={row.postStatus === "posted"}
+                  disabled={false}
                   projectId={row.projectId}
                   onChange={(assetLocation) =>
                     updateDraftIgMedia(row, assetLocation)
@@ -1152,7 +1213,7 @@ export function PublishCalendarPanel({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {row.draftStatus !== "approved" && row.postStatus !== "posted" ? (
+          {row.draftStatus !== "approved" ? (
             <button
               type="button"
               onClick={() => approveDraft(row)}
@@ -1249,10 +1310,7 @@ export function PublishCalendarPanel({
             <input
               type="checkbox"
               checked={row.autopublishEnabled}
-              disabled={
-                row.postStatus === "posted" ||
-                !platformSupportsAutopublish(row.platform)
-              }
+              disabled={!platformSupportsAutopublish(row.platform)}
               onChange={(event) =>
                 toggleAutopublish(row, event.target.checked)
               }
@@ -1260,16 +1318,14 @@ export function PublishCalendarPanel({
             Autopublish on schedule
           </label>
 
-          {row.postStatus !== "posted" ? (
-            <button
-              type="button"
-              onClick={() => void removeScheduledDraft(row)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-800 hover:bg-red-100"
-            >
-              <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              Remove
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => void removeScheduledDraft(row)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-800 hover:bg-red-100"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+            Remove
+          </button>
 
           <Link
             href="/ops/content/new"
@@ -1281,22 +1337,6 @@ export function PublishCalendarPanel({
 
         {row.postedUrl ? (
           <p className="mt-3 break-all text-xs text-slate-500">{row.postedUrl}</p>
-        ) : null}
-
-        {row.postStatus === "posted" &&
-        (row.platform === "X" ||
-          row.platform === "LinkedIn" ||
-          row.platform === "Facebook" ||
-          row.platform === "Instagram") ? (
-          <CalendarPostPerformance
-            comments={performanceSnapshot?.numericMetrics.comments ?? null}
-            capturedAt={performanceSnapshot?.capturedAt ?? null}
-            impressions={performanceSnapshot?.numericMetrics.impressions ?? null}
-            platform={row.platform}
-            reactions={performanceSnapshot?.numericMetrics.reactions ?? null}
-            saves={performanceSnapshot?.numericMetrics.saves ?? null}
-            source={performanceSnapshot?.source ?? null}
-          />
         ) : null}
       </article>
     );
@@ -1414,6 +1454,12 @@ export function PublishCalendarPanel({
               Show posted
             </label>
           </div>
+          {includePosted ? (
+            <p className="mt-2 text-xs text-slate-500">
+              Posted view: last {POSTED_CALENDAR_LOOKBACK_DAYS} days. Older posts
+              stay on Metrics.
+            </p>
+          ) : null}
         </div>
       </section>
 

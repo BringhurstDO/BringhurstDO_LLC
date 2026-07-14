@@ -26,6 +26,8 @@ const FOUNDER_LINKEDIN_ACCOUNT_NAME = "Kyle Bringhurst LinkedIn";
 export type LinkedInImportedTopPost = {
   engagements: number;
   impressions: number;
+  /** YYYY-MM-DD from Excel "Post Publish Date" when present. */
+  publishedOn?: string;
   postUrl: string;
 };
 
@@ -226,6 +228,82 @@ function titleFromLinkedInImportUrl(postUrl: string) {
   return title || "LinkedIn imported post";
 }
 
+/** Stable postedAt from Excel YYYY-MM-DD (UTC noon). */
+export function postedAtFromPublishedOn(publishedOn: string) {
+  return `${publishedOn}T12:00:00.000Z`;
+}
+
+function isValidPublishedOn(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    !Number.isNaN(Date.parse(`${value}T12:00:00Z`))
+  );
+}
+
+function earliestPublishedOn(
+  left?: string,
+  right?: string,
+): string | undefined {
+  if (!left) {
+    return right;
+  }
+
+  if (!right) {
+    return left;
+  }
+
+  return left <= right ? left : right;
+}
+
+/**
+ * Apply Excel publish date onto the matching draft + published post.
+ * Excel remains source of truth when publishedOn is present.
+ */
+function applyPublishDateToMatchedRecord(
+  record: OpsContentPackageRecord,
+  publishedPostId: string,
+  publishedOn: string | undefined,
+): OpsContentPackageRecord {
+  if (!publishedOn) {
+    return record;
+  }
+
+  const post = record.publishedPosts.find((item) => item.id === publishedPostId);
+  if (!post) {
+    return record;
+  }
+
+  const postedAt = postedAtFromPublishedOn(publishedOn);
+  const updatedAt = new Date().toISOString();
+
+  return {
+    ...record,
+    contentPackage: {
+      ...record.contentPackage,
+      updatedAt,
+    },
+    platformDrafts: record.platformDrafts.map((draft) =>
+      draft.id === post.platformDraftId
+        ? {
+            ...draft,
+            suggestedScheduledFor: publishedOn,
+            updatedAt,
+          }
+        : draft,
+    ),
+    publishedPosts: record.publishedPosts.map((item) =>
+      item.id === publishedPostId
+        ? {
+            ...item,
+            postedAt,
+            postedManuallyAt: postedAt,
+          }
+        : item,
+    ),
+  };
+}
+
 function createLinkedInImportBackfillPackage(
   periodLabel: string,
 ): OpsContentPackageRecord {
@@ -354,6 +432,10 @@ function backfillLinkedInPublishedPost(
   });
 
   if (existing) {
+    const publishedOn = topPost.publishedOn;
+    const postedAt = publishedOn
+      ? postedAtFromPublishedOn(publishedOn)
+      : (existing.postedAt ?? new Date().toISOString());
     const patchedPosts = record.publishedPosts.map((post) =>
       post.id === existing.id
         ? {
@@ -362,9 +444,8 @@ function backfillLinkedInPublishedPost(
             platformPostId: post.platformPostId || platformPostId,
             postUrl: topPost.postUrl,
             postedUrl: topPost.postUrl,
-            postedAt: post.postedAt ?? new Date().toISOString(),
-            postedManuallyAt:
-              post.postedManuallyAt ?? new Date().toISOString(),
+            postedAt,
+            postedManuallyAt: postedAt,
             manualNotes: [
               ...post.manualNotes.filter(
                 (note) => !note.includes("LinkedIn Aggregate Analytics"),
@@ -374,14 +455,31 @@ function backfillLinkedInPublishedPost(
           }
         : post,
     );
+    const patchedDrafts = record.platformDrafts.map((draft) =>
+      draft.id === existing.platformDraftId && publishedOn
+        ? {
+            ...draft,
+            suggestedScheduledFor: publishedOn,
+            updatedAt: new Date().toISOString(),
+          }
+        : draft,
+    );
 
     return {
       publishedPostId: existing.id,
-      record: { ...record, publishedPosts: patchedPosts },
+      record: {
+        ...record,
+        platformDrafts: patchedDrafts,
+        publishedPosts: patchedPosts,
+      },
     };
   }
 
   const now = new Date().toISOString();
+  const publishedOn = topPost.publishedOn;
+  const postedAt = publishedOn
+    ? postedAtFromPublishedOn(publishedOn)
+    : now;
   const draftId = `platform-draft-linkedin-import-${shareId}`;
   const publishedPostId = `published-post-linkedin-import-${shareId}`;
   const title = titleFromLinkedInImportUrl(topPost.postUrl);
@@ -410,6 +508,7 @@ function backfillLinkedInPublishedPost(
     approvalRequired: false,
     utmCampaignId: "",
     generatedUrl: topPost.postUrl,
+    suggestedScheduledFor: publishedOn,
     safetyNotes: [
       "Backfilled from LinkedIn Excel import. Body is a metadata placeholder, not republished.",
     ],
@@ -427,8 +526,8 @@ function backfillLinkedInPublishedPost(
     projectId: "bringhurstdo",
     publicationTargetId: FOUNDER_LINKEDIN_TARGET_ID,
     status: "posted",
-    postedAt: now,
-    postedManuallyAt: now,
+    postedAt,
+    postedManuallyAt: postedAt,
     postUrl: topPost.postUrl,
     postedUrl: topPost.postUrl,
     platformPostId,
@@ -527,6 +626,9 @@ export function validateLinkedInAnalyticsImportPayload(
     topPosts.push({
       engagements: asNonNegativeNumber(row.engagements),
       impressions: asNonNegativeNumber(row.impressions),
+      publishedOn: isValidPublishedOn(row.publishedOn)
+        ? row.publishedOn
+        : undefined,
       postUrl,
     });
   }
@@ -578,6 +680,10 @@ export async function applyLinkedInAnalyticsImport(
     mergedByUrl.set(key, {
       engagements: Math.max(existing.engagements, topPost.engagements),
       impressions: Math.max(existing.impressions, topPost.impressions),
+      publishedOn: earliestPublishedOn(
+        existing.publishedOn,
+        topPost.publishedOn,
+      ),
       postUrl: existing.postUrl,
     });
   }
@@ -622,6 +728,21 @@ export async function applyLinkedInAnalyticsImport(
           (post) => post.id === backfilled.publishedPostId,
         )!,
         record: backfilled.record,
+      };
+    } else if (topPost.publishedOn) {
+      const dated = applyPublishDateToMatchedRecord(
+        match.record,
+        match.post.id,
+        topPost.publishedOn,
+      );
+      records = records.map((record) =>
+        record.contentPackage.id === match!.record.contentPackage.id
+          ? dated
+          : record,
+      );
+      match = {
+        post: dated.publishedPosts.find((post) => post.id === match!.post.id)!,
+        record: dated,
       };
     }
 

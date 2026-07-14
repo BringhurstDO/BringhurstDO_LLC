@@ -7,7 +7,7 @@
 3. Click **Import LinkedIn Excel** and pick the file.
 4. Ops parses the workbook **in the browser**, POSTs only compact JSON (period totals + TOP POSTS URL metrics), and **does not store the Excel file**.
 5. Matched posts upsert `performanceSnapshots` with source `linkedin-import` and **replace any manual placeholders** for those posts.
-6. TOP POSTS URLs with no Ops published row are **backfilled** into package `content-package-linkedin-import-backfill` (draft + posted row + metrics). Incoming Excel is treated as source of truth.
+6. TOP POSTS URLs with no Ops published row are **backfilled** into package `content-package-linkedin-import-backfill` (draft + posted row + metrics). Incoming Excel is treated as source of truth. **Post Publish Date** is written to `suggestedScheduledFor` / `postedAt` for calendar grouping — re-import the same Excel once to repair earlier backfills that landed as unscheduled.
 7. URLs that still cannot be parsed (no share/activity id) remain listed in the UI.
 
 Matching uses the LinkedIn share/activity numeric id, so Excel vanity URLs (`/posts/…-share-7478…-unOr`) align with Ops URN URLs (`urn:li:share:7478…`).

@@ -25,6 +25,11 @@ export type PublishCalendarRow = {
   /** Full draft body for review on the calendar. */
   body: string;
   bodyPreview: string;
+  /**
+   * Effective calendar date for grouping: suggestedScheduledFor, or
+   * YYYY-MM-DD from postedAt when already posted.
+   */
+  calendarDate?: string;
   contentPackageId: string;
   draftId: string;
   draftStatus: PlatformDraftStatus;
@@ -32,6 +37,7 @@ export type PublishCalendarRow = {
   packageTitle: string;
   platform: PublicationPlatform;
   postStatus: PublishedPostStatus;
+  postedAt?: string;
   postedUrl: string;
   projectId: OpsProjectId;
   publicationTargetId: string;
@@ -43,12 +49,57 @@ export type PublishCalendarRow = {
   title: string;
 };
 
+/** Posted items older than this are hidden when Show posted is on. */
+export const POSTED_CALENDAR_LOOKBACK_DAYS = 90;
+
 export function localCalendarDate(reference = new Date()) {
   const year = reference.getFullYear();
   const month = String(reference.getMonth() + 1).padStart(2, "0");
   const day = String(reference.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+export function calendarDateFromPostedAt(postedAt: string | undefined) {
+  if (!postedAt?.trim()) {
+    return undefined;
+  }
+
+  const trimmed = postedAt.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function addCalendarDays(ymd: string, days: number) {
+  const match = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return ymd;
+  }
+
+  const next = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + days, 12),
+  );
+  return next.toISOString().slice(0, 10);
+}
+
+export function postedLookbackStartDate(
+  today = localCalendarDate(),
+  lookbackDays = POSTED_CALENDAR_LOOKBACK_DAYS,
+) {
+  return addCalendarDays(today, -lookbackDays);
 }
 
 function calendarTiming(
@@ -85,6 +136,12 @@ export function buildPublishCalendarRows(
         (item) => item.platformDraftId === draft.id,
       );
       const postStatus = post?.status ?? "not posted";
+      const postedAt = post?.postedAt ?? post?.postedManuallyAt;
+      const calendarDate =
+        draft.suggestedScheduledFor ||
+        (postStatus === "posted"
+          ? calendarDateFromPostedAt(postedAt)
+          : undefined);
       const bodyPreview =
         draft.body.length > 160 ? `${draft.body.slice(0, 160).trim()}…` : draft.body;
 
@@ -93,6 +150,7 @@ export function buildPublishCalendarRows(
         autopublishEnabled: Boolean(draft.autopublishEnabled),
         body: draft.body,
         bodyPreview,
+        calendarDate,
         contentPackageId: record.contentPackage.id,
         draftId: draft.id,
         draftStatus: draft.status,
@@ -100,6 +158,7 @@ export function buildPublishCalendarRows(
         packageTitle: record.contentPackage.title,
         platform: draft.platform,
         postStatus,
+        postedAt,
         postedUrl: post?.postedUrl ?? post?.postUrl ?? "",
         projectId: draft.publishingProjectId,
         publicationTargetId: draft.publicationTargetId,
@@ -139,10 +198,10 @@ export function groupPublishCalendarRows(rows: PublishCalendarRow[]) {
   for (const row of rows) {
     const key =
       row.timing === "posted"
-        ? row.suggestedScheduledFor ?? "posted"
+        ? row.calendarDate ?? "posted"
         : row.timing === "unscheduled"
           ? "unscheduled"
-          : (row.suggestedScheduledFor ?? "unscheduled");
+          : (row.calendarDate ?? row.suggestedScheduledFor ?? "unscheduled");
 
     const bucket = byDate.get(key) ?? [];
     bucket.push(row);
@@ -198,15 +257,30 @@ export function filterPublishCalendarRows(
   {
     includePosted = false,
     platform = "all",
+    postedLookbackDays = POSTED_CALENDAR_LOOKBACK_DAYS,
     timing = "all",
+    today = localCalendarDate(),
   }: {
     includePosted?: boolean;
     platform?: PublicationPlatform | "all";
+    postedLookbackDays?: number;
     timing?: PublishCalendarTiming | "all";
-  },
+    today?: string;
+  } = {},
 ) {
+  const postedCutoff = postedLookbackStartDate(today, postedLookbackDays);
+
   return rows.filter((row) => {
     if (!includePosted && row.timing === "posted") {
+      return false;
+    }
+
+    if (
+      includePosted &&
+      row.timing === "posted" &&
+      row.calendarDate &&
+      row.calendarDate < postedCutoff
+    ) {
       return false;
     }
 
@@ -227,15 +301,23 @@ export function formatScheduledPublishLabel(
   {
     autopublishEnabled = false,
     platform,
+    posted = false,
     scheduleBucketId,
     runTimeLabel,
   }: {
     autopublishEnabled?: boolean;
     platform?: PublicationPlatform;
+    posted?: boolean;
     scheduleBucketId?: OpsScheduleBucketId;
     runTimeLabel?: string;
   } = {},
 ) {
+  if (posted) {
+    return suggestedScheduledFor
+      ? `Posted · ${suggestedScheduledFor}`
+      : "Posted (no publish date)";
+  }
+
   if (!suggestedScheduledFor) {
     return "No suggested date";
   }

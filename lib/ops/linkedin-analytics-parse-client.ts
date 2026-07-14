@@ -18,6 +18,8 @@ export type LinkedInAnalyticsClientPayload = {
   topPosts: Array<{
     engagements: number;
     impressions: number;
+    /** YYYY-MM-DD from Excel "Post Publish Date" when present. */
+    publishedOn?: string;
     postUrl: string;
   }>;
   totalEngagements: number;
@@ -38,6 +40,68 @@ function cellNumber(value: unknown) {
 
   const parsed = Number(cellText(value).replace(/,/g, ""));
   return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : 0;
+}
+
+/** Normalize Excel / LinkedIn "Post Publish Date" cells to YYYY-MM-DD. */
+export function cellPublishDate(value: unknown): string | undefined {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  // Excel serial day (raw:true). Epoch is 1899-12-30.
+  if (typeof value === "number" && Number.isFinite(value) && value > 20000) {
+    const utcDays = Math.floor(value - 25569);
+    const date = new Date(utcDays * 86_400_000);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString().slice(0, 10);
+    }
+  }
+
+  const text = cellText(value);
+  if (!text) {
+    return undefined;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    return text.slice(0, 10);
+  }
+
+  const us = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (us) {
+    const year = us[3].length === 2 ? `20${us[3]}` : us[3];
+    const month = us[1].padStart(2, "0");
+    const day = us[2].padStart(2, "0");
+    const candidate = `${year}-${month}-${day}`;
+    if (!Number.isNaN(Date.parse(`${candidate}T12:00:00Z`))) {
+      return candidate;
+    }
+  }
+
+  const parsed = Date.parse(text);
+  if (!Number.isNaN(parsed)) {
+    return new Date(parsed).toISOString().slice(0, 10);
+  }
+
+  return undefined;
+}
+
+function earliestPublishDate(
+  left?: string,
+  right?: string,
+): string | undefined {
+  if (!left) {
+    return right;
+  }
+
+  if (!right) {
+    return left;
+  }
+
+  return left <= right ? left : right;
 }
 
 function sheetRows(workbook: XLSX.WorkBook, name: string) {
@@ -182,14 +246,17 @@ export async function parseLinkedInAggregateAnalyticsFile(
     for (let index = headerIndex + 1; index < topPostsRows.length; index += 1) {
       const row = topPostsRows[index] ?? [];
       const leftUrl = cellText(row[0]);
+      const leftPublishedOn = cellPublishDate(row[1]);
       const leftEngagements = cellNumber(row[2]);
       const rightUrl = cellText(row[4]);
+      const rightPublishedOn = cellPublishDate(row[5]);
       const rightImpressions = cellNumber(row[6]);
 
       if (leftUrl.startsWith("https://www.linkedin.com/")) {
         topPosts.push({
           engagements: leftEngagements,
           impressions: 0,
+          publishedOn: leftPublishedOn,
           postUrl: leftUrl,
         });
       }
@@ -198,6 +265,7 @@ export async function parseLinkedInAggregateAnalyticsFile(
         topPosts.push({
           engagements: 0,
           impressions: rightImpressions,
+          publishedOn: rightPublishedOn,
           postUrl: rightUrl,
         });
       }
@@ -207,7 +275,12 @@ export async function parseLinkedInAggregateAnalyticsFile(
   // Merge left (engagements) and right (impressions) lists by URL.
   const merged = new Map<
     string,
-    { engagements: number; impressions: number; postUrl: string }
+    {
+      engagements: number;
+      impressions: number;
+      publishedOn?: string;
+      postUrl: string;
+    }
   >();
 
   for (const post of topPosts) {
@@ -222,6 +295,7 @@ export async function parseLinkedInAggregateAnalyticsFile(
     merged.set(key, {
       engagements: Math.max(existing.engagements, post.engagements),
       impressions: Math.max(existing.impressions, post.impressions),
+      publishedOn: earliestPublishDate(existing.publishedOn, post.publishedOn),
       postUrl: existing.postUrl,
     });
   }
