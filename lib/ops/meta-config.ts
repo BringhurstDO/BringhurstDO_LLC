@@ -36,7 +36,10 @@ const FACEBOOK_PAGE_SCOPES = [
   "pages_manage_posts",
   "pages_read_engagement",
   "read_insights",
+  // IG insights/publish use the linked Page token, so Page connect must request these.
+  "instagram_basic",
   "instagram_content_publish",
+  "instagram_manage_insights",
   "business_management",
 ];
 

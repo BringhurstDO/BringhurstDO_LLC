@@ -210,6 +210,7 @@ export function SocialPerformancePanel({
       const payload = (await response.json()) as {
         error?: string;
         matchedCount?: number;
+        backfilledCount?: number;
         periodSummary?: {
           impressions: number;
           membersReached: number;
@@ -238,8 +239,11 @@ export function SocialPerformancePanel({
       }
 
       setUnmatchedUrls(payload.unmatchedUrls ?? []);
+      const backfilled = payload.backfilledCount ?? 0;
       setMessage(
-        `Imported LinkedIn analytics: matched ${payload.matchedCount ?? 0} Ops post(s), updated ${payload.updatedPackageCount ?? 0} package(s). Excel file was not stored.`,
+        `Imported LinkedIn analytics: matched ${payload.matchedCount ?? 0} Ops post(s)` +
+          (backfilled > 0 ? `, backfilled ${backfilled} missing post(s)` : "") +
+          `, updated ${payload.updatedPackageCount ?? 0} package(s). Excel file was not stored.`,
       );
     } catch (error) {
       setIssues([
@@ -465,7 +469,11 @@ export function SocialPerformancePanel({
       {unmatchedUrls.length > 0 ? (
         <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
           <p className="font-semibold">
-            Unmatched LinkedIn TOP POSTS ({unmatchedUrls.length})
+            Could not backfill LinkedIn TOP POSTS ({unmatchedUrls.length})
+          </p>
+          <p className="mt-1 text-xs text-amber-900/80">
+            These URLs had no extractable LinkedIn share/activity id. Period
+            totals above still include them.
           </p>
           <ul className="mt-2 space-y-1 text-xs break-all">
             {unmatchedUrls.slice(0, 8).map((url) => (

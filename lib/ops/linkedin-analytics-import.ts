@@ -5,11 +5,23 @@ import { replacePerformanceSnapshot } from "@/lib/ops/social-performance";
 import type {
   OpsContentPackageRecord,
   PerformanceSnapshot,
+  PlatformDraft,
+  PublishedPost,
 } from "@/lib/ops/types";
 
 function nowId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
+
+/** Durable Ops package that holds LinkedIn posts discovered via Excel import. */
+export const LINKEDIN_IMPORT_BACKFILL_PACKAGE_ID =
+  "content-package-linkedin-import-backfill";
+const LINKEDIN_IMPORT_SOURCE_UPDATE_ID =
+  "source-update-linkedin-import-backfill";
+const LINKEDIN_IMPORT_OUTCOME_ID =
+  "business-outcome-linkedin-import-backfill";
+const FOUNDER_LINKEDIN_TARGET_ID = "target-founder-linkedin-investors";
+const FOUNDER_LINKEDIN_ACCOUNT_NAME = "Kyle Bringhurst LinkedIn";
 
 export type LinkedInImportedTopPost = {
   engagements: number;
@@ -39,6 +51,8 @@ export type LinkedInAnalyticsImportResult = {
     postUrl: string;
     publishedPostId: string;
   }>;
+  /** Posts created in Ops from Excel TOP POSTS that had no prior Ops publish row. */
+  backfilledCount: number;
   periodSummary: {
     impressions: number;
     membersReached: number;
@@ -199,6 +213,251 @@ function upsertLinkedInImportSnapshot(
   };
 }
 
+function titleFromLinkedInImportUrl(postUrl: string) {
+  const path = postUrl.split("/posts/")[1] ?? postUrl;
+  const withoutShare = path.replace(/-share-\d{10,}-[a-z0-9_-]+$/i, "");
+  const withoutHandle = withoutShare.replace(/^[^_]+_/, "");
+  const title = withoutHandle
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+
+  return title || "LinkedIn imported post";
+}
+
+function createLinkedInImportBackfillPackage(
+  periodLabel: string,
+): OpsContentPackageRecord {
+  const now = new Date().toISOString();
+
+  return {
+    sourceUpdate: {
+      id: LINKEDIN_IMPORT_SOURCE_UPDATE_ID,
+      sourceProjectId: "bringhurstdo",
+      projectId: "bringhurstdo",
+      title: "LinkedIn Aggregate Analytics backfill",
+      updateType: "weekly-review",
+      summary:
+        "Posts discovered from LinkedIn Aggregate Analytics Excel imports that were not previously tracked in Ops. Incoming Excel metrics are the source of truth.",
+      sourceDate: now.slice(0, 10),
+      sourceBoundary:
+        "Metadata-only LinkedIn analytics backfill. No private messages, credentials, or audience exports.",
+      approvalRequired: false,
+      createdAt: now,
+      notes: [
+        "Created automatically by LinkedIn Excel import when TOP POSTS URLs are missing from Ops.",
+      ],
+    },
+    contentPackage: {
+      id: LINKEDIN_IMPORT_BACKFILL_PACKAGE_ID,
+      sourceUpdateId: LINKEDIN_IMPORT_SOURCE_UPDATE_ID,
+      title: "LinkedIn analytics import backfill",
+      sourceProjectIds: ["bringhurstdo"],
+      publishingProjectIds: ["bringhurstdo"],
+      projectIds: ["bringhurstdo"],
+      publicationTargetIds: [FOUNDER_LINKEDIN_TARGET_ID],
+      status: "posted",
+      approvalRequired: false,
+      createdAt: now,
+      updatedAt: now,
+      notes: [
+        "Ops content package for LinkedIn posts backfilled from Aggregate Analytics.",
+        periodLabel
+          ? `Latest import period: ${periodLabel}.`
+          : "Period label not provided by import.",
+        "Human approval is not required for metrics-only backfill rows.",
+      ],
+    },
+    businessOutcome: {
+      id: LINKEDIN_IMPORT_OUTCOME_ID,
+      contentPackageId: LINKEDIN_IMPORT_BACKFILL_PACKAGE_ID,
+      capturedAt: now.slice(0, 10),
+      source: "manual",
+      leads: "0",
+      conversations: "0",
+      revenue: "0",
+      numericOutcomes: { conversations: 0, leads: 0, revenue: 0 },
+      notes: ["Placeholder outcome row for analytics backfill package."],
+    },
+    platformDrafts: [],
+    publishedPosts: [],
+    performanceSnapshots: [],
+  };
+}
+
+function ensureLinkedInImportBackfillPackage(
+  records: OpsContentPackageRecord[],
+  periodLabel: string,
+): { records: OpsContentPackageRecord[]; packageId: string } {
+  const existing = records.find(
+    (record) => record.contentPackage.id === LINKEDIN_IMPORT_BACKFILL_PACKAGE_ID,
+  );
+
+  if (existing) {
+    const updatedAt = new Date().toISOString();
+    const next: OpsContentPackageRecord = {
+      ...existing,
+      contentPackage: {
+        ...existing.contentPackage,
+        updatedAt,
+        notes: [
+          ...existing.contentPackage.notes.filter(
+            (note) => !note.startsWith("Latest import period:"),
+          ),
+          periodLabel
+            ? `Latest import period: ${periodLabel}.`
+            : "Period label not provided by import.",
+        ],
+      },
+    };
+
+    return {
+      packageId: LINKEDIN_IMPORT_BACKFILL_PACKAGE_ID,
+      records: records.map((record) =>
+        record.contentPackage.id === LINKEDIN_IMPORT_BACKFILL_PACKAGE_ID
+          ? next
+          : record,
+      ),
+    };
+  }
+
+  return {
+    packageId: LINKEDIN_IMPORT_BACKFILL_PACKAGE_ID,
+    records: [...records, createLinkedInImportBackfillPackage(periodLabel)],
+  };
+}
+
+function backfillLinkedInPublishedPost(
+  record: OpsContentPackageRecord,
+  topPost: LinkedInImportedTopPost,
+): { record: OpsContentPackageRecord; publishedPostId: string } | null {
+  const shareId = extractLinkedInActivityIds(topPost.postUrl)[0];
+
+  if (!shareId) {
+    return null;
+  }
+
+  const platformPostId = `urn:li:share:${shareId}`;
+  const existing = record.publishedPosts.find((post) => {
+    if (post.platform !== "LinkedIn") {
+      return false;
+    }
+
+    const ids = [
+      ...extractLinkedInActivityIds(post.platformPostId ?? ""),
+      ...extractLinkedInActivityIds(post.postUrl ?? ""),
+      ...extractLinkedInActivityIds(post.postedUrl ?? ""),
+    ];
+
+    return ids.includes(shareId);
+  });
+
+  if (existing) {
+    const patchedPosts = record.publishedPosts.map((post) =>
+      post.id === existing.id
+        ? {
+            ...post,
+            status: "posted" as const,
+            platformPostId: post.platformPostId || platformPostId,
+            postUrl: topPost.postUrl,
+            postedUrl: topPost.postUrl,
+            postedAt: post.postedAt ?? new Date().toISOString(),
+            postedManuallyAt:
+              post.postedManuallyAt ?? new Date().toISOString(),
+            manualNotes: [
+              ...post.manualNotes.filter(
+                (note) => !note.includes("LinkedIn Aggregate Analytics"),
+              ),
+              "Updated from LinkedIn Aggregate Analytics import (incoming Excel is source of truth).",
+            ],
+          }
+        : post,
+    );
+
+    return {
+      publishedPostId: existing.id,
+      record: { ...record, publishedPosts: patchedPosts },
+    };
+  }
+
+  const now = new Date().toISOString();
+  const draftId = `platform-draft-linkedin-import-${shareId}`;
+  const publishedPostId = `published-post-linkedin-import-${shareId}`;
+  const title = titleFromLinkedInImportUrl(topPost.postUrl);
+
+  const draft: PlatformDraft = {
+    id: draftId,
+    contentPackageId: record.contentPackage.id,
+    sourceUpdateId: record.sourceUpdate.id,
+    publicationTargetId: FOUNDER_LINKEDIN_TARGET_ID,
+    sourceProjectId: "bringhurstdo",
+    publishingProjectId: "bringhurstdo",
+    projectId: "bringhurstdo",
+    platform: "LinkedIn",
+    accountName: FOUNDER_LINKEDIN_ACCOUNT_NAME,
+    title,
+    body: "Imported from LinkedIn Aggregate Analytics. Public post already live on LinkedIn; Ops tracks metrics only.",
+    media: {
+      mediaType: "none",
+      mediaSummary: "No media metadata in Aggregate Analytics import.",
+      visualHook: "n/a",
+      creativeAngle: "build-in-public",
+      productionEffort: "low",
+      reuseStatus: "reused",
+    },
+    status: "posted",
+    approvalRequired: false,
+    utmCampaignId: "",
+    generatedUrl: topPost.postUrl,
+    safetyNotes: [
+      "Backfilled from LinkedIn Excel import. Body is a metadata placeholder, not republished.",
+    ],
+    operatorNotes: [
+      "Created because Excel TOP POSTS included this URL and Ops had no matching published post.",
+    ],
+    updatedAt: now,
+  };
+
+  const publishedPost: PublishedPost = {
+    id: publishedPostId,
+    accountName: FOUNDER_LINKEDIN_ACCOUNT_NAME,
+    platform: "LinkedIn",
+    platformDraftId: draftId,
+    projectId: "bringhurstdo",
+    publicationTargetId: FOUNDER_LINKEDIN_TARGET_ID,
+    status: "posted",
+    postedAt: now,
+    postedManuallyAt: now,
+    postUrl: topPost.postUrl,
+    postedUrl: topPost.postUrl,
+    platformPostId,
+    manualNotes: [
+      "Backfilled from LinkedIn Aggregate Analytics import. Incoming Excel URL/metrics are source of truth.",
+    ],
+  };
+
+  return {
+    publishedPostId,
+    record: {
+      ...record,
+      contentPackage: {
+        ...record.contentPackage,
+        status: "posted",
+        updatedAt: now,
+      },
+      platformDrafts: [
+        ...record.platformDrafts.filter((item) => item.id !== draftId),
+        draft,
+      ],
+      publishedPosts: [
+        ...record.publishedPosts.filter((item) => item.id !== publishedPostId),
+        publishedPost,
+      ],
+    },
+  };
+}
+
 function asNonNegativeNumber(value: unknown) {
   const number =
     typeof value === "number"
@@ -302,6 +561,7 @@ export async function applyLinkedInAnalyticsImport(
   const matched: LinkedInAnalyticsImportResult["matched"] = [];
   const unmatchedUrls: string[] = [];
   const touchedPackageIds = new Set<string>();
+  let backfilledCount = 0;
 
   // Prefer the stronger signal when the same URL appears in both TOP POSTS lists.
   const mergedByUrl = new Map<string, LinkedInImportedTopPost>();
@@ -323,24 +583,71 @@ export async function applyLinkedInAnalyticsImport(
   }
 
   for (const topPost of mergedByUrl.values()) {
-    const match = findMatchingPublishedPost(records, topPost.postUrl);
+    let match = findMatchingPublishedPost(records, topPost.postUrl);
 
     if (!match) {
-      unmatchedUrls.push(topPost.postUrl);
-      continue;
+      const ensured = ensureLinkedInImportBackfillPackage(
+        records,
+        payload.discovery.periodLabel,
+      );
+      records = ensured.records;
+
+      const backfillPackage = records.find(
+        (record) => record.contentPackage.id === ensured.packageId,
+      );
+
+      if (!backfillPackage) {
+        unmatchedUrls.push(topPost.postUrl);
+        continue;
+      }
+
+      const backfilled = backfillLinkedInPublishedPost(
+        backfillPackage,
+        topPost,
+      );
+
+      if (!backfilled) {
+        unmatchedUrls.push(topPost.postUrl);
+        continue;
+      }
+
+      records = records.map((record) =>
+        record.contentPackage.id === ensured.packageId
+          ? backfilled.record
+          : record,
+      );
+      backfilledCount += 1;
+      match = {
+        post: backfilled.record.publishedPosts.find(
+          (post) => post.id === backfilled.publishedPostId,
+        )!,
+        record: backfilled.record,
+      };
     }
 
-    const next = upsertLinkedInImportSnapshot(match.record, match.post.id, {
-      engagements: topPost.engagements,
-      impressions: topPost.impressions,
-      periodLabel: payload.discovery.periodLabel,
-      postUrl: topPost.postUrl,
-    });
+    const packageRecord =
+      records.find(
+        (record) =>
+          record.contentPackage.id === match!.record.contentPackage.id,
+      ) ?? match.record;
+
+    const next = upsertLinkedInImportSnapshot(
+      packageRecord,
+      match.post.id,
+      {
+        engagements: topPost.engagements,
+        impressions: topPost.impressions,
+        periodLabel: payload.discovery.periodLabel,
+        postUrl: topPost.postUrl,
+      },
+    );
 
     records = records.map((record) =>
-      record.contentPackage.id === match.record.contentPackage.id ? next : record,
+      record.contentPackage.id === packageRecord.contentPackage.id
+        ? next
+        : record,
     );
-    touchedPackageIds.add(match.record.contentPackage.id);
+    touchedPackageIds.add(packageRecord.contentPackage.id);
     matched.push({
       engagements: topPost.engagements,
       impressions: topPost.impressions,
@@ -350,13 +657,13 @@ export async function applyLinkedInAnalyticsImport(
   }
 
   if (touchedPackageIds.size > 0) {
-    const toSave = records.filter((record) =>
-      touchedPackageIds.has(record.contentPackage.id),
-    );
-    await adapter.saveContentPackages(toSave);
+    // saveContentPackages prunes rows not present in the payload — always pass
+    // the full recomposed set after in-memory mutations.
+    await adapter.saveContentPackages(records);
   }
 
   return {
+    backfilledCount,
     matched,
     matchedCount: matched.length,
     periodSummary: {
