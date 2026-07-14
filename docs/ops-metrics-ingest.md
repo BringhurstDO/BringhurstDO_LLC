@@ -22,6 +22,10 @@ Inbound metrics (LinkedIn Excel import, Meta weekly API, X weekly API) overwrite
 
 `/ops/metrics`, `/ops`, and `/ops/reports` roll up posts published in the current Ops week (Monday–Sunday, `America/New_York`) plus the latest snapshot totals for impressions, reactions, comments, and saves (`buildWeeklySocialScorecard`). Business scorecard chips (followers, website clicks, leads, conversations, spend, revenue) stay mock until separate feeds land.
 
+## Publish-log recovery
+
+If a content package is deleted after some drafts already published, those drafts leave the calendar — but successful publishes remain in `ops_social_publish_log`. Run `node scripts/backfill-orphan-publish-logs.cjs` (or `POST /ops/api/social/publish-log/backfill`) to rehydrate orphan successes into package `content-package-social-publish-log-backfill` with the original `postedAt`, URL, body preview, and image URL reference when present in the log. Idempotent: skips posts/drafts already present.
+
 ## Meta Facebook / Instagram insights
 
 ### Operator setup

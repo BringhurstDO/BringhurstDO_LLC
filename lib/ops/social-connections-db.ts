@@ -294,3 +294,23 @@ export async function saveSocialPublishLog(record: SocialPublishLogRecord) {
 
   return { persisted: true };
 }
+
+export async function listSuccessfulSocialPublishLogs(): Promise<
+  SocialPublishLogRecord[]
+> {
+  if (!databasePersistenceConfigured()) {
+    return [];
+  }
+
+  const sql = queryClient();
+  const rows = await sql.query(
+    `select data
+     from ops_social_publish_log
+     where status = 'success'
+     order by created_at asc`,
+  );
+
+  return rows
+    .map((row) => row.data as SocialPublishLogRecord)
+    .filter((record) => record && typeof record === "object" && record.id);
+}
