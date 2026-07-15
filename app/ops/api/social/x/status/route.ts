@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { resolveXConfig } from "@/lib/ops/x-config";
+import { getReadyXConnection } from "@/lib/ops/x-connection";
 import {
+  connectionExpired,
   loadSocialConnection,
   toPublicConnectionStatus,
 } from "@/lib/ops/social-connections-db";
@@ -37,8 +39,28 @@ export async function GET() {
   try {
     const accounts = await Promise.all(
       config.config.accounts.map(async (account) => {
-        const record = await loadSocialConnection("X", account.accountId);
-        return toPublicConnectionStatus("X", account, true, null, record);
+        let record = await loadSocialConnection("X", account.accountId);
+        let disabledReason: string | null = null;
+
+        // Report the durable OAuth connection instead of treating each
+        // short-lived X access token as a disconnected account.
+        if (record && connectionExpired(record)) {
+          const ready = await getReadyXConnection(config.config, account);
+
+          if (ready.ok) {
+            record = await loadSocialConnection("X", account.accountId);
+          } else {
+            disabledReason = ready.error.message;
+          }
+        }
+
+        return toPublicConnectionStatus(
+          "X",
+          account,
+          true,
+          disabledReason,
+          record,
+        );
       }),
     );
 

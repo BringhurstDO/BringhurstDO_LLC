@@ -51,7 +51,7 @@ function AccountRow({
   const label = connected
     ? "Connected"
     : expired
-      ? "Token expired"
+      ? "Reconnect required"
       : "Not connected";
 
   return (
@@ -90,6 +90,12 @@ function AccountRow({
             </dd>
           </div>
         </dl>
+      ) : null}
+
+      {account.disabledReason ? (
+        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950">
+          {account.disabledReason}
+        </p>
       ) : null}
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -325,7 +331,9 @@ export function XConnectPanel({ connectError, connectResult }: XConnectPanelProp
           are text-only up to 280 characters after sanitizing. Weekly metrics
           readback will use read scopes only for Ops-published post ids. Direct
           message scopes are intentionally not requested. Tokens are encrypted at
-          rest and never sent to the browser.
+          rest and never sent to the browser. Short-lived access tokens renew
+          automatically using the refresh token granted by{" "}
+          <code className="font-mono">offline.access</code>.
         </p>
       </div>
     </OpsPanel>

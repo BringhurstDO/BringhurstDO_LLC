@@ -36,7 +36,7 @@ Last updated: 2026-06-15
 | `X_CLIENT_ID` | From X developer app |
 | `X_CLIENT_SECRET` | From X developer app |
 | `X_REDIRECT_URI` | Must match callback exactly, e.g. `https://www.bringhurstdo.com/ops/api/social/x/callback` |
-| `X_ACCOUNTS` | `[{"accountId":"account-founder-x","label":"Kyle Bringhurst X"}]` |
+| `X_ACCOUNTS` | `[{"accountId":"account-founder-x","label":"Kyle Bringhurst X"},{"accountId":"account-bringhurstdo-x","label":"BringhurstDO X"},{"accountId":"account-syncsoap-x","label":"SyncSOAP X"},{"accountId":"account-syncsafety-x","label":"SyncSafety X"}]` |
 | `OPS_SOCIAL_TOKEN_SECRET` | Same as LinkedIn (≥16 chars) |
 | `OPS_STORAGE_MODE` | `database` |
 | `DATABASE_URL` | Postgres for encrypted tokens |
@@ -48,9 +48,11 @@ Last updated: 2026-06-15
 
 1. Set env vars on Vercel (or `.env.local` for local dev).
 2. Open `/ops/accounts` — X panel should show **Configured**.
-3. Click **Connect** on the target account row.
-4. Authorize in X; you should return with `?x=connected`.
-5. Confirm masked author id and token expiry appear (no tokens in page source).
+3. Confirm one **Connect** button appears for every configured X account.
+4. Sign in to each X identity and authorize its matching account row separately.
+   Reusing one `accountId` overwrites that row's previous stored identity.
+5. Confirm all four rows report **Connected**. Short-lived access tokens renew
+   automatically using the rotating refresh token granted by `offline.access`.
 
 ## Publish flow
 
