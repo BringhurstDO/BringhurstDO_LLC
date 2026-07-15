@@ -10,7 +10,7 @@ import type { SocialAuthorType } from "@/lib/ops/types";
 export const X_AUTHORIZATION_URL = "https://x.com/i/oauth2/authorize";
 export const X_TOKEN_URL = "https://api.twitter.com/2/oauth2/token";
 export const X_TWEETS_URL = "https://api.twitter.com/2/tweets";
-export const X_MEDIA_UPLOAD_URL = "https://upload.twitter.com/1.1/media/upload.json";
+export const X_MEDIA_UPLOAD_URL = "https://api.x.com/2/media/upload";
 export const X_USERS_ME_URL = "https://api.twitter.com/2/users/me";
 
 export type XAccountConfig = {

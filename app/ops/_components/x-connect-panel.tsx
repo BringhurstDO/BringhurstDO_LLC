@@ -268,62 +268,6 @@ export function XConnectPanel({ connectError, connectResult }: XConnectPanelProp
           </div>
         ) : null}
 
-        {configured && status?.oauthRedirectUri ? (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
-            <p className="font-semibold">If X shows “you must be logged in” or HTTP 400</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5">
-              <li>
-                In the{" "}
-                <a
-                  className="font-semibold underline"
-                  href="https://developer.x.com/en/portal/dashboard"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  X Developer Portal
-                </a>
-                , open your app → <strong>User authentication settings</strong> →
-                enable <strong>OAuth 2.0</strong>.
-              </li>
-              <li>
-                App type: <strong>Web App, Automated App or Bot</strong>. App
-                permissions: <strong>Read and write</strong>. Do not enable direct
-                message access.
-              </li>
-              <li>
-                Callback / redirect URI must match{" "}
-                <strong>exactly</strong> (copy-paste):
-                <code className="mt-1 block break-all rounded bg-white px-2 py-1 font-mono text-xs text-slate-800">
-                  {status.oauthRedirectUri}
-                </code>
-              </li>
-              <li>
-                Scopes enabled in the portal should include:{" "}
-                <code className="font-mono text-xs">
-                  {(status.oauthScopes ?? []).join(" ")}
-                </code>
-              </li>
-              <li>
-                Sign in at{" "}
-                <a
-                  className="font-semibold underline"
-                  href="https://x.com"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  x.com
-                </a>{" "}
-                in this browser first, then click Connect.
-              </li>
-              <li>
-                Microsoft Edge <strong>Tracking Prevention</strong> can block X
-                login cookies (console shows blocked storage). Try Chrome, or set
-                Tracking prevention to Basic for this site.
-              </li>
-            </ol>
-          </div>
-        ) : null}
-
         <p className="text-xs leading-5 text-slate-500">
           Requires X developer app with OAuth 2.0,{" "}
           <code className="font-mono">OPS_X_ENABLED=true</code>, and callback URL{" "}

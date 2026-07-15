@@ -191,17 +191,15 @@ export async function uploadXMedia(input: {
     kind === "video" || kind === "gif" || input.bytes.byteLength > 5 * 1024 * 1024;
 
   if (!useChunked) {
-    const form = new FormData();
-    form.append(
-      "media",
-      new Blob([Buffer.from(input.bytes)], { type: input.contentType }),
-      "ops-social-image",
-    );
-
     const response = await fetch(X_MEDIA_UPLOAD_URL, {
-      body: form,
+      body: JSON.stringify({
+        media: Buffer.from(input.bytes).toString("base64"),
+        media_category: "tweet_image",
+        media_type: input.contentType,
+      }),
       headers: {
         Authorization: `Bearer ${input.accessToken}`,
+        "Content-Type": "application/json",
       },
       method: "POST",
     });
@@ -212,8 +210,11 @@ export async function uploadXMedia(input: {
       throw new Error(`X media upload failed (${response.status}): ${text.slice(0, 400)}`);
     }
 
-    const json = JSON.parse(text) as { media_id_string?: string };
-    const mediaId = json.media_id_string?.trim();
+    const json = JSON.parse(text) as {
+      data?: { id?: string };
+      media_id_string?: string;
+    };
+    const mediaId = json.data?.id?.trim() ?? json.media_id_string?.trim();
 
     if (!mediaId) {
       throw new Error("X media upload did not return media_id_string.");
@@ -239,13 +240,14 @@ async function uploadXMediaChunked(input: {
   const mediaCategory =
     kind === "video" ? "tweet_video" : kind === "gif" ? "tweet_gif" : "tweet_image";
 
-  const initUrl = new URL(X_MEDIA_UPLOAD_URL);
-  initUrl.searchParams.set("command", "INIT");
-  initUrl.searchParams.set("total_bytes", String(input.bytes.byteLength));
-  initUrl.searchParams.set("media_type", input.contentType);
-  initUrl.searchParams.set("media_category", mediaCategory);
+  const initForm = new FormData();
+  initForm.append("command", "INIT");
+  initForm.append("total_bytes", String(input.bytes.byteLength));
+  initForm.append("media_type", input.contentType);
+  initForm.append("media_category", mediaCategory);
 
-  const initResponse = await fetch(initUrl, {
+  const initResponse = await fetch(X_MEDIA_UPLOAD_URL, {
+    body: initForm,
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
     },
@@ -259,8 +261,12 @@ async function uploadXMediaChunked(input: {
     );
   }
 
-  const initJson = JSON.parse(initText) as { media_id_string?: string };
-  const mediaId = initJson.media_id_string?.trim();
+  const initJson = JSON.parse(initText) as {
+    data?: { id?: string };
+    media_id_string?: string;
+  };
+  const mediaId =
+    initJson.data?.id?.trim() ?? initJson.media_id_string?.trim();
 
   if (!mediaId) {
     throw new Error("X media INIT did not return media_id_string.");
@@ -299,11 +305,12 @@ async function uploadXMediaChunked(input: {
     segmentIndex += 1;
   }
 
-  const finalizeUrl = new URL(X_MEDIA_UPLOAD_URL);
-  finalizeUrl.searchParams.set("command", "FINALIZE");
-  finalizeUrl.searchParams.set("media_id", mediaId);
+  const finalizeForm = new FormData();
+  finalizeForm.append("command", "FINALIZE");
+  finalizeForm.append("media_id", mediaId);
 
-  const finalizeResponse = await fetch(finalizeUrl, {
+  const finalizeResponse = await fetch(X_MEDIA_UPLOAD_URL, {
+    body: finalizeForm,
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
     },
@@ -318,10 +325,14 @@ async function uploadXMediaChunked(input: {
   }
 
   const finalizeJson = JSON.parse(finalizeText) as {
+    data?: {
+      processing_info?: { check_after_secs?: number; state?: string };
+    };
     processing_info?: { check_after_secs?: number; state?: string };
   };
 
-  let processing = finalizeJson.processing_info;
+  let processing =
+    finalizeJson.data?.processing_info ?? finalizeJson.processing_info;
 
   for (let attempt = 0; attempt < 40 && processing; attempt += 1) {
     if (processing.state === "succeeded") {
@@ -354,9 +365,12 @@ async function uploadXMediaChunked(input: {
     }
 
     const statusJson = JSON.parse(statusText) as {
+      data?: {
+        processing_info?: { check_after_secs?: number; state?: string };
+      };
       processing_info?: { check_after_secs?: number; state?: string };
     };
-    processing = statusJson.processing_info;
+    processing = statusJson.data?.processing_info ?? statusJson.processing_info;
 
     if (!processing) {
       return mediaId;
