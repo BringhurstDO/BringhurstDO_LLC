@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 
+import { PublicAnalytics } from "@/app/_components/public-analytics";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -75,6 +77,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} min-h-dvh antialiased`}
       >
         {children}
+        <PublicAnalytics />
       </body>
     </html>
   );

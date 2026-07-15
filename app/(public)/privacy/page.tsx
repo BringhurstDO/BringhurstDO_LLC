@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   },
 };
 
-const lastUpdated = "June 14, 2026";
+const lastUpdated = "July 15, 2026";
 
 const sections = [
   {
@@ -25,7 +25,8 @@ const sections = [
     id: "information-we-collect",
     title: "Information we collect",
     paragraphs: [
-      "Public website. When you visit bringhurstdo.com, our hosting provider may automatically receive standard technical information such as your IP address, browser type, device type, referring URL, and the pages you request. We do not currently use third-party advertising cookies or consumer analytics trackers on the public marketing site.",
+      "Public website. When you visit bringhurstdo.com, our hosting provider may automatically receive standard technical information such as your IP address, browser type, device type, referring URL, and the pages you request. We do not use third-party advertising cookies on the public marketing site.",
+      "Website analytics. We use Vercel Web Analytics to understand anonymous, aggregate website traffic such as page views, referring sites, approximate geography, browser, and device type. Vercel Web Analytics does not use third-party cookies, and we exclude visits to the private /ops console from this collection.",
       "Contact and business inquiries. If you contact us by email or through a business channel, we receive the information you choose to send, such as your name, email address, organization, and message content.",
       "Authorized internal tools. Access to our private operations dashboard is restricted to authorized personnel. Those tools may store business metadata such as content drafts, campaign labels, publication targets, and operational notes. They are designed not to store protected health information, patient identifiers, clinical encounter content, or similar sensitive records.",
       "LinkedIn integration (authorized operators only). If an authorized operator connects a LinkedIn account to our internal publishing tools, LinkedIn may share account and authorization information with us through OAuth, such as a member identifier, display name, authorized scopes, and tokens needed to publish or reshare content on behalf of accounts the operator administers. We use this integration only for operator-approved social publishing workflows initiated inside our internal tools.",
