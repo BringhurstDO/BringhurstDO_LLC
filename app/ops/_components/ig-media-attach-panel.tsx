@@ -2,9 +2,14 @@
 
 import { ImageIcon, Loader2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import { isVideoAssetLocation } from "@/lib/ops/ops-media-kind";
+import {
+  createOpsMediaBlobPath,
+  inferOpsMediaContentType,
+} from "@/lib/ops/ops-media-upload-policy";
 import type { OpsProjectId } from "@/lib/ops/types";
 
 type CatalogEntry = {
@@ -107,6 +112,33 @@ export function IgMediaAttachPanel({
     setError(null);
 
     try {
+      const contentType = inferOpsMediaContentType(file.name, file.type);
+
+      if (catalog?.upload.mode === "vercel-blob") {
+        const blob = await upload(
+          createOpsMediaBlobPath({
+            contentType,
+            originalName: file.name,
+            projectId,
+          }),
+          file,
+          {
+            access: "public",
+            clientPayload: JSON.stringify({
+              contentType,
+              projectId,
+              size: file.size,
+            }),
+            contentType,
+            handleUploadUrl: "/ops/api/media/upload",
+            multipart: file.size > 5 * 1024 * 1024,
+          },
+        );
+
+        onChange(blob.url);
+        return;
+      }
+
       const body = new FormData();
       body.set("file", file);
       body.set("projectId", projectId);
@@ -116,10 +148,23 @@ export function IgMediaAttachPanel({
         cache: "no-store",
         method: "POST",
       });
-      const payload = (await response.json()) as {
+      const responseText = await response.text();
+      let payload: {
         assetLocation?: string;
         error?: string;
-      };
+      } = {};
+
+      try {
+        payload = JSON.parse(responseText) as typeof payload;
+      } catch {
+        if (response.status === 401) {
+          throw new Error("Your Ops session expired. Reload the page and sign in again.");
+        }
+
+        throw new Error(
+          `Media upload failed (${response.status}). Please reload and try again.`,
+        );
+      }
 
       if (!response.ok || !payload.assetLocation) {
         throw new Error(payload.error ?? "Media upload failed.");
@@ -139,39 +184,46 @@ export function IgMediaAttachPanel({
 
   return (
     <div
-      className={`rounded-md border border-fuchsia-200 bg-fuchsia-50/60 ${
+      className={`rounded-md border border-slate-200 bg-slate-50/80 ${
         compact ? "p-3" : "p-4"
       }`}
     >
       <div className="flex items-start gap-2">
-        <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-fuchsia-700" aria-hidden />
+        <ImageIcon className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-fuchsia-950">{heading}</p>
-          <p className="mt-1 text-xs leading-5 text-fuchsia-900">{description}</p>
+          <p className="text-xs font-semibold text-slate-900">{heading}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{description}</p>
         </div>
       </div>
 
       {selectedPreview ? (
-        <div className="mt-3 overflow-hidden rounded-md border border-fuchsia-200 bg-white">
-          {isVideoAssetLocation(assetLocation) ? (
-            <video
-              src={selectedPreview}
-              controls
-              playsInline
-              className="max-h-48 w-full bg-slate-950/5 object-contain"
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={selectedPreview}
-              alt="Selected social media preview"
-              className="max-h-48 w-full object-contain bg-slate-950/5"
-            />
-          )}
-          <div className="border-t border-fuchsia-100 px-3 py-2 text-xs text-slate-600">
-            <span className="font-semibold text-slate-800">Selected:</span>{" "}
-            <span className="break-all font-mono">{assetLocation}</span>
+        <div className="mt-3 grid gap-2">
+          <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
+            {isVideoAssetLocation(assetLocation) ? (
+              <video
+                src={selectedPreview}
+                controls
+                playsInline
+                className="max-h-48 w-full bg-slate-50 object-contain"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={selectedPreview}
+                alt="Selected social media preview"
+                className="max-h-48 w-full bg-slate-50 object-contain"
+              />
+            )}
           </div>
+          <p
+            className="truncate px-0.5 font-mono text-[11px] leading-4 text-slate-500"
+            title={assetLocation}
+          >
+            <span className="font-sans font-semibold text-slate-700">
+              Selected:
+            </span>{" "}
+            {assetLocation}
+          </p>
         </div>
       ) : (
         <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
@@ -183,7 +235,7 @@ export function IgMediaAttachPanel({
 
       <div className="mt-3 flex flex-wrap gap-2">
         <label
-          className={`inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border border-fuchsia-300 bg-white px-3 text-xs font-semibold text-fuchsia-900 hover:bg-fuchsia-100 ${
+          className={`inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 hover:bg-slate-100 ${
             disabled || uploading || !catalog?.upload.configured
               ? "cursor-not-allowed opacity-50"
               : ""
@@ -269,8 +321,8 @@ export function IgMediaAttachPanel({
                       onClick={() => onChange(entry.assetLocation)}
                       className={`overflow-hidden rounded-md border text-left transition ${
                         selected
-                          ? "border-fuchsia-500 ring-2 ring-fuchsia-200"
-                          : "border-slate-200 bg-white hover:border-fuchsia-300"
+                          ? "border-slate-500 ring-2 ring-slate-200"
+                          : "border-slate-200 bg-white hover:border-slate-400"
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

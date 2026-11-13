@@ -22,6 +22,7 @@
     "ops:render-syncsoap-progress-ig": "node scripts/render-syncsoap-progress-ig.mjs",
     "ops:render-product-covers": "node scripts/render-product-social-cover.mjs",
     "ops:check-social-default-image": "npx tsx scripts/check-social-default-image.ts",
+    "ops:check-media-upload": "npx tsx scripts/check-media-upload.ts",
     "social:card": "node scripts/generate-brand-social-card.cjs",
     "social:animate": "node scripts/generate-social-animation.cjs"
   },

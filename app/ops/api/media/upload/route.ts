@@ -1,9 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  handleUpload,
+  type HandleUploadBody,
+} from "@vercel/blob/client";
 
 import {
   opsMediaUploadStatus,
   uploadOpsIgScreenshot,
 } from "@/lib/ops/ops-media-upload";
+import {
+  assertOpsMediaBlobPath,
+  inferOpsMediaContentType,
+  parseOpsMediaUploadClientPayload,
+} from "@/lib/ops/ops-media-upload-policy";
+import { maxUploadBytesForContentType } from "@/lib/ops/ops-media-kind";
 import type { OpsProjectId } from "@/lib/ops/types";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +58,38 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (request.headers.get("content-type")?.includes("application/json")) {
+    try {
+      const body = (await request.json()) as HandleUploadBody;
+      const result = await handleUpload({
+        body,
+        request,
+        onBeforeGenerateToken: async (pathname, clientPayload) => {
+          const payload = parseOpsMediaUploadClientPayload(clientPayload);
+          assertOpsMediaBlobPath(pathname, payload);
+
+          return {
+            addRandomSuffix: false,
+            allowedContentTypes: [payload.contentType],
+            maximumSizeInBytes: maxUploadBytesForContentType(
+              payload.contentType,
+            ),
+          };
+        },
+      });
+
+      return jsonNoStore(result);
+    } catch (error) {
+      return jsonNoStore(
+        {
+          error:
+            error instanceof Error ? error.message : "Media upload failed.",
+        },
+        400,
+      );
+    }
+  }
+
   let formData: FormData;
 
   try {
@@ -72,17 +114,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const inferredType =
-      file.type ||
-      (file.name.toLowerCase().endsWith(".gif")
-        ? "image/gif"
-        : file.name.toLowerCase().endsWith(".mp4")
-          ? "video/mp4"
-          : file.name.toLowerCase().endsWith(".png")
-            ? "image/png"
-            : file.name.toLowerCase().endsWith(".webp")
-              ? "image/webp"
-              : "image/jpeg");
+    const inferredType = inferOpsMediaContentType(file.name, file.type);
     const uploaded = await uploadOpsIgScreenshot({
       bytes,
       contentType: inferredType,

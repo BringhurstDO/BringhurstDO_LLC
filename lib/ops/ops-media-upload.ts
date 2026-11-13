@@ -9,6 +9,7 @@ import {
   isAllowedOpsUploadContentType,
   maxUploadBytesForContentType,
 } from "@/lib/ops/ops-media-kind";
+import { createOpsMediaBlobPath } from "@/lib/ops/ops-media-upload-policy";
 import type { OpsProjectId } from "@/lib/ops/types";
 
 export type OpsMediaUploadResult = {
@@ -17,31 +18,6 @@ export type OpsMediaUploadResult = {
   fileName: string;
   storage: "local-public" | "vercel-blob";
 };
-
-function sanitizeFileStem(name: string) {
-  const stem = name
-    .replace(/\.[^.]+$/, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-
-  return stem || "social-media";
-}
-
-function extensionForContentType(contentType: string) {
-  switch (contentType) {
-    case "image/png":
-      return "png";
-    case "image/webp":
-      return "webp";
-    case "image/gif":
-      return "gif";
-    case "video/mp4":
-      return "mp4";
-    default:
-      return "jpg";
-  }
-}
 
 function blobUploadConfigured() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
@@ -95,13 +71,16 @@ export async function uploadOpsIgScreenshot(input: {
     throw new Error(`Upload must be ${limitMb} MB or smaller for this media type.`);
   }
 
-  const extension = extensionForContentType(contentType);
-  const fileStem = sanitizeFileStem(input.originalName);
-  const fileName = `${fileStem}-${Date.now().toString(36)}.${extension}`;
+  const blobPath = createOpsMediaBlobPath({
+    contentType,
+    originalName: input.originalName,
+    projectId: input.projectId,
+  });
+  const fileName = path.posix.basename(blobPath);
 
   if (blobUploadConfigured()) {
     const blob = await put(
-      `ops-ig/${input.projectId}/${fileName}`,
+      blobPath,
       Buffer.from(input.bytes),
       {
         access: "public",
