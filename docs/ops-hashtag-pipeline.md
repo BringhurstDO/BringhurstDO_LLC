@@ -74,6 +74,11 @@ controls:
 - Every rerender starts from the original clean image, and the operator can
   restore that original after comparing a rendered result.
 
+The single-post and split-series builders expose the same bounded editor. A
+series render replaces the package-level asset with the edited result and saves
+the selected overlay metadata on every compatible platform draft, including
+Instagram.
+
 ## Verification
 
 Run `npm run ops:check-hashtag-pipeline`. The test starts with

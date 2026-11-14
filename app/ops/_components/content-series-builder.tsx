@@ -64,6 +64,10 @@ import type {
   OpsAiSeriesSplitResponse,
   OpsContentPackageRecord,
   OpsMediaMetadata,
+  OpsOverlayCrop,
+  OpsOverlayFormat,
+  OpsOverlayPreset,
+  OpsOverlayTextScale,
   OpsProjectId,
   OpsProjectSummary,
   OpsSocialMention,
@@ -167,6 +171,15 @@ export function ContentSeriesBuilder({
   const [requiredHashtagText, setRequiredHashtagText] = useState("");
   const [socialMentions, setSocialMentions] = useState<OpsSocialMention[]>([]);
   const [seriesSocialImage, setSeriesSocialImage] = useState("");
+  const [overlayHeadline, setOverlayHeadline] = useState("");
+  const [overlayPreset, setOverlayPreset] =
+    useState<OpsOverlayPreset>("editorial");
+  const [overlayFormat, setOverlayFormat] =
+    useState<OpsOverlayFormat>("square");
+  const [overlayTextScale, setOverlayTextScale] =
+    useState<OpsOverlayTextScale>("standard");
+  const [overlayCrop, setOverlayCrop] =
+    useState<OpsOverlayCrop>("attention");
   const [seriesStartDate, setSeriesStartDate] = useState(defaultSeriesStartDate);
   const [postsPerWeek, setPostsPerWeek] = useState(3);
   const [weekCount, setWeekCount] = useState(1);
@@ -708,6 +721,12 @@ export function ContentSeriesBuilder({
                 proposal.mediaNote ||
                 `Package social image attached for ${target.platform}.`,
               mediaType: "screenshot",
+              overlayApproved: Boolean(overlayHeadline.trim()),
+              overlayCrop,
+              overlayFormat,
+              overlayHeadline: overlayHeadline.trim() || undefined,
+              overlayPreset,
+              overlayTextScale,
               visualHook: "Approved social image from series package.",
             }
           : {
@@ -1108,6 +1127,16 @@ export function ContentSeriesBuilder({
           sourceSummary={seriesSummary}
           sourceTitle={seriesTitle}
           updateType={updateType}
+          overlayHeadline={overlayHeadline}
+          onOverlayHeadlineChange={setOverlayHeadline}
+          overlayCrop={overlayCrop}
+          overlayFormat={overlayFormat}
+          overlayPreset={overlayPreset}
+          overlayTextScale={overlayTextScale}
+          onOverlayCropChange={setOverlayCrop}
+          onOverlayFormatChange={setOverlayFormat}
+          onOverlayPresetChange={setOverlayPreset}
+          onOverlayTextScaleChange={setOverlayTextScale}
         />
       </section>
 
