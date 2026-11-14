@@ -122,6 +122,7 @@ export function mentionsForPlatform(
 export function appendRequiredSocialMetadata(input: {
   body: string;
   hashtags?: string[];
+  maxLength?: number;
   mentions?: OpsSocialMention[];
   platform: PublicationPlatform;
 }) {
@@ -143,7 +144,7 @@ export function appendRequiredSocialMetadata(input: {
     );
   const additions = [...mentionTokens, ...hashtags];
   const suffix = additions.join(" ");
-  const limit = PLATFORM_LIMITS[input.platform];
+  const limit = input.maxLength ?? PLATFORM_LIMITS[input.platform];
 
   if (!suffix) return input.body.trim();
   if (!limit) return `${input.body.trim()}\n\n${suffix}`.trim();

@@ -3,6 +3,7 @@ import type {
   OpsAudienceProfile,
   OpsBrandProfile,
   OpsProjectId,
+  OpsSocialMention,
   PublicationPlatform,
   PublicationTarget,
   SourceUpdateType,
@@ -12,6 +13,10 @@ import {
   buildSeriesSchedule,
   platformBodyMaxChars,
 } from "@/lib/ops/series-schedule";
+import {
+  normalizeRequiredHashtags,
+  normalizeSocialMentions,
+} from "@/lib/ops/social-metadata";
 
 /** Allowlisted AI payload for weekly summary → series split. */
 export type OpsAiSeriesSplitContext = {
@@ -34,6 +39,8 @@ export type OpsAiSeriesSplitContext = {
   series: {
     id: string;
     postsPerWeek: number;
+    requiredHashtags: string[];
+    socialMentions: OpsSocialMention[];
     sourceProjectId: string;
     startDate: string;
     summary: string;
@@ -171,6 +178,20 @@ export function validateSeriesSplitRequest({
     { max: 12, min: 0 },
   );
   const effectiveTotalPosts = totalPostsCap > 0 ? totalPostsCap : undefined;
+  const requiredHashtags = normalizeRequiredHashtags(
+    Array.isArray(request.requiredHashtags)
+      ? request.requiredHashtags.filter(
+          (value): value is string => typeof value === "string",
+        )
+      : [],
+  );
+  const socialMentions = normalizeSocialMentions(
+    Array.isArray(request.socialMentions)
+      ? (request.socialMentions.filter(
+          (value) => value && typeof value === "object",
+        ) as OpsSocialMention[])
+      : [],
+  );
 
   const rawTargetIds = request.publicationTargetIds;
   const publicationTargetIds = Array.isArray(rawTargetIds)
@@ -290,6 +311,8 @@ export function validateSeriesSplitRequest({
     series: {
       id: seriesId,
       postsPerWeek,
+      requiredHashtags,
+      socialMentions,
       sourceProjectId,
       startDate: seriesStartDate,
       summary,

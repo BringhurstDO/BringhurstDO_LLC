@@ -65,6 +65,14 @@ const mentions: OpsSocialMention[] = [
     label: "AMIA",
     platform: "X",
   },
+  {
+    approved: true,
+    entityType: "organization",
+    handle: "AMIAInformatics",
+    id: "mention-amia-facebook",
+    label: "AMIA",
+    platform: "Facebook",
+  },
 ];
 const rejectedLinkedInInjection: OpsSocialMention = {
   approved: true,
@@ -243,6 +251,8 @@ const seriesContext: OpsAiSeriesSplitContext = {
   series: {
     id: "series-hashtag-test",
     postsPerWeek: 1,
+    requiredHashtags: ["#AMIA2026", "#SyncSOAP", "#HealthcareAI"],
+    socialMentions: mentions,
     sourceProjectId: "syncsoap",
     startDate: "2026-11-13",
     summary: sourceSummary,
@@ -279,6 +289,12 @@ const seriesProposals = mapSeriesSplitProposals(
 for (const proposal of seriesProposals) {
   assert.match(proposal.body, /#AMIA2026/);
   assert.match(proposal.body, /#SyncSOAP/);
+  assert.match(proposal.body, /#HealthcareAI/);
+  if (proposal.platform === "LinkedIn") {
+    assert.match(proposal.body, /@\[AMIA\]\(urn:li:organization:12345\)/);
+  } else {
+    assert.match(proposal.body, /@AMIAInformatics/);
+  }
   assert.ok(proposal.body.length <= seriesContext.slots.find(
     (slot) => slot.slotId === proposal.proposalId,
   )!.bodyMaxChars);

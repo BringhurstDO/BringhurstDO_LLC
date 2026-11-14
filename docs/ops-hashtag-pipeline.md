@@ -25,6 +25,8 @@ could remove hashtags placed near the end before the AI request.
 3. Gemini receives the source text, draft text, and an explicit preservation
    instruction. The operator can also enter `requiredHashtags`; those are stored
    separately so Gemini cannot remove them.
+   The single-post and split-series builders both carry these required hashtags
+   and approved mention records into every matching saved platform draft.
 4. Immediately after JSON parsing, Ops reapplies source hashtags if Gemini
    omitted them, removes duplicate or unrelated generated tags, and respects
    platform limits: X 2, LinkedIn 3, Facebook 3, Instagram 5.

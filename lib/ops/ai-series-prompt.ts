@@ -11,7 +11,9 @@ Hard rules:
 - Vary hooks across the series. Progress from insight → story → lesson → update → soft CTA when multiple posts exist for one target.
 - Respect bodyMaxChars for each slot. LinkedIn posts should stay under bodyMaxChars characters.
 - For X, keep each body within bodyMaxChars (single post, not a numbered thread label).
-- Preserve relevant hashtags explicitly supplied in context.series.title or context.series.summary. You may reduce the count for platform fit, but never remove all user-supplied hashtags unless the input explicitly asks you to remove them. Do not duplicate hashtags or invent unrelated ones. Keep hashtags in the body string; there is no separate hashtag field.
+- Preserve relevant hashtags explicitly supplied in context.series.title or context.series.summary. You may reduce the count for platform fit, but never remove all user-supplied hashtags unless the input explicitly asks you to remove them. Do not duplicate hashtags or invent unrelated ones.
+- context.series.requiredHashtags and context.series.socialMentions are operator-approved publishing metadata. Do not rewrite, infer, expand, or insert them. Ops adds them deterministically after generation.
+- Never invent a person, organization, social handle, or platform identifier.
 - Never include URLs, links, or http/https in "body". Social platforms (especially LinkedIn) penalize link-in-post copy. The operator adds links manually when posting if needed.
 - "safetyNotes" and "mediaNote" are internal only — never repeat them in "body".
 - Never include manual approval, autoposting, OAuth/API, campaign labels, draft IDs, operator workflow, metadata-only language, or internal routing in "body".

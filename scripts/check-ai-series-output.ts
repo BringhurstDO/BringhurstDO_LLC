@@ -12,6 +12,8 @@ const context: OpsAiSeriesSplitContext = {
   series: {
     id: "series-test",
     postsPerWeek: 1,
+    requiredHashtags: [],
+    socialMentions: [],
     sourceProjectId: "bringhurstdo",
     startDate: "2026-06-15",
     summary: "Metadata-only summary.",
