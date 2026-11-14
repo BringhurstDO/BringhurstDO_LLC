@@ -62,6 +62,14 @@ export type OpsAiVisibleContext = {
     summary: string;
     title: string;
     updateType: string;
+    requiredHashtags?: string[];
+    socialMentions?: Array<{
+      entityType: string;
+      handle?: string;
+      label: string;
+      platform: string;
+      platformId?: string;
+    }>;
   };
 };
 
@@ -225,6 +233,16 @@ export function buildOpsAiVisibleContextFromRecord({
       summary: record.sourceUpdate.summary,
       title: record.sourceUpdate.title,
       updateType: record.sourceUpdate.updateType,
+      requiredHashtags: record.sourceUpdate.requiredHashtags,
+      socialMentions: record.sourceUpdate.socialMentions
+        ?.filter((mention) => mention.approved)
+        .map(({ entityType, handle, label, platform, platformId }) => ({
+          entityType,
+          handle,
+          label,
+          platform,
+          platformId,
+        })),
     },
   };
 }

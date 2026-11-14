@@ -6,6 +6,7 @@ import {
   sanitizePublishableBody,
 } from "@/lib/ops/publishable-copy";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
+import { appendRequiredSocialMetadata } from "@/lib/ops/social-metadata";
 import { getReadyXConnection } from "@/lib/ops/x-connection";
 import { publishXPost, uploadXMedia } from "@/lib/ops/x-client";
 import { findXAccount, resolveXConfig } from "@/lib/ops/x-config";
@@ -16,6 +17,7 @@ import {
 import type {
   OpsContentPackageRecord,
   OpsProjectId,
+  OpsSocialMention,
   PlatformDraft,
   SocialPublishLogRecord,
   SocialPublishResult,
@@ -40,6 +42,8 @@ export type XDraftPublishInput = {
   sourceProjectId?: OpsProjectId;
   title?: string;
   trigger: "autopublish" | "manual";
+  requiredHashtags?: string[];
+  socialMentions?: OpsSocialMention[];
 };
 
 export type XDraftPublishError = {
@@ -140,7 +144,23 @@ export async function publishXDraft(
     };
   }
 
-  const body = sanitizePublishableBody(input.body, { title: input.title });
+  let body: string;
+  try {
+    body = appendRequiredSocialMetadata({
+      body: sanitizePublishableBody(input.body, { title: input.title }),
+      hashtags: input.requiredHashtags,
+      mentions: input.socialMentions,
+      platform: "X",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "body_invalid",
+        message: error instanceof Error ? error.message : "Invalid social metadata.",
+      },
+    };
+  }
 
   if (!body.trim()) {
     return {

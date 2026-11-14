@@ -1,8 +1,9 @@
 import "server-only";
 
-import type { OpsAiImprovedDraftProposal, OpsAiProvider } from "@/lib/ops/types";
+import type { OpsAiProvider } from "@/lib/ops/types";
 
 import type { OpsAiVisibleContext } from "@/lib/ops/ai-visible-context";
+import { mapImprovedDraftProposals } from "@/lib/ops/ai-improve-map";
 import {
   estimateGeminiCostUsd,
   estimateOpenAiCostUsd,
@@ -10,7 +11,6 @@ import {
   parseAiPayload,
   type AiGenerationUsage,
 } from "@/lib/ops/ai-prompt";
-import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 
 type OpenAiResponse = {
   choices?: Array<{ message?: { content?: string } }>;
@@ -35,52 +35,6 @@ type GeminiResponse = {
     totalTokenCount?: number;
   };
 };
-
-function mapProposals(
-  context: OpsAiVisibleContext,
-  parsed: ReturnType<typeof parseAiPayload>,
-) {
-  const allowedDraftIds = new Set(context.platformDrafts.map((draft) => draft.id));
-
-  return (parsed.drafts ?? [])
-    .filter(
-      (draft): draft is typeof draft & { platformDraftId: string; body: string } =>
-        Boolean(
-          draft.platformDraftId &&
-            allowedDraftIds.has(draft.platformDraftId) &&
-            typeof draft.body === "string" &&
-            draft.body.trim(),
-        ),
-    )
-    .map((draft) => {
-      const sourceDraft = context.platformDrafts.find(
-        (item) => item.id === draft.platformDraftId,
-      );
-
-      return {
-        accountName: draft.accountName ?? sourceDraft?.accountName ?? "Unknown",
-        body: sanitizePublishableBody(draft.body.trim()),
-        mediaNote:
-          typeof draft.mediaNote === "string" && draft.mediaNote.trim()
-            ? draft.mediaNote.trim()
-            : "Review media metadata before posting.",
-        platform:
-          (draft.platform as OpsAiImprovedDraftProposal["platform"]) ??
-          (sourceDraft?.platform as OpsAiImprovedDraftProposal["platform"]),
-        platformDraftId: draft.platformDraftId,
-        safetyNotes: Array.isArray(draft.safetyNotes)
-          ? draft.safetyNotes.filter(
-              (note): note is string =>
-                typeof note === "string" && note.trim().length > 0,
-            )
-          : ["Manual review required before posting."],
-        title:
-          typeof draft.title === "string" && draft.title.trim()
-            ? draft.title.trim()
-            : sourceDraft?.title ?? "Untitled draft",
-      } satisfies OpsAiImprovedDraftProposal;
-    });
-}
 
 async function callOpenAi({
   apiKey,
@@ -216,7 +170,10 @@ export async function generateOpsAiImprovedDrafts({
       ? await callGemini({ apiKey, context, model })
       : await callOpenAi({ apiKey, context, model });
 
-  const proposals = mapProposals(context, parseAiPayload(result.content));
+  const proposals = mapImprovedDraftProposals(
+    context,
+    parseAiPayload(result.content),
+  );
 
   if (proposals.length === 0) {
     throw new Error(`${provider} returned no usable draft proposals.`);

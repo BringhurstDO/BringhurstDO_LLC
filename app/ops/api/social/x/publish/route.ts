@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { publishXDraft } from "@/lib/ops/x-publish-service";
 import { resolveXConfig } from "@/lib/ops/x-config";
-import type { OpsProjectId, SocialPublishResult } from "@/lib/ops/types";
+import type { OpsProjectId, OpsSocialMention, SocialPublishResult } from "@/lib/ops/types";
+import { normalizeRequiredHashtags, normalizeSocialMentions } from "@/lib/ops/social-metadata";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -27,6 +28,8 @@ type PublishBody = {
   publishingProjectId?: unknown;
   sourceProjectId?: unknown;
   title?: unknown;
+  requiredHashtags?: unknown;
+  socialMentions?: unknown;
 };
 
 function asString(value: unknown) {
@@ -40,6 +43,21 @@ function asProjectId(value: unknown): OpsProjectId | undefined {
     trimmed === "bringhurstdo"
     ? trimmed
     : undefined;
+}
+
+function socialMetadata(payload: PublishBody) {
+  return {
+    requiredHashtags: normalizeRequiredHashtags(
+      Array.isArray(payload.requiredHashtags)
+        ? payload.requiredHashtags.filter((value): value is string => typeof value === "string")
+        : [],
+    ),
+    socialMentions: normalizeSocialMentions(
+      Array.isArray(payload.socialMentions)
+        ? (payload.socialMentions.filter((value) => value && typeof value === "object") as OpsSocialMention[])
+        : [],
+    ),
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -95,6 +113,7 @@ export async function POST(request: NextRequest) {
     sourceProjectId: asProjectId(payload.sourceProjectId),
     title: title || undefined,
     trigger: "manual",
+    ...socialMetadata(payload),
   });
 
   if (!published.ok) {

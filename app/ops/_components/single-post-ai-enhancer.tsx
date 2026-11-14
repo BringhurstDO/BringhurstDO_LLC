@@ -15,7 +15,7 @@ import type {
 type SinglePostAiEnhancerProps = {
   aiStatus: OpsAiPublicStatus;
   aiVisibleContext: OpsAiVisibleContext | null;
-  onApply: (body: string) => void;
+  onApply: (body: string, imageOverlayHeadline?: string) => void;
 };
 
 export function SinglePostAiEnhancer({
@@ -94,7 +94,10 @@ export function SinglePostAiEnhancer({
       return;
     }
 
-    onApply(sanitizePublishableBody(proposal.body));
+    onApply(
+      sanitizePublishableBody(proposal.body),
+      proposal.imageOverlayHeadline,
+    );
     setProposal(null);
     setIssues([]);
     setMessage("Enhanced post text applied. Review it before saving.");
@@ -129,6 +132,16 @@ export function SinglePostAiEnhancer({
           <p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">
             {sanitizePublishableBody(proposal.body)}
           </p>
+          {proposal.imageOverlayHeadline ? (
+            <div className="rounded-md border border-violet-200 bg-white p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
+                Suggested image headline
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-900">
+                {proposal.imageOverlayHeadline}
+              </p>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={applyProposal}

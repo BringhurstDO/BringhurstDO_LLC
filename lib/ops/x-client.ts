@@ -9,6 +9,7 @@ import {
   X_TOKEN_URL,
   X_USERS_ME_URL,
 } from "@/lib/ops/x-config";
+import { buildXTextPayload } from "@/lib/ops/social-publish-payload";
 import type { SocialAuthorType } from "@/lib/ops/types";
 
 export type XTokenResult = {
@@ -383,11 +384,7 @@ async function uploadXMediaChunked(input: {
 export async function publishXPost(
   input: PublishXPostInput,
 ): Promise<PublishXPostResult> {
-  const payload: Record<string, unknown> = { text: input.text };
-
-  if (input.mediaIds?.length) {
-    payload.media = { media_ids: input.mediaIds };
-  }
+  const payload = buildXTextPayload(input.text, input.mediaIds);
 
   const response = await fetch(X_TWEETS_URL, {
     body: JSON.stringify(payload),

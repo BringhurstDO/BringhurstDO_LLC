@@ -1,6 +1,12 @@
 import "server-only";
 
 import type { MetaAccountConfig, MetaResolvedConfig } from "@/lib/ops/meta-config";
+import {
+  buildFacebookTextPayload,
+  buildInstagramCaptionPayload,
+} from "@/lib/ops/social-publish-payload";
+import { instagramPublishingTags } from "@/lib/ops/social-metadata";
+import type { OpsSocialMention } from "@/lib/ops/types";
 
 export const META_GRAPH_VERSION =
   process.env.META_GRAPH_VERSION?.trim() || "v22.0";
@@ -309,7 +315,7 @@ export async function publishFacebookPagePost(input: {
     const response = await fetch(videoUrl, {
       body: JSON.stringify({
         access_token: input.pageAccessToken,
-        description: message,
+          ...buildFacebookTextPayload(message, "video"),
         file_url: imageUrl,
       }),
       headers: { "Content-Type": "application/json" },
@@ -336,7 +342,7 @@ export async function publishFacebookPagePost(input: {
     const response = await fetch(photoUrl, {
       body: JSON.stringify({
         access_token: input.pageAccessToken,
-        caption: message,
+          ...buildFacebookTextPayload(message, "photo"),
         url: imageUrl,
       }),
       headers: { "Content-Type": "application/json" },
@@ -364,7 +370,7 @@ export async function publishFacebookPagePost(input: {
   const response = await fetch(url, {
     body: JSON.stringify({
       access_token: input.pageAccessToken,
-      message: input.message,
+        ...buildFacebookTextPayload(input.message, "feed"),
     }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
@@ -446,13 +452,17 @@ export async function publishInstagramImagePost(input: {
   igUserId: string;
   imageUrl: string;
   pageAccessToken: string;
+  socialMentions?: OpsSocialMention[];
 }): Promise<PublishInstagramImagePostResult> {
+  const tags = instagramPublishingTags(input.socialMentions);
   const containerUrl = `${META_GRAPH_URL}/${input.igUserId}/media`;
   const containerResponse = await fetch(containerUrl, {
     body: JSON.stringify({
       access_token: input.pageAccessToken,
-      caption: input.caption,
+        ...buildInstagramCaptionPayload(input.caption),
       image_url: input.imageUrl,
+      ...(tags.userTags.length ? { user_tags: tags.userTags } : {}),
+      ...(tags.collaborators.length ? { collaborators: tags.collaborators } : {}),
     }),
     headers: { "Content-Type": "application/json" },
     method: "POST",
@@ -504,14 +514,18 @@ export async function publishInstagramVideoPost(input: {
   igUserId: string;
   pageAccessToken: string;
   videoUrl: string;
+  socialMentions?: OpsSocialMention[];
 }): Promise<PublishInstagramImagePostResult> {
+  const tags = instagramPublishingTags(input.socialMentions);
   const containerUrl = `${META_GRAPH_URL}/${input.igUserId}/media`;
   const containerResponse = await fetch(containerUrl, {
     body: JSON.stringify({
       access_token: input.pageAccessToken,
-      caption: input.caption,
+        ...buildInstagramCaptionPayload(input.caption),
       media_type: "REELS",
       video_url: input.videoUrl,
+      ...(tags.userTags.length ? { user_tags: tags.userTags } : {}),
+      ...(tags.collaborators.length ? { collaborators: tags.collaborators } : {}),
     }),
     headers: { "Content-Type": "application/json" },
     method: "POST",

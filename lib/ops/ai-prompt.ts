@@ -9,7 +9,8 @@ Hard rules:
 - Do not claim guaranteed clinical, financial, legal, billing, compliance, or patient outcomes.
 - Do not say "HIPAA compliant" unless you use approved phrasing such as "designed to support HIPAA-aligned workflows".
 - Never include URLs, links, or http/https/www in the draft body. Destination/UTM links stay in Ops metadata for the operator — not in publishable copy.
-- Hashtags are allowed sparingly when natural; do not pad the post with hashtag stacks.
+- Preserve relevant hashtags explicitly supplied in sourceUpdate.title, sourceUpdate.summary, or the current draft body. You may reduce the count for platform fit, but never remove all user-supplied hashtags unless the input explicitly asks you to remove them. Do not duplicate hashtags or invent unrelated ones. Keep hashtags in the body string; there is no separate hashtag field.
+- Never invent a person, organization, social handle, or platform identifier. Preserve operator-supplied mentions exactly; structured publishing metadata is added after generation.
 - Do not provide autoposting, OAuth, ad-spend, or API instructions.
 
 Publishable output rules:
@@ -29,6 +30,7 @@ Return JSON only with this shape:
       "title": "improved title",
       "body": "improved body",
       "mediaNote": "media note using provided metadata only",
+      "imageOverlayHeadline": "optional 3-9 word visual headline with no hashtags, handles, URLs, or unsupported claims",
       "safetyNotes": ["claims or phrases to review"]
     }
   ]
@@ -44,6 +46,7 @@ export type ParsedAiDraft = {
   platformDraftId?: string;
   safetyNotes?: string[];
   title?: string;
+  imageOverlayHeadline?: string;
 };
 
 export type ParsedAiPayload = {

@@ -10,6 +10,7 @@ import {
   type LinkedInAccountConfig,
   type LinkedInResolvedConfig,
 } from "@/lib/ops/linkedin-config";
+import { buildLinkedInCommentaryPayload } from "@/lib/ops/social-publish-payload";
 import type { SocialAuthorType } from "@/lib/ops/types";
 
 // Server-only LinkedIn REST client for OAuth and the Posts API.
@@ -145,14 +146,6 @@ export async function resolveAuthorUrn(
     authorUrn: `urn:li:person:${json.sub}`,
     label: json.name ?? account.label,
   };
-}
-
-/**
- * LinkedIn "little text" commentary requires escaping a set of reserved
- * characters with a backslash. Apply minimal escaping so bodies render intact.
- */
-function escapeCommentary(text: string) {
-  return text.replace(/[\\<>#~@*_{}[\]()|]/g, (match) => `\\${match}`);
 }
 
 function postUrlFromUrn(urn: string) {
@@ -441,7 +434,7 @@ export async function publishLinkedInPost(
 ): Promise<PublishLinkedInPostResult> {
   const body: Record<string, unknown> = {
     author: input.authorUrn,
-    commentary: escapeCommentary(input.commentary),
+    ...buildLinkedInCommentaryPayload(input.commentary),
     visibility: "PUBLIC",
     distribution: {
       feedDistribution: "MAIN_FEED",
@@ -481,7 +474,7 @@ export async function reshareLinkedInPost(
 ): Promise<PublishLinkedInPostResult> {
   const body: Record<string, unknown> = {
     author: input.authorUrn,
-    commentary: input.commentary ? escapeCommentary(input.commentary) : "",
+    ...buildLinkedInCommentaryPayload(input.commentary ?? ""),
     visibility: "PUBLIC",
     distribution: {
       feedDistribution: "MAIN_FEED",

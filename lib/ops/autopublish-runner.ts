@@ -97,6 +97,8 @@ async function publishAutopublishDraft(
     publicationTargetId: draft.publicationTargetId,
     title: draft.title,
     trigger: "autopublish" as const,
+    requiredHashtags: draft.requiredHashtags,
+    socialMentions: draft.socialMentions,
   };
 
   if (draft.platform === "X") {

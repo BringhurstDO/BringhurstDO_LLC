@@ -2,6 +2,7 @@ import {
   draftHasLegacyTemplateArtifacts,
   sanitizePublishableBody,
 } from "@/lib/ops/publishable-copy";
+import { preserveSourceHashtags } from "@/lib/ops/social-hashtags";
 import type { PublicationTarget } from "@/lib/ops/types";
 
 export const xSinglePostLimit = 280;
@@ -181,30 +182,36 @@ export function draftTemplateBody({
     "A product and operator update is ready for review.",
   );
   const productTag = productHashtag(target);
+  const finalizeBody = (body: string) =>
+    preserveSourceHashtags({
+      body: sanitizePublishableBody(body),
+      platform: target.platform,
+      sourceText: `${title}\n${summary}`,
+    });
 
   if (target.platform === "Facebook" && targetIsBlocked(target)) {
-    return sanitizePublishableBody([title, "", summary].join("\n"));
+    return finalizeBody([title, "", summary].join("\n"));
   }
 
   if (target.platform === "LinkedIn") {
-    return sanitizePublishableBody([title, "", summary].join("\n"));
+    return finalizeBody([title, "", summary].join("\n"));
   }
 
   if (target.platform === "Instagram") {
-    return sanitizePublishableBody(
+    return finalizeBody(
       [title, "", sentenceExcerpt(summary, 200), "", productTag].join("\n"),
     );
   }
 
   if (target.platform === "X") {
-    return sanitizePublishableBody(xDraftBody(title, summary));
+    return finalizeBody(xDraftBody(title, summary));
   }
 
   if (target.platform === "Facebook") {
-    return sanitizePublishableBody([title, "", summary].join("\n"));
+    return finalizeBody([title, "", summary].join("\n"));
   }
 
-  return sanitizePublishableBody([title, "", summary].join("\n"));
+  return finalizeBody([title, "", summary].join("\n"));
 }
 
 export function draftLooksLikeLegacyGeneratedBody(body: string) {

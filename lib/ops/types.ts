@@ -130,6 +130,22 @@ export type OpsProductionEffort = "low" | "medium" | "high";
 
 export type OpsMediaReuseStatus = "new" | "reused" | "repurposed" | "remix";
 
+export type OpsOverlayPreset =
+  | "editorial"
+  | "minimal"
+  | "centered"
+  | "quote"
+  | "event";
+export type OpsOverlayFormat = "square" | "portrait" | "landscape";
+export type OpsOverlayTextScale = "compact" | "standard" | "large";
+export type OpsOverlayCrop =
+  | "attention"
+  | "center"
+  | "top"
+  | "bottom"
+  | "left"
+  | "right";
+
 export type OpsMediaMetadata = {
   mediaType: OpsMediaType;
   mediaSummary: SafeOpsText;
@@ -137,7 +153,29 @@ export type OpsMediaMetadata = {
   creativeAngle: OpsCreativeAngle;
   productionEffort: OpsProductionEffort;
   assetLocation?: MetadataOnlyString;
+  /** Short operator-approved copy rendered into a generated social image. */
+  overlayHeadline?: SafeOpsText;
+  overlayApproved?: boolean;
+  overlayPreset?: OpsOverlayPreset;
+  overlayFormat?: OpsOverlayFormat;
+  overlayTextScale?: OpsOverlayTextScale;
+  overlayCrop?: OpsOverlayCrop;
   reuseStatus: OpsMediaReuseStatus;
+};
+
+export type OpsSocialMention = {
+  id: string;
+  platform: "Facebook" | "Instagram" | "LinkedIn" | "X";
+  entityType: "organization" | "person";
+  /** Exact public display name used by LinkedIn annotations. */
+  label: MetadataOnlyString;
+  /** Verified public handle, without a leading @. */
+  handle?: MetadataOnlyString;
+  /** LinkedIn person/organization URN or Meta Page/Instagram user id. */
+  platformId?: MetadataOnlyString;
+  approved: boolean;
+  /** Instagram caption-only mention, media tag, or collaborator invitation. */
+  instagramPlacement?: "caption" | "collaborator" | "media-tag";
 };
 
 export type WeeklyScorecardMetric = {
@@ -314,6 +352,10 @@ export type SourceUpdate = {
   approvalRequired: boolean;
   createdAt: string;
   notes: SafeOpsText[];
+  /** Operator-controlled tags that AI is not allowed to remove. */
+  requiredHashtags?: MetadataOnlyString[];
+  /** Verified, operator-approved public mentions only. */
+  socialMentions?: OpsSocialMention[];
 };
 
 export type PublicationTarget = {
@@ -373,6 +415,10 @@ export type PlatformDraft = {
   suggestedScheduleBucketId?: OpsScheduleBucketId;
   /** Explicit operator opt-in for scheduled autopublish on suggestedScheduledFor. */
   autopublishEnabled?: boolean;
+  /** Copied from sourceUpdate for an inspectable final publishing payload. */
+  requiredHashtags?: MetadataOnlyString[];
+  /** Platform-matched approved mentions used during publishing. */
+  socialMentions?: OpsSocialMention[];
 };
 
 export type PublishedPost = {
@@ -496,6 +542,8 @@ export type OpsAiImprovedDraftProposal = {
   body: SafeOpsText;
   mediaNote: SafeOpsText;
   safetyNotes: SafeOpsText[];
+  /** Optional short visual headline; it is never rendered without operator action. */
+  imageOverlayHeadline?: SafeOpsText;
 };
 
 export type OpsAiImproveDraftsResponse = {

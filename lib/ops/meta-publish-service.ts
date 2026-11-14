@@ -17,9 +17,11 @@ import { findMetaAccount, resolveMetaConfig } from "@/lib/ops/meta-config";
 import { classifyPublishMediaKind } from "@/lib/ops/ops-media-kind";
 import { resolvePublishImageUrl } from "@/lib/ops/ops-publish-media";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
+import { appendRequiredSocialMetadata } from "@/lib/ops/social-metadata";
 import type {
   OpsContentPackageRecord,
   OpsProjectId,
+  OpsSocialMention,
   SocialPublishLogRecord,
   SocialPublishResult,
 } from "@/lib/ops/types";
@@ -44,6 +46,8 @@ export type MetaDraftPublishInput = {
   sourceProjectId?: OpsProjectId;
   title?: string;
   trigger: "autopublish" | "manual";
+  requiredHashtags?: string[];
+  socialMentions?: OpsSocialMention[];
 };
 
 export type MetaDraftPublishError = {
@@ -155,7 +159,23 @@ export async function publishMetaDraft(
       };
     }
 
-    const sanitizedBody = sanitizePublishableBody(input.body);
+    let sanitizedBody: string;
+    try {
+      sanitizedBody = appendRequiredSocialMetadata({
+        body: sanitizePublishableBody(input.body),
+        hashtags: input.requiredHashtags,
+        mentions: input.socialMentions,
+        platform: "Instagram",
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "body_invalid",
+          message: error instanceof Error ? error.message : "Invalid social metadata.",
+        },
+      };
+    }
 
     if (!sanitizedBody.trim()) {
       return {
@@ -236,6 +256,7 @@ export async function publishMetaDraft(
               caption,
               igUserId: account.instagramBusinessAccountId,
               pageAccessToken: ready.value.accessToken,
+              socialMentions: input.socialMentions,
               videoUrl: image.imageUrl,
             })
           : await publishInstagramImagePost({
@@ -243,6 +264,7 @@ export async function publishMetaDraft(
               igUserId: account.instagramBusinessAccountId,
               imageUrl: image.imageUrl,
               pageAccessToken: ready.value.accessToken,
+              socialMentions: input.socialMentions,
             });
       const postedAt = new Date().toISOString();
       const publishLogId = `meta-publish-${nowId()}`;
@@ -308,7 +330,23 @@ export async function publishMetaDraft(
     };
   }
 
-  const sanitizedBody = sanitizePublishableBody(input.body);
+  let sanitizedBody: string;
+  try {
+    sanitizedBody = appendRequiredSocialMetadata({
+      body: sanitizePublishableBody(input.body),
+      hashtags: input.requiredHashtags,
+      mentions: input.socialMentions,
+      platform: "Facebook",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "body_invalid",
+        message: error instanceof Error ? error.message : "Invalid social metadata.",
+      },
+    };
+  }
 
   if (!sanitizedBody.trim()) {
     return {

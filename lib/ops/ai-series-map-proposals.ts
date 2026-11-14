@@ -1,6 +1,7 @@
 import type { OpsAiSeriesSplitContext } from "@/lib/ops/ai-series-context";
 import type { ParsedSeriesPost } from "@/lib/ops/ai-series-prompt";
 import { prepareSeriesPublishableBody } from "@/lib/ops/publishable-copy";
+import { preserveSourceHashtags } from "@/lib/ops/social-hashtags";
 import type { OpsAiSeriesSplitProposal } from "@/lib/ops/types";
 
 type SeriesSlot = OpsAiSeriesSplitContext["slots"][number];
@@ -132,7 +133,14 @@ function proposalFromSlot(
   const preparedBody = rawBody
     ? prepareSeriesPublishableBody(rawBody)
     : heuristicSeriesBody(context, slot);
-  const body = preparedBody.trim() ? preparedBody : heuristicSeriesBody(context, slot);
+  const body = preserveSourceHashtags({
+    body: preparedBody.trim()
+      ? preparedBody
+      : heuristicSeriesBody(context, slot),
+    maxLength: slot.bodyMaxChars,
+    platform: slot.platform,
+    sourceText: `${context.series.title}\n${context.series.summary}`,
+  });
 
   return {
     accountName: slot.accountName,

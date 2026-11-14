@@ -24,9 +24,11 @@ import {
   resolvePublishImageUrl,
 } from "@/lib/ops/ops-publish-media";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
+import { appendRequiredSocialMetadata } from "@/lib/ops/social-metadata";
 import type {
   OpsContentPackageRecord,
   OpsProjectId,
+  OpsSocialMention,
   PlatformDraft,
   SocialPublishLogRecord,
   SocialPublishResult,
@@ -52,6 +54,8 @@ export type LinkedInDraftPublishInput = {
   sourceProjectId?: OpsProjectId;
   title?: string;
   trigger: "autopublish" | "manual";
+  requiredHashtags?: string[];
+  socialMentions?: OpsSocialMention[];
 };
 
 export type LinkedInDraftPublishError = {
@@ -157,7 +161,23 @@ export async function publishLinkedInDraft(
     };
   }
 
-  const body = sanitizePublishableBody(input.body);
+  let body: string;
+  try {
+    body = appendRequiredSocialMetadata({
+      body: sanitizePublishableBody(input.body),
+      hashtags: input.requiredHashtags,
+      mentions: input.socialMentions,
+      platform: "LinkedIn",
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: {
+        code: "body_invalid",
+        message: error instanceof Error ? error.message : "Invalid social metadata.",
+      },
+    };
+  }
 
   if (input.linkUrl?.trim()) {
     return {

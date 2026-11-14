@@ -60,6 +60,10 @@ import {
 } from "@/lib/ops/publishable-copy";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
 import {
+  normalizeRequiredHashtags,
+  normalizeSocialMentions,
+} from "@/lib/ops/social-metadata";
+import {
   createLocalStorageOpsPersistenceAdapter,
   createRemoteOpsPersistenceAdapter,
   type OpsStorageMode,
@@ -78,10 +82,15 @@ import type {
   OpsMediaMetadata,
   OpsMediaReuseStatus,
   OpsMediaType,
+  OpsOverlayCrop,
+  OpsOverlayFormat,
+  OpsOverlayPreset,
+  OpsOverlayTextScale,
   OpsProductionEffort,
   OpsProjectId,
   OpsProjectSummary,
   OpsScheduleBucketId,
+  OpsSocialMention,
   PerformanceSnapshot,
   PlatformDraft,
   PlatformDraftStatus,
@@ -1110,6 +1119,14 @@ export function ContentPackageBuilder({
   const [sourceSummary, setSourceSummary] = useState("");
   const [sourceNotes, setSourceNotes] = useState("");
   const [packageSocialImage, setPackageSocialImage] = useState("");
+  const [requiredHashtagText, setRequiredHashtagText] = useState("");
+  const [socialMentions, setSocialMentions] = useState<OpsSocialMention[]>([]);
+  const [overlayHeadline, setOverlayHeadline] = useState("");
+  const [overlayPreset, setOverlayPreset] = useState<OpsOverlayPreset>("editorial");
+  const [overlayFormat, setOverlayFormat] = useState<OpsOverlayFormat>("square");
+  const [overlayTextScale, setOverlayTextScale] =
+    useState<OpsOverlayTextScale>("standard");
+  const [overlayCrop, setOverlayCrop] = useState<OpsOverlayCrop>("attention");
   const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
   const [draftSlots, setDraftSlots] = useState<DraftSlotInput[]>([]);
   const [scheduledFor, setScheduledFor] = useState("");
@@ -1497,12 +1514,23 @@ export function ContentPackageBuilder({
         summary: sourceSummary.trim(),
         title: sourceTitle.trim(),
         updateType: sourceType,
+        requiredHashtags: normalizeRequiredHashtags([requiredHashtagText]),
+        socialMentions: normalizeSocialMentions(socialMentions).map(
+          ({ entityType, handle, label, platform, platformId }) => ({
+            entityType,
+            handle,
+            label,
+            platform,
+            platformId,
+          }),
+        ),
       },
     };
   }, [
     aiPreviewSafetyIssues.length,
     draftReviewChecklist,
     packageSocialImage,
+    requiredHashtagText,
     primaryProjectId,
     selectedAudienceProfiles,
     selectedBrandProfiles,
@@ -1511,6 +1539,7 @@ export function ContentPackageBuilder({
     sourceSummary,
     sourceTitle,
     sourceType,
+    socialMentions,
   ]);
 
   const weeklyQueueRows = useMemo(() => buildWeeklyQueueRows(records), [records]);
@@ -2089,6 +2118,8 @@ export function ContentPackageBuilder({
         .split(/\r?\n/)
         .map((note) => note.trim())
         .filter(Boolean),
+      requiredHashtags: normalizeRequiredHashtags([requiredHashtagText]),
+      socialMentions: normalizeSocialMentions(socialMentions),
       projectId: primaryProjectId,
       sourceProjectId: primaryProjectId,
       sourceBoundary:
@@ -2146,10 +2177,20 @@ export function ContentPackageBuilder({
           mediaSummary: slot.mediaSummary.trim() || defaultMediaMetadata.mediaSummary,
           mediaType: slot.mediaType,
           productionEffort: slot.productionEffort,
+          overlayApproved: Boolean(overlayHeadline.trim()),
+          overlayCrop,
+          overlayFormat,
+          overlayHeadline: overlayHeadline.trim() || undefined,
+          overlayPreset,
+          overlayTextScale,
           reuseStatus: slot.reuseStatus,
           visualHook: slot.visualHook.trim() || defaultMediaMetadata.visualHook,
         },
         platform: target.platform,
+        requiredHashtags: normalizeRequiredHashtags([requiredHashtagText]),
+        socialMentions: normalizeSocialMentions(socialMentions).filter(
+          (mention) => mention.platform === target.platform,
+        ),
         projectId: publishingProjectId,
         publicationTargetId: target.id,
         publishingProjectId,
@@ -2503,6 +2544,8 @@ export function ContentPackageBuilder({
         body: JSON.stringify({
           accountId,
           body: sanitizePublishableBody(draft.body),
+          requiredHashtags: draft.requiredHashtags,
+          socialMentions: draft.socialMentions,
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platformDraftId: draft.id,
@@ -2581,6 +2624,8 @@ export function ContentPackageBuilder({
         body: JSON.stringify({
           accountId,
           body: sanitizePublishableBody(draft.body),
+          requiredHashtags: draft.requiredHashtags,
+          socialMentions: draft.socialMentions,
           confirmApproved: true,
           contentPackageId: record.contentPackage.id,
           platformDraftId: draft.id,
@@ -3003,9 +3048,163 @@ export function ContentPackageBuilder({
             <SinglePostAiEnhancer
               aiStatus={aiStatus}
               aiVisibleContext={singlePostAiContext}
-              onApply={setSourceSummary}
+              onApply={(body, suggestedOverlayHeadline) => {
+                setSourceSummary(body);
+                if (suggestedOverlayHeadline) {
+                  setOverlayHeadline(suggestedOverlayHeadline);
+                }
+              }}
             />
           ) : null}
+
+          <div className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950">
+                Required hashtags and verified mentions
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Required hashtags bypass Gemini editing. Mentions publish only after you verify the public handle or LinkedIn URN and leave Approved selected.
+              </p>
+            </div>
+            <label className="grid gap-2 text-sm font-semibold text-slate-700">
+              Required hashtags
+              <input
+                value={requiredHashtagText}
+                onChange={(event) => setRequiredHashtagText(event.target.value)}
+                placeholder="#AMIA2026 #SyncSOAP #HealthcareAI"
+                className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
+              />
+            </label>
+            <div className="grid gap-3">
+              {socialMentions.map((mention) => (
+                <div
+                  key={mention.id}
+                  className="grid gap-2 rounded-md border border-slate-200 bg-white p-3 md:grid-cols-2 xl:grid-cols-7"
+                >
+                  <select
+                    value={mention.platform}
+                    onChange={(event) =>
+                      setSocialMentions((current) =>
+                        current.map((item) =>
+                          item.id === mention.id
+                            ? { ...item, platform: event.target.value as OpsSocialMention["platform"] }
+                            : item,
+                        ),
+                      )
+                    }
+                    className="h-10 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                  >
+                    {(["LinkedIn", "X", "Instagram", "Facebook"] as const).map((platform) => (
+                      <option key={platform} value={platform}>{platform}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={mention.entityType}
+                    onChange={(event) =>
+                      setSocialMentions((current) =>
+                        current.map((item) =>
+                          item.id === mention.id
+                            ? { ...item, entityType: event.target.value as OpsSocialMention["entityType"] }
+                            : item,
+                        ),
+                      )
+                    }
+                    className="h-10 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                  >
+                    <option value="person">Person</option>
+                    <option value="organization">Organization</option>
+                  </select>
+                  <input
+                    value={mention.label}
+                    onChange={(event) =>
+                      setSocialMentions((current) =>
+                        current.map((item) => item.id === mention.id ? { ...item, label: event.target.value } : item),
+                      )
+                    }
+                    placeholder="Exact public name"
+                    className="h-10 rounded-md border border-slate-300 px-2 text-sm"
+                  />
+                  <input
+                    value={mention.handle ?? ""}
+                    onChange={(event) =>
+                      setSocialMentions((current) =>
+                        current.map((item) => item.id === mention.id ? { ...item, handle: event.target.value } : item),
+                      )
+                    }
+                    placeholder="handle without @"
+                    className="h-10 rounded-md border border-slate-300 px-2 text-sm"
+                  />
+                  <input
+                    value={mention.platformId ?? ""}
+                    onChange={(event) =>
+                      setSocialMentions((current) =>
+                        current.map((item) => item.id === mention.id ? { ...item, platformId: event.target.value } : item),
+                      )
+                    }
+                    placeholder="LinkedIn URN / platform ID"
+                    className="h-10 rounded-md border border-slate-300 px-2 text-sm"
+                  />
+                  <select
+                    value={mention.instagramPlacement ?? "media-tag"}
+                    disabled={mention.platform !== "Instagram"}
+                    onChange={(event) =>
+                      setSocialMentions((current) =>
+                        current.map((item) => item.id === mention.id ? {
+                          ...item,
+                          instagramPlacement: event.target.value as NonNullable<OpsSocialMention["instagramPlacement"]>,
+                        } : item),
+                      )
+                    }
+                    className="h-10 rounded-md border border-slate-300 bg-white px-2 text-sm disabled:bg-slate-100"
+                    title="Instagram relationship"
+                  >
+                    <option value="media-tag">Media tag</option>
+                    <option value="caption">Caption only</option>
+                    <option value="collaborator">Collaborator invite</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={mention.approved}
+                        onChange={(event) =>
+                          setSocialMentions((current) =>
+                            current.map((item) => item.id === mention.id ? { ...item, approved: event.target.checked } : item),
+                          )
+                        }
+                      />
+                      Approved
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSocialMentions((current) => current.filter((item) => item.id !== mention.id))}
+                      className="h-8 rounded-md border border-red-200 px-2 text-xs font-semibold text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setSocialMentions((current) => [
+                    ...current,
+                    {
+                      approved: false,
+                      entityType: "organization",
+                      id: `mention-${nowId()}`,
+                      label: "",
+                      platform: "Instagram",
+                    },
+                  ])
+                }
+                className="inline-flex h-9 w-fit items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Add person or organization
+              </button>
+            </div>
+          </div>
 
           <label className="grid gap-2 text-sm font-semibold text-slate-700">
             Internal notes
@@ -3023,6 +3222,16 @@ export function ContentPackageBuilder({
             projectId={primaryProjectId}
             sourceSummary={sourceSummary}
             sourceTitle={sourceTitle}
+            overlayHeadline={overlayHeadline}
+            onOverlayHeadlineChange={setOverlayHeadline}
+            overlayCrop={overlayCrop}
+            overlayFormat={overlayFormat}
+            overlayPreset={overlayPreset}
+            overlayTextScale={overlayTextScale}
+            onOverlayCropChange={setOverlayCrop}
+            onOverlayFormatChange={setOverlayFormat}
+            onOverlayPresetChange={setOverlayPreset}
+            onOverlayTextScaleChange={setOverlayTextScale}
           />
         </div>
       </section>
