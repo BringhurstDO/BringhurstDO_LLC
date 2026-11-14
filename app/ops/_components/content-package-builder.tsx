@@ -29,6 +29,7 @@ import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
 import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel";
 import { OpsPackageSocialImagePanel } from "@/app/ops/_components/ops-package-social-image-panel";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
+import { SavedSocialMentionPicker } from "@/app/ops/_components/saved-social-mention-picker";
 import { SinglePostAiEnhancer } from "@/app/ops/_components/single-post-ai-enhancer";
 import type { OpsAiVisibleContext } from "@/lib/ops/ai-visible-context";
 import { platformSupportsAutopublish } from "@/lib/ops/autopublish-platforms";
@@ -60,8 +61,10 @@ import {
 } from "@/lib/ops/publishable-copy";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
 import {
+  collectRememberedSocialMentions,
   normalizeRequiredHashtags,
   normalizeSocialMentions,
+  socialMentionIdentityKey,
 } from "@/lib/ops/social-metadata";
 import {
   createLocalStorageOpsPersistenceAdapter,
@@ -1159,6 +1162,35 @@ export function ContentPackageBuilder({
   const [historyCreativeAngle, setHistoryCreativeAngle] = useState<
     "all" | OpsCreativeAngle
   >("all");
+  const rememberedSocialMentions = useMemo(
+    () =>
+      collectRememberedSocialMentions(
+        records.flatMap((record) => [
+          record.sourceUpdate.socialMentions,
+          ...record.platformDrafts.map((draft) => draft.socialMentions),
+        ]),
+      ),
+    [records],
+  );
+
+  function reuseSocialMention(mention: OpsSocialMention) {
+    setSocialMentions((current) => {
+      const identityKey = socialMentionIdentityKey(mention);
+
+      if (current.some((item) => socialMentionIdentityKey(item) === identityKey)) {
+        return current;
+      }
+
+      return [
+        ...current,
+        {
+          ...mention,
+          approved: false,
+          id: `mention-${nowId()}`,
+        },
+      ];
+    });
+  }
   const [historyProjectId, setHistoryProjectId] = useState<"all" | OpsProjectId>(
     "all",
   );
@@ -3075,6 +3107,10 @@ export function ContentPackageBuilder({
                 className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
               />
             </label>
+            <SavedSocialMentionPicker
+              mentions={rememberedSocialMentions}
+              onSelect={reuseSocialMention}
+            />
             <div className="grid gap-3">
               {socialMentions.map((mention) => (
                 <div

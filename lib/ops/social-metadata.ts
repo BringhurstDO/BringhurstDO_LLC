@@ -90,6 +90,22 @@ export function normalizeSocialMentions(values: OpsSocialMention[]) {
     });
 }
 
+export function socialMentionIdentityKey(mention: OpsSocialMention) {
+  return `${mention.platform}:${mention.platformId ?? mention.handle ?? mention.label}`
+    .trim()
+    .toLocaleLowerCase();
+}
+
+export function collectRememberedSocialMentions(
+  groups: Array<OpsSocialMention[] | undefined>,
+) {
+  return normalizeSocialMentions(groups.flatMap((group) => group ?? [])).sort(
+    (left, right) =>
+      left.label.localeCompare(right.label) ||
+      left.platform.localeCompare(right.platform),
+  );
+}
+
 export function instagramPublishingTags(mentions: OpsSocialMention[] | undefined) {
   const approved = mentionsForPlatform(mentions, "Instagram").filter(
     (mention) => mention.handle,

@@ -17,7 +17,9 @@ import {
 import { preserveSourceHashtags } from "../lib/ops/social-hashtags";
 import {
   appendRequiredSocialMetadata,
+  collectRememberedSocialMentions,
   instagramPublishingTags,
+  socialMentionIdentityKey,
 } from "../lib/ops/social-metadata";
 import { renderSocialImageOverlay } from "../lib/ops/social-image-overlay";
 import type {
@@ -82,6 +84,17 @@ const rejectedLinkedInInjection: OpsSocialMention = {
   platform: "LinkedIn",
   platformId: "not-a-linkedin-urn",
 };
+
+const rememberedMentions = collectRememberedSocialMentions([
+  mentions,
+  [mentions[0]!, { ...mentions[1]!, approved: false }],
+]);
+assert.equal(rememberedMentions.length, mentions.length);
+assert.equal(
+  new Set(rememberedMentions.map(socialMentionIdentityKey)).size,
+  rememberedMentions.length,
+);
+assert.ok(rememberedMentions.every((mention) => mention.approved));
 
 for (const platform of platforms) {
   const target: PublicationTarget = {

@@ -41,6 +41,9 @@ could remove hashtags placed near the end before the AI request.
 
 - Mentions are stored as operator-approved structured records with platform,
   entity type, exact public label, verified handle, and optional platform id.
+- Approved mentions from saved packages and series appear in the reusable
+  mention picker on both creation pages. Reusing an identity copies its saved
+  platform details but requires fresh operator approval for the new content.
 - Gemini is explicitly prohibited from inventing names, handles, or ids.
 - X and Instagram append verified `@handle` values. Instagram image and Reel
   containers also receive `user_tags` for approved media tags. An explicit

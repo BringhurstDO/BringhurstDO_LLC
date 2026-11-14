@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { OpsPackageSocialImagePanel } from "@/app/ops/_components/ops-package-social-image-panel";
+import { SavedSocialMentionPicker } from "@/app/ops/_components/saved-social-mention-picker";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
 import { opsFetch } from "@/app/ops/_components/ops-fetch";
 import {
@@ -48,8 +49,10 @@ import {
 import { buildSeriesSchedule } from "@/lib/ops/series-schedule";
 import { platformSupportsSocialImage } from "@/lib/ops/social-image-utils";
 import {
+  collectRememberedSocialMentions,
   normalizeRequiredHashtags,
   normalizeSocialMentions,
+  socialMentionIdentityKey,
 } from "@/lib/ops/social-metadata";
 import type {
   BusinessOutcome,
@@ -185,6 +188,35 @@ export function ContentSeriesBuilder({
   );
   const summaryFileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const rememberedSocialMentions = useMemo(
+    () =>
+      collectRememberedSocialMentions(
+        records.flatMap((record) => [
+          record.sourceUpdate.socialMentions,
+          ...record.platformDrafts.map((draft) => draft.socialMentions),
+        ]),
+      ),
+    [records],
+  );
+
+  function reuseSocialMention(mention: OpsSocialMention) {
+    setSocialMentions((current) => {
+      const identityKey = socialMentionIdentityKey(mention);
+
+      if (current.some((item) => socialMentionIdentityKey(item) === identityKey)) {
+        return current;
+      }
+
+      return [
+        ...current,
+        {
+          ...mention,
+          approved: false,
+          id: `mention-${nowId()}`,
+        },
+      ];
+    });
+  }
 
   function openSummaryFilePicker() {
     summaryFileInputRef.current?.click();
@@ -931,6 +963,10 @@ export function ContentSeriesBuilder({
                 className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
               />
             </label>
+            <SavedSocialMentionPicker
+              mentions={rememberedSocialMentions}
+              onSelect={reuseSocialMention}
+            />
             <div className="grid gap-3">
               {socialMentions.map((mention) => (
                 <div
