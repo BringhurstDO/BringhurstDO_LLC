@@ -65,8 +65,7 @@ async function checkVercelSchedules() {
     await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
   ) as {
     crons?: unknown[];
-    schedules?: Array<{
-      name: string;
+    schedules?: Record<string, {
       path: string;
       requestMethod: string;
       schedule: string;
@@ -75,13 +74,15 @@ async function checkVercelSchedules() {
   };
 
   assert.equal(vercelConfig.crons, undefined, "Legacy cron jobs must be removed.");
-  assert.equal(vercelConfig.schedules?.length, 7, "Seven schedules must be configured.");
+  const schedules = Object.entries(vercelConfig.schedules ?? {});
+  assert.equal(schedules.length, 7, "Seven schedules must be configured.");
   assert.deepEqual(
-    vercelConfig.schedules?.slice(0, 5).map((schedule) => schedule.schedule),
+    schedules.slice(0, 5).map(([, schedule]) => schedule.schedule),
     ["0 9 * * 1-6", "0 12 * * 1-6", "0 15 * * 1-6", "0 18 * * 1-6", "0 21 * * 1-6"],
     "Autopublish schedules must retain the five operator-selected local times.",
   );
-  for (const schedule of vercelConfig.schedules ?? []) {
+  for (const [name, schedule] of schedules) {
+    assert.match(name, /^[0-9A-Za-z][0-9A-Za-z._-]*$/);
     assert.equal(schedule.requestMethod, "GET");
     assert.equal(schedule.timezone, "America/New_York");
   }
