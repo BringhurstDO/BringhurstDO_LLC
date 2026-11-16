@@ -11,6 +11,7 @@ import {
 } from "@/lib/ops/x-config";
 import { buildXTextPayload } from "@/lib/ops/social-publish-payload";
 import type { SocialAuthorType } from "@/lib/ops/types";
+import { uploadXMediaChunked } from "@/lib/ops/x-media-upload";
 
 export type XTokenResult = {
   accessToken: string;
@@ -224,161 +225,10 @@ export async function uploadXMedia(input: {
     return mediaId;
   }
 
-  return uploadXMediaChunked(input);
-}
-
-async function sleep(ms: number) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function uploadXMediaChunked(input: {
-  accessToken: string;
-  bytes: Uint8Array;
-  contentType: string;
-  kind?: "image" | "gif" | "video";
-}): Promise<string> {
-  const kind = input.kind ?? "image";
-  const mediaCategory =
-    kind === "video" ? "tweet_video" : kind === "gif" ? "tweet_gif" : "tweet_image";
-
-  const initForm = new FormData();
-  initForm.append("command", "INIT");
-  initForm.append("total_bytes", String(input.bytes.byteLength));
-  initForm.append("media_type", input.contentType);
-  initForm.append("media_category", mediaCategory);
-
-  const initResponse = await fetch(X_MEDIA_UPLOAD_URL, {
-    body: initForm,
-    headers: {
-      Authorization: `Bearer ${input.accessToken}`,
-    },
-    method: "POST",
+  return uploadXMediaChunked({
+    ...input,
+    uploadUrl: X_MEDIA_UPLOAD_URL,
   });
-  const initText = await initResponse.text();
-
-  if (!initResponse.ok) {
-    throw new Error(
-      `X media INIT failed (${initResponse.status}): ${initText.slice(0, 400)}`,
-    );
-  }
-
-  const initJson = JSON.parse(initText) as {
-    data?: { id?: string };
-    media_id_string?: string;
-  };
-  const mediaId =
-    initJson.data?.id?.trim() ?? initJson.media_id_string?.trim();
-
-  if (!mediaId) {
-    throw new Error("X media INIT did not return media_id_string.");
-  }
-
-  const chunkSize = 4 * 1024 * 1024;
-  let segmentIndex = 0;
-
-  for (let offset = 0; offset < input.bytes.byteLength; offset += chunkSize) {
-    const chunk = input.bytes.slice(offset, offset + chunkSize);
-    const form = new FormData();
-    form.append("command", "APPEND");
-    form.append("media_id", mediaId);
-    form.append("segment_index", String(segmentIndex));
-    form.append(
-      "media",
-      new Blob([Buffer.from(chunk)], { type: input.contentType }),
-      `ops-chunk-${segmentIndex}`,
-    );
-
-    const appendResponse = await fetch(X_MEDIA_UPLOAD_URL, {
-      body: form,
-      headers: {
-        Authorization: `Bearer ${input.accessToken}`,
-      },
-      method: "POST",
-    });
-
-    if (!appendResponse.ok) {
-      const appendText = await appendResponse.text();
-      throw new Error(
-        `X media APPEND failed (${appendResponse.status}): ${appendText.slice(0, 400)}`,
-      );
-    }
-
-    segmentIndex += 1;
-  }
-
-  const finalizeForm = new FormData();
-  finalizeForm.append("command", "FINALIZE");
-  finalizeForm.append("media_id", mediaId);
-
-  const finalizeResponse = await fetch(X_MEDIA_UPLOAD_URL, {
-    body: finalizeForm,
-    headers: {
-      Authorization: `Bearer ${input.accessToken}`,
-    },
-    method: "POST",
-  });
-  const finalizeText = await finalizeResponse.text();
-
-  if (!finalizeResponse.ok) {
-    throw new Error(
-      `X media FINALIZE failed (${finalizeResponse.status}): ${finalizeText.slice(0, 400)}`,
-    );
-  }
-
-  const finalizeJson = JSON.parse(finalizeText) as {
-    data?: {
-      processing_info?: { check_after_secs?: number; state?: string };
-    };
-    processing_info?: { check_after_secs?: number; state?: string };
-  };
-
-  let processing =
-    finalizeJson.data?.processing_info ?? finalizeJson.processing_info;
-
-  for (let attempt = 0; attempt < 40 && processing; attempt += 1) {
-    if (processing.state === "succeeded") {
-      return mediaId;
-    }
-
-    if (processing.state === "failed") {
-      throw new Error("X media processing failed after upload.");
-    }
-
-    const waitSecs = Math.max(1, processing.check_after_secs ?? 2);
-    await sleep(waitSecs * 1000);
-
-    const statusUrl = new URL(X_MEDIA_UPLOAD_URL);
-    statusUrl.searchParams.set("command", "STATUS");
-    statusUrl.searchParams.set("media_id", mediaId);
-
-    const statusResponse = await fetch(statusUrl, {
-      headers: {
-        Authorization: `Bearer ${input.accessToken}`,
-      },
-      method: "GET",
-    });
-    const statusText = await statusResponse.text();
-
-    if (!statusResponse.ok) {
-      throw new Error(
-        `X media STATUS failed (${statusResponse.status}): ${statusText.slice(0, 400)}`,
-      );
-    }
-
-    const statusJson = JSON.parse(statusText) as {
-      data?: {
-        processing_info?: { check_after_secs?: number; state?: string };
-      };
-      processing_info?: { check_after_secs?: number; state?: string };
-    };
-    processing = statusJson.data?.processing_info ?? statusJson.processing_info;
-
-    if (!processing) {
-      return mediaId;
-    }
-  }
-
-  return mediaId;
 }
 
 export async function publishXPost(
