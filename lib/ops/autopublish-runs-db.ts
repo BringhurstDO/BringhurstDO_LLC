@@ -52,3 +52,19 @@ export async function saveAutopublishRunRecord(record: OpsAutopublishRunRecord) 
     source: "postgres",
   };
 }
+
+export async function loadLatestAutopublishRunRecord() {
+  if (!databasePersistenceConfigured()) {
+    return null;
+  }
+
+  const sql = neon(getDatabaseUrl());
+  const rows = (await sql.query(
+    `select data
+       from ops_autopublish_runs
+      order by created_at desc
+      limit 1`,
+  )) as Array<{ data?: OpsAutopublishRunRecord }>;
+
+  return rows[0]?.data ?? null;
+}

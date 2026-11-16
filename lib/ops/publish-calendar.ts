@@ -6,7 +6,12 @@ import type {
   PublicationPlatform,
   PublishedPostStatus,
 } from "@/lib/ops/types";
-import { formatPlatformScheduleWindow } from "@/lib/ops/platform-schedule-defaults";
+import {
+  DEFAULT_OPS_SCHEDULE_TIMEZONE,
+  formatPlatformScheduleWindow,
+  platformScheduleBucketId,
+  scheduleBucketById,
+} from "@/lib/ops/platform-schedule-defaults";
 import { sanitizePublishableBody } from "@/lib/ops/publishable-copy";
 import {
   draftScheduleWarnings,
@@ -181,6 +186,51 @@ export function buildPublishCalendarRows(
       };
     }),
   );
+}
+
+export function autopublishDraftMissedWindow(
+  row: PublishCalendarRow,
+  {
+    reference = new Date(),
+    timeZone = DEFAULT_OPS_SCHEDULE_TIMEZONE,
+  }: { reference?: Date; timeZone?: string } = {},
+) {
+  if (
+    !row.autopublishEnabled ||
+    row.draftStatus !== "approved" ||
+    row.postStatus === "posted" ||
+    !row.suggestedScheduledFor
+  ) {
+    return false;
+  }
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone,
+    year: "numeric",
+  }).formatToParts(reference);
+  const value = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  const today = `${value("year")}-${value("month")}-${value("day")}`;
+
+  if (row.suggestedScheduledFor < today) {
+    return true;
+  }
+
+  if (row.suggestedScheduledFor > today) {
+    return false;
+  }
+
+  const bucketId =
+    row.suggestedScheduleBucketId ?? platformScheduleBucketId(row.platform);
+  const bucket = scheduleBucketById(bucketId);
+  const localTime = `${value("hour")}:${value("minute")}`;
+
+  return Boolean(bucket && localTime >= bucket.endLocalTime);
 }
 
 export type PublishCalendarDateGroup = {

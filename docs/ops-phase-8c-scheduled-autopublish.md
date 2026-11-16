@@ -31,21 +31,20 @@ publishing plus weekly public post metric readback only.
 2. Choose a schedule bucket per draft: 09:00, 12:00, 15:00, 18:00, or 21:00.
 3. Toggle **Autopublish on schedule** for supported drafts.
 4. Approve each draft. Autopublish never bypasses approval.
-5. On the scheduled date and bucket, Vercel Cron invokes the bucket route.
+5. On the scheduled date and bucket, Vercel Schedules invokes the bucket route.
 6. **Catch-up:** Approved autopublish drafts up to 14 days overdue publish on
    the next **morning** bucket run (covers Sundays and missed crons). Manual
    **Run autopublish now** also publishes all due and overdue drafts.
 
-## Vercel Cron Boundary
+## Vercel Schedule Boundary
 
-Vercel cron expressions are UTC. Hobby plans allow up to 100 cron jobs, but each
-cron can only run once per day and timing precision is hourly. Pro and Enterprise
-plans support once-per-minute schedules with per-minute precision.
-
-To stay compatible with this boundary, `vercel.json` uses separate once-daily
-cron entries for each schedule bucket. Each bucket has paired UTC entries so
-America/New_York local-hour behavior works across EST and EDT. The route checks
-the current local hour and skips if the invocation is not due.
+`vercel.json` uses Vercel Schedules with `timezone=America/New_York`, so the five
+local posting times remain stable across EST and EDT without paired UTC jobs.
+Each schedule sends `GET` to the existing authenticated route; when
+`CRON_SECRET` is configured, Vercel supplies it as a bearer token. Vercel may
+start a run within the plan's jitter window (up to 15 minutes on Hobby), so Ops
+shows each bucket as a 15-minute schedule window and warns when an approved,
+opted-in draft remains unpublished after that window.
 
 Bucket routes:
 
@@ -61,6 +60,10 @@ Weekly X metrics readback:
 - Reads only recent Ops-published X post ids.
 - Stores aggregate performance snapshots.
 - Does not poll timelines, search, mentions, DMs, or private data.
+
+The calendar also displays the latest persisted autopublish run, including its
+bucket, trigger, status, and published/skipped/error counts. This separates a
+late invocation from a platform publishing error without exposing credentials.
 
 The legacy manual test endpoint remains:
 

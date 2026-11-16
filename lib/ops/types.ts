@@ -619,6 +619,7 @@ export type OpsAutopublishRunStatus = "error" | "partial" | "success";
 export type OpsAutopublishRunTrigger = "cron" | "manual";
 
 export type OpsAutopublishRunRecord = {
+  bucketId?: OpsScheduleBucketId;
   createdAt: string;
   draftResults: OpsAutopublishDraftResult[];
   errorCount: number;

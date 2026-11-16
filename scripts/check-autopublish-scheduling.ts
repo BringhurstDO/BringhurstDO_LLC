@@ -1,0 +1,95 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+import {
+  autopublishDraftMissedWindow,
+  type PublishCalendarRow,
+} from "../lib/ops/publish-calendar";
+
+const baseRow: PublishCalendarRow = {
+  accountName: "Test account",
+  autopublishEnabled: true,
+  body: "Approved test copy",
+  bodyPreview: "Approved test copy",
+  calendarDate: "2026-11-16",
+  contentPackageId: "package-test",
+  draftId: "draft-test",
+  draftStatus: "approved",
+  generatedUrl: "",
+  packageTitle: "Test package",
+  platform: "LinkedIn",
+  postStatus: "not posted",
+  postedUrl: "",
+  projectId: "bringhurstdo",
+  publicationTargetId: "target-test",
+  suggestedScheduleBucketId: "morning",
+  suggestedScheduledFor: "2026-11-16",
+  scheduleWarnings: [],
+  timing: "today",
+  title: "Test draft",
+};
+
+assert.equal(
+  autopublishDraftMissedWindow(baseRow, {
+    reference: new Date("2026-11-16T14:14:00.000Z"),
+  }),
+  false,
+  "A 09:14 America/New_York draft must remain inside the morning window.",
+);
+assert.equal(
+  autopublishDraftMissedWindow(baseRow, {
+    reference: new Date("2026-11-16T14:15:00.000Z"),
+  }),
+  true,
+  "A 09:15 America/New_York draft must be flagged after the morning window.",
+);
+assert.equal(
+  autopublishDraftMissedWindow(
+    { ...baseRow, postStatus: "posted" },
+    { reference: new Date("2026-11-16T14:30:00.000Z") },
+  ),
+  false,
+  "A posted draft must never be flagged.",
+);
+assert.equal(
+  autopublishDraftMissedWindow(
+    { ...baseRow, draftStatus: "drafted" },
+    { reference: new Date("2026-11-16T14:30:00.000Z") },
+  ),
+  false,
+  "An unapproved draft must never be flagged as a missed autopublish.",
+);
+
+async function checkVercelSchedules() {
+  const vercelConfig = JSON.parse(
+    await readFile(new URL("../vercel.json", import.meta.url), "utf8"),
+  ) as {
+    crons?: unknown[];
+    schedules?: Array<{
+      name: string;
+      path: string;
+      requestMethod: string;
+      schedule: string;
+      timezone: string;
+    }>;
+  };
+
+  assert.equal(vercelConfig.crons, undefined, "Legacy cron jobs must be removed.");
+  assert.equal(vercelConfig.schedules?.length, 7, "Seven schedules must be configured.");
+  assert.deepEqual(
+    vercelConfig.schedules?.slice(0, 5).map((schedule) => schedule.schedule),
+    ["0 9 * * 1-6", "0 12 * * 1-6", "0 15 * * 1-6", "0 18 * * 1-6", "0 21 * * 1-6"],
+    "Autopublish schedules must retain the five operator-selected local times.",
+  );
+  for (const schedule of vercelConfig.schedules ?? []) {
+    assert.equal(schedule.requestMethod, "GET");
+    assert.equal(schedule.timezone, "America/New_York");
+  }
+}
+
+checkVercelSchedules()
+  .then(() => console.log("Autopublish schedule checks passed."))
+  .catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+  });

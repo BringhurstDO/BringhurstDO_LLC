@@ -72,16 +72,15 @@ The X Developer Portal must handle:
 - The calendar displays platform-specific flexible publish windows.
 - Operators can choose per-draft buckets for 09:00, 12:00, 15:00, 18:00, or
   21:00 America/New_York.
-- X defaults to a midday flexible window: 12:00-13:30 America/New_York.
+- X defaults to the 12:00 schedule window (12:00-12:15 America/New_York).
 - X metrics readback cadence is weekly, not daily.
 - LinkedIn and X autopublish are supported for approved, opted-in drafts.
 - X autopublish still requires the same no-DM scopes and operator approval gates.
 
-## Vercel cron boundary
+## Vercel schedule boundary
 
-Vercel cron schedules are UTC. To keep local America/New_York schedule buckets
-working across daylight saving changes without hourly polling, `vercel.json`
-uses paired once-daily UTC cron entries for each bucket:
+Vercel Schedules use `timezone=America/New_York`, keeping the local posting
+buckets stable across daylight saving changes without paired UTC jobs:
 
 - Morning: `/api/cron/ops-autopublish/morning`
 - Midday: `/api/cron/ops-autopublish/midday`
@@ -89,8 +88,9 @@ uses paired once-daily UTC cron entries for each bucket:
 - Evening: `/api/cron/ops-autopublish/evening`
 - Late evening: `/api/cron/ops-autopublish/late-evening`
 
-The bucket route checks the current local hour and skips if the invocation is
-not due. This keeps each cron entry once daily, which is compatible with
-Vercel's Hobby cron boundary, while Pro plans can execute with tighter timing.
+The bucket route still checks the current local hour before publishing. Vercel
+may start a run within the plan's jitter window; Ops treats 15 minutes as the
+operator-visible boundary and flags approved drafts that remain unpublished
+after their window.
 
 Weekly X metrics readback runs through `/api/cron/ops-x-metrics`.

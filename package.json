@@ -24,6 +24,7 @@
     "ops:check-social-default-image": "npx tsx scripts/check-social-default-image.ts",
     "ops:check-media-upload": "npx tsx scripts/check-media-upload.ts",
     "ops:check-hashtag-pipeline": "npx tsx scripts/check-hashtag-pipeline.ts",
+    "ops:check-autopublish-scheduling": "npx tsx scripts/check-autopublish-scheduling.ts",
     "social:card": "node scripts/generate-brand-social-card.cjs",
     "social:animate": "node scripts/generate-social-animation.cjs"
   },

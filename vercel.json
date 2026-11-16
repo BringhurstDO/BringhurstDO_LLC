@@ -1,52 +1,53 @@
 {
-  "crons": [
+  "schedules": [
     {
+      "name": "ops-autopublish-morning",
       "path": "/api/cron/ops-autopublish/morning",
-      "schedule": "0 13 * * 1-6"
+      "requestMethod": "GET",
+      "schedule": "0 9 * * 1-6",
+      "timezone": "America/New_York"
     },
     {
-      "path": "/api/cron/ops-autopublish/morning",
-      "schedule": "0 14 * * 1-6"
-    },
-    {
+      "name": "ops-autopublish-midday",
       "path": "/api/cron/ops-autopublish/midday",
-      "schedule": "0 16 * * 1-6"
+      "requestMethod": "GET",
+      "schedule": "0 12 * * 1-6",
+      "timezone": "America/New_York"
     },
     {
-      "path": "/api/cron/ops-autopublish/midday",
-      "schedule": "0 17 * * 1-6"
-    },
-    {
+      "name": "ops-autopublish-afternoon",
       "path": "/api/cron/ops-autopublish/afternoon",
-      "schedule": "0 19 * * 1-6"
+      "requestMethod": "GET",
+      "schedule": "0 15 * * 1-6",
+      "timezone": "America/New_York"
     },
     {
-      "path": "/api/cron/ops-autopublish/afternoon",
-      "schedule": "0 20 * * 1-6"
-    },
-    {
+      "name": "ops-autopublish-evening",
       "path": "/api/cron/ops-autopublish/evening",
-      "schedule": "0 22 * * 1-6"
+      "requestMethod": "GET",
+      "schedule": "0 18 * * 1-6",
+      "timezone": "America/New_York"
     },
     {
-      "path": "/api/cron/ops-autopublish/evening",
-      "schedule": "0 23 * * 1-6"
-    },
-    {
+      "name": "ops-autopublish-late-evening",
       "path": "/api/cron/ops-autopublish/late-evening",
-      "schedule": "0 1 * * 0,2-6"
+      "requestMethod": "GET",
+      "schedule": "0 21 * * 1-6",
+      "timezone": "America/New_York"
     },
     {
-      "path": "/api/cron/ops-autopublish/late-evening",
-      "schedule": "0 2 * * 0,2-6"
-    },
-    {
+      "name": "ops-x-metrics-weekly",
       "path": "/api/cron/ops-x-metrics",
-      "schedule": "0 15 * * 3"
+      "requestMethod": "GET",
+      "schedule": "0 10 * * 3",
+      "timezone": "America/New_York"
     },
     {
+      "name": "ops-meta-metrics-weekly",
       "path": "/api/cron/ops-meta-metrics",
-      "schedule": "0 16 * * 3"
+      "requestMethod": "GET",
+      "schedule": "0 11 * * 3",
+      "timezone": "America/New_York"
     }
   ],
   "headers": [

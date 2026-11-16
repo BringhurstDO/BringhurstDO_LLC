@@ -174,16 +174,16 @@ function isEligibleDraft(
     return "Autopublish is not enabled for this draft.";
   }
 
+  if (draftAlreadyPosted(record, draft)) {
+    return "Draft is already posted.";
+  }
+
   if (draft.status !== "approved") {
     return "Draft is not approved.";
   }
 
   if (!draft.suggestedScheduledFor) {
     return "Draft has no suggestedScheduledFor date.";
-  }
-
-  if (draftAlreadyPosted(record, draft)) {
-    return "Draft is already posted.";
   }
 
   const scheduledDate = draft.suggestedScheduledFor;
@@ -348,6 +348,7 @@ export async function runScheduledAutopublish(
       : "success";
 
   const runRecord: OpsAutopublishRunRecord = {
+    bucketId,
     createdAt: new Date().toISOString(),
     draftResults,
     errorCount,

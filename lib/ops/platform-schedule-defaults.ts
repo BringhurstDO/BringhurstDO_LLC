@@ -19,39 +19,39 @@ export const DEFAULT_OPS_SCHEDULE_TIMEZONE = "America/New_York";
 
 export const OPS_SCHEDULE_BUCKETS: OpsScheduleBucket[] = [
   {
-    endLocalTime: "10:30",
+    endLocalTime: "09:15",
     id: "morning",
     label: "Morning",
     localTime: "09:00",
-    toleranceMinutes: 45,
+    toleranceMinutes: 15,
   },
   {
-    endLocalTime: "13:30",
+    endLocalTime: "12:15",
     id: "midday",
     label: "Midday",
     localTime: "12:00",
-    toleranceMinutes: 45,
+    toleranceMinutes: 15,
   },
   {
-    endLocalTime: "16:30",
+    endLocalTime: "15:15",
     id: "afternoon",
     label: "Afternoon",
     localTime: "15:00",
-    toleranceMinutes: 45,
+    toleranceMinutes: 15,
   },
   {
-    endLocalTime: "19:30",
+    endLocalTime: "18:15",
     id: "evening",
     label: "Evening",
     localTime: "18:00",
-    toleranceMinutes: 45,
+    toleranceMinutes: 15,
   },
   {
-    endLocalTime: "22:00",
+    endLocalTime: "21:15",
     id: "late-evening",
     label: "Late evening",
     localTime: "21:00",
-    toleranceMinutes: 45,
+    toleranceMinutes: 15,
   },
 ];
 

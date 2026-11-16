@@ -22,6 +22,7 @@ import {
   type OpsStorageMode,
 } from "@/lib/ops/persistence";
 import {
+  autopublishDraftMissedWindow,
   buildPublishCalendarRows,
   filterPublishCalendarRows,
   formatScheduledPublishLabel,
@@ -167,6 +168,16 @@ export function PublishCalendarPanel({
     cronConfigured: boolean;
     disabledReason: string | null;
     enabled: boolean;
+    lastRun: {
+      bucketId: OpsScheduleBucketId | null;
+      createdAt: string;
+      errorCount: number;
+      publishedCount: number;
+      runDate: string;
+      skippedCount: number;
+      status: "error" | "partial" | "success";
+      trigger: "cron" | "manual";
+    } | null;
     runDateToday: string;
     runTimeLabel: string;
     timeZone: string;
@@ -372,6 +383,13 @@ export function PublishCalendarPanel({
   );
   const overdueRows = useMemo(
     () => calendarRows.filter((row) => row.timing === "overdue"),
+    [calendarRows],
+  );
+  const missedAutopublishRows = useMemo(
+    () =>
+      calendarRows.filter(
+        (row) => row.timing === "today" && autopublishDraftMissedWindow(row),
+      ),
     [calendarRows],
   );
   const dateGroups = useMemo(
@@ -1417,19 +1435,36 @@ export function PublishCalendarPanel({
               </p>
             ) : null}
             {autopublishStatus ? (
-              <p className="mt-2 text-xs text-slate-500">
-                Autopublish:{" "}
-                {autopublishStatus.enabled ? (
-                  <span className="font-semibold text-emerald-800">
-                    enabled ({autopublishStatus.timeZone}, today{" "}
-                    {autopublishStatus.runDateToday})
-                  </span>
+              <div className="mt-2 text-xs leading-5 text-slate-500">
+                <p>
+                  Autopublish:{" "}
+                  {autopublishStatus.enabled ? (
+                    <span className="font-semibold text-emerald-800">
+                      enabled ({autopublishStatus.timeZone}, today{" "}
+                      {autopublishStatus.runDateToday})
+                    </span>
+                  ) : (
+                    <span className="font-semibold text-amber-800">
+                      disabled — {autopublishStatus.disabledReason}
+                    </span>
+                  )}
+                </p>
+                {autopublishStatus.lastRun ? (
+                  <p>
+                    Last run: {new Date(autopublishStatus.lastRun.createdAt).toLocaleString()} ·{" "}
+                    {autopublishStatus.lastRun.trigger}
+                    {autopublishStatus.lastRun.bucketId
+                      ? ` · ${autopublishStatus.lastRun.bucketId}`
+                      : ""}{" "}
+                    · {autopublishStatus.lastRun.status} · published{" "}
+                    {autopublishStatus.lastRun.publishedCount}, skipped{" "}
+                    {autopublishStatus.lastRun.skippedCount}, errors{" "}
+                    {autopublishStatus.lastRun.errorCount}
+                  </p>
                 ) : (
-                  <span className="font-semibold text-amber-800">
-                    disabled — {autopublishStatus.disabledReason}
-                  </span>
+                  <p>No autopublish run has been recorded yet.</p>
                 )}
-              </p>
+              </div>
             ) : null}
           </div>
 
@@ -1591,6 +1626,21 @@ export function PublishCalendarPanel({
               <CalendarRowCard key={row.draftId} row={row} />
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {missedAutopublishRows.length > 0 ? (
+        <section className="rounded-lg border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
+          <div className="flex items-center gap-2 font-semibold">
+            <AlertTriangle className="h-4 w-4" aria-hidden />
+            Autopublish attention needed
+          </div>
+          <p className="mt-2">
+            {missedAutopublishRows.length} approved draft
+            {missedAutopublishRows.length === 1 ? " remains" : "s remain"} unpublished
+            after the scheduled window. Review the last run above, then publish manually
+            or use Run autopublish now.
+          </p>
         </section>
       ) : null}
 

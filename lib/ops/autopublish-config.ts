@@ -25,31 +25,8 @@ export function calendarDateInTimezone(
   }).format(reference);
 }
 
-/** Vercel cron for autopublish runs daily at 14:00 UTC (`vercel.json`). */
-export const OPS_AUTOPUBLISH_CRON_UTC_HOUR = 14;
-
-export function autopublishRunTimeLabel(
-  timeZone: string,
-  utcHour = OPS_AUTOPUBLISH_CRON_UTC_HOUR,
-  reference = new Date(),
-) {
-  const runReference = new Date(
-    Date.UTC(
-      reference.getUTCFullYear(),
-      reference.getUTCMonth(),
-      reference.getUTCDate(),
-      utcHour,
-      0,
-      0,
-    ),
-  );
-
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone,
-    timeZoneName: "short",
-  }).format(runReference);
+export function autopublishRunTimeLabel(timeZone: string) {
+  return `09:00-09:15 ${timeZone}`;
 }
 
 export function resolveAutopublishConfig() {
