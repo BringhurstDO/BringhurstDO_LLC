@@ -28,7 +28,7 @@ import {
 import { AiImprovePanel } from "@/app/ops/_components/ai-improve-panel";
 import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel";
 import { OpsPackageSocialImagePanel } from "@/app/ops/_components/ops-package-social-image-panel";
-import { opsFetch } from "@/app/ops/_components/ops-fetch";
+import { opsFetch, readOpsJson } from "@/app/ops/_components/ops-fetch";
 import { SavedSocialMentionPicker } from "@/app/ops/_components/saved-social-mention-picker";
 import { SinglePostAiEnhancer } from "@/app/ops/_components/single-post-ai-enhancer";
 import type { OpsAiVisibleContext } from "@/lib/ops/ai-visible-context";
@@ -2586,9 +2586,10 @@ export function ContentPackageBuilder({
         }),
       });
 
-      const data = (await response.json()) as
+      const data = await readOpsJson<
         | SocialPublishResult
-        | { error?: string };
+        | { error?: string }
+      >(response, "LinkedIn publish failed.");
 
       if (!response.ok || !("postUrl" in data)) {
         const message =
@@ -2668,9 +2669,10 @@ export function ContentPackageBuilder({
         method: "POST",
       });
 
-      const data = (await response.json()) as
+      const data = await readOpsJson<
         | SocialPublishResult
-        | { error?: string };
+        | { error?: string }
+      >(response, "X publish failed.");
 
       if (!response.ok || !("postUrl" in data)) {
         const message =
@@ -2730,9 +2732,10 @@ export function ContentPackageBuilder({
         }),
       });
 
-      const data = (await response.json()) as
+      const data = await readOpsJson<
         | SocialReshareResult
-        | { error?: string };
+        | { error?: string }
+      >(response, "LinkedIn reshare failed.");
 
       if (!response.ok || !("postUrl" in data)) {
         const message =

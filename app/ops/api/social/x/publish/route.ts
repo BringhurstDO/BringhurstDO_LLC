@@ -102,19 +102,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const published = await publishXDraft({
-    accountId: requestedAccountId,
-    assetLocation: asString(payload.assetLocation) || undefined,
-    body: rawBody,
-    contentPackageId,
-    platformDraftId,
-    publicationTargetId,
-    publishingProjectId: asProjectId(payload.publishingProjectId),
-    sourceProjectId: asProjectId(payload.sourceProjectId),
-    title: title || undefined,
-    trigger: "manual",
-    ...socialMetadata(payload),
-  });
+  let published: Awaited<ReturnType<typeof publishXDraft>>;
+  try {
+    published = await publishXDraft({
+      accountId: requestedAccountId,
+      assetLocation: asString(payload.assetLocation) || undefined,
+      body: rawBody,
+      contentPackageId,
+      platformDraftId,
+      publicationTargetId,
+      publishingProjectId: asProjectId(payload.publishingProjectId),
+      sourceProjectId: asProjectId(payload.sourceProjectId),
+      title: title || undefined,
+      trigger: "manual",
+      ...socialMetadata(payload),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "X publish request failed.";
+    return jsonNoStore({ error: message }, 500);
+  }
 
   if (!published.ok) {
     const httpStatus =

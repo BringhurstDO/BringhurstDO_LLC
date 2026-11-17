@@ -119,21 +119,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const published = await publishMetaDraft({
-    accountId: requestedAccountId,
-    assetLocation: asString(payload.assetLocation) || undefined,
-    body: rawBody,
-    contentPackageId,
-    imageUrl: asString(payload.imageUrl) || undefined,
-    platform,
-    platformDraftId,
-    publicationTargetId,
-    publishingProjectId: asProjectId(payload.publishingProjectId),
-    sourceProjectId: asProjectId(payload.sourceProjectId),
-    title: title || undefined,
-    trigger: "manual",
-    ...socialMetadata(payload),
-  });
+  let published: Awaited<ReturnType<typeof publishMetaDraft>>;
+  try {
+    published = await publishMetaDraft({
+      accountId: requestedAccountId,
+      assetLocation: asString(payload.assetLocation) || undefined,
+      body: rawBody,
+      contentPackageId,
+      imageUrl: asString(payload.imageUrl) || undefined,
+      platform,
+      platformDraftId,
+      publicationTargetId,
+      publishingProjectId: asProjectId(payload.publishingProjectId),
+      sourceProjectId: asProjectId(payload.sourceProjectId),
+      title: title || undefined,
+      trigger: "manual",
+      ...socialMetadata(payload),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Meta publish request failed.";
+    return jsonNoStore({ error: message }, 500);
+  }
 
   if (!published.ok) {
     const httpStatus =

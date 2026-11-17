@@ -23,6 +23,7 @@
     "ops:render-product-covers": "node scripts/render-product-social-cover.mjs",
     "ops:check-social-default-image": "npx tsx scripts/check-social-default-image.ts",
     "ops:check-media-upload": "npx tsx scripts/check-media-upload.ts",
+    "ops:check-json-response": "npx tsx scripts/check-ops-json-response.ts",
     "ops:check-social-media-normalization": "npx tsx scripts/check-social-media-normalization.ts",
     "ops:check-x-media-upload": "npx tsx scripts/check-x-media-upload.ts",
     "ops:check-hashtag-pipeline": "npx tsx scripts/check-hashtag-pipeline.ts",

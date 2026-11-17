@@ -15,7 +15,7 @@ import {
 import { CalendarPostPerformance } from "@/app/ops/_components/social-performance-panel";
 import { IgMediaAttachPanel } from "@/app/ops/_components/ig-media-attach-panel";
 import { StatusPill } from "@/app/ops/_components/ops-ui";
-import { opsFetch } from "@/app/ops/_components/ops-fetch";
+import { opsFetch, readOpsJson } from "@/app/ops/_components/ops-fetch";
 import { collectMetadataOnlyIssues } from "@/lib/ops/safety";
 import {
   createLocalStorageOpsPersistenceAdapter,
@@ -868,9 +868,10 @@ export function PublishCalendarPanel({
         method: "POST",
       });
 
-      const data = (await response.json()) as
+      const data = await readOpsJson<
         | SocialPublishResult
-        | { error?: string };
+        | { error?: string }
+      >(response, "LinkedIn publish failed.");
 
       if (!response.ok || !("postUrl" in data)) {
         throw new Error(
@@ -957,9 +958,10 @@ export function PublishCalendarPanel({
         method: "POST",
       });
 
-      const data = (await response.json()) as
+      const data = await readOpsJson<
         | SocialPublishResult
-        | { error?: string };
+        | { error?: string }
+      >(response, "X publish failed.");
 
       if (!response.ok || !("postUrl" in data)) {
         throw new Error(
@@ -1043,9 +1045,10 @@ export function PublishCalendarPanel({
         method: "POST",
       });
 
-      const data = (await response.json()) as
+      const data = await readOpsJson<
         | SocialPublishResult
-        | { error?: string };
+        | { error?: string }
+      >(response, "Facebook publish failed.");
 
       if (!response.ok || !("postUrl" in data)) {
         throw new Error(
@@ -1133,9 +1136,10 @@ export function PublishCalendarPanel({
         method: "POST",
       });
 
-      const data = (await response.json()) as
+      const data = await readOpsJson<
         | SocialPublishResult
-        | { error?: string };
+        | { error?: string }
+      >(response, "Instagram publish failed.");
 
       if (!response.ok || !("postUrl" in data)) {
         throw new Error(
