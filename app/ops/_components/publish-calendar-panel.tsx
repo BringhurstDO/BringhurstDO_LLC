@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock3,
   Megaphone,
+  Pencil,
   Trash2,
 } from "lucide-react";
 
@@ -68,6 +69,14 @@ type PublishCalendarPanelProps = {
   initialRecords: OpsContentPackageRecord[];
   publicationTargets: PublicationTarget[];
   storageMode: Extract<OpsStorageMode, "database" | "local-browser">;
+};
+
+type CalendarDraftEditState = {
+  autopublishEnabled: boolean;
+  body: string;
+  publicationTargetId: string;
+  suggestedScheduleBucketId: OpsScheduleBucketId;
+  suggestedScheduledFor: string;
 };
 
 const storageKey = "bringhurstdo.ops.contentPackages.v1";
@@ -186,6 +195,8 @@ export function PublishCalendarPanel({
   const [runningXMetricsRefresh, setRunningXMetricsRefresh] = useState(false);
   const [enableAutopublishOnApprove, setEnableAutopublishOnApprove] =
     useState(false);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [draftEdit, setDraftEdit] = useState<CalendarDraftEditState | null>(null);
 
   const createPersistenceAdapter = useCallback(() => {
     return storageIsDatabase
@@ -517,86 +528,135 @@ export function PublishCalendarPanel({
     );
   }
 
-  function toggleAutopublish(row: PublishCalendarRow, enabled: boolean) {
-    const target = publicationTargets.find(
-      (item) => item.id === row.publicationTargetId,
-    );
+  function startEditingDraft(row: PublishCalendarRow) {
+    const match = findDraftRecord(row.draftId);
 
-    if (enabled && !socialAccountStatusForTarget(target)?.connected) {
-      setIssues(["Connect this publishing account before enabling autopublish."]);
-      setMessage("");
+    if (!match) {
+      setIssues(["Draft record not found."]);
       return;
     }
 
-    updateRecord(row.contentPackageId, (record) => ({
-      ...record,
-      contentPackage: {
-        ...record.contentPackage,
-        updatedAt: new Date().toISOString(),
-      },
-      platformDrafts: record.platformDrafts.map((draft) =>
-        draft.id === row.draftId
-          ? {
-              ...draft,
-              autopublishEnabled: enabled,
-              updatedAt: new Date().toISOString(),
-            }
-          : draft,
-      ),
-    }));
-    setMessage(
-      enabled
-        ? `Autopublish enabled for ${row.title}.`
-        : `Autopublish disabled for ${row.title}.`,
-    );
+    setEditingDraftId(row.draftId);
+    setDraftEdit({
+      autopublishEnabled: Boolean(match.draft.autopublishEnabled),
+      body: match.draft.body,
+      publicationTargetId: match.draft.publicationTargetId,
+      suggestedScheduleBucketId:
+        match.draft.suggestedScheduleBucketId ??
+        platformScheduleBucketId(match.draft.platform),
+      suggestedScheduledFor: match.draft.suggestedScheduledFor ?? "",
+    });
+    setIssues([]);
+    setMessage("");
   }
 
-  function changeDraftDestination(
-    row: PublishCalendarRow,
-    publicationTargetId: string,
-  ) {
+  function cancelEditingDraft() {
+    setEditingDraftId(null);
+    setDraftEdit(null);
+  }
+
+  async function saveDraftEdits(row: PublishCalendarRow) {
+    if (!draftEdit || editingDraftId !== row.draftId) {
+      return;
+    }
+
+    const match = findDraftRecord(row.draftId);
     const target = publicationTargets.find(
-      (item) => item.id === publicationTargetId,
+      (item) => item.id === draftEdit.publicationTargetId,
     );
 
-    if (!target || target.platform !== row.platform) {
-      setIssues(["Choose an account on the same platform as this draft."]);
-      setMessage("");
+    if (!match || !target || target.platform !== row.platform) {
+      setIssues(["The selected publishing account is not valid for this draft."]);
       return;
     }
 
-    if (!socialAccountStatusForTarget(target)?.connected) {
+    const targetConnected = Boolean(
+      socialAccountStatusForTarget(target)?.connected,
+    );
+
+    if (!targetConnected) {
       setIssues([`Connect ${target.accountName} before selecting it for publishing.`]);
-      setMessage("");
       return;
     }
 
-    updateRecord(row.contentPackageId, (record) => ({
-      ...record,
-      contentPackage: {
-        ...record.contentPackage,
-        updatedAt: new Date().toISOString(),
-      },
-      platformDrafts: record.platformDrafts.map((draft) =>
-        draft.id === row.draftId
-          ? {
-              ...draft,
-              accountName: target.accountName,
-              autopublishEnabled: false,
-              projectId: target.projectId ?? draft.projectId,
-              publicationTargetId: target.id,
-              publishingProjectId:
-                target.projectId ?? draft.publishingProjectId,
-              status: "needs review" as PlatformDraftStatus,
-              updatedAt: new Date().toISOString(),
-            }
-          : draft,
-      ),
-    }));
-    setIssues([]);
-    setMessage(
-      `Publishing destination changed to ${target.accountName}. Review and approve the draft again, then re-enable autopublish.`,
+    const body = sanitizePublishableBody(draftEdit.body, {
+      title: match.draft.title,
+    });
+
+    if (!body) {
+      setIssues(["Post text cannot be empty."]);
+      return;
+    }
+
+    if (row.platform === "X" && body.length > 280) {
+      setIssues([`X posts must be 280 characters or fewer (currently ${body.length}).`]);
+      return;
+    }
+
+    let scheduledFor = draftEdit.suggestedScheduledFor;
+    if (
+      scheduledFor &&
+      draftEdit.autopublishEnabled &&
+      isSundayDate(scheduledFor)
+    ) {
+      const bumped = bumpSundayToMonday(scheduledFor);
+      if (
+        window.confirm(
+          `Autopublish does not run on Sundays. Move this draft to ${formatCalendarDateWithWeekday(bumped)} instead?`,
+        )
+      ) {
+        scheduledFor = bumped;
+      }
+    }
+
+    const bodyChanged = body !== sanitizePublishableBody(match.draft.body, {
+      title: match.draft.title,
+    });
+    const destinationChanged = target.id !== match.draft.publicationTargetId;
+    const approvalReset = bodyChanged || destinationChanged;
+    const now = new Date().toISOString();
+    const nextRecords = records.map((record) =>
+      record.contentPackage.id === row.contentPackageId
+        ? {
+            ...record,
+            contentPackage: {
+              ...record.contentPackage,
+              updatedAt: now,
+            },
+            platformDrafts: record.platformDrafts.map((draft) =>
+              draft.id === row.draftId
+                ? {
+                    ...draft,
+                    accountName: target.accountName,
+                    autopublishEnabled:
+                      !approvalReset && draftEdit.autopublishEnabled,
+                    body,
+                    projectId: target.projectId ?? draft.projectId,
+                    publicationTargetId: target.id,
+                    publishingProjectId:
+                      target.projectId ?? draft.publishingProjectId,
+                    status: approvalReset
+                      ? ("needs review" as PlatformDraftStatus)
+                      : draft.status,
+                    suggestedScheduleBucketId:
+                      draftEdit.suggestedScheduleBucketId,
+                    suggestedScheduledFor: scheduledFor || undefined,
+                    updatedAt: now,
+                  }
+                : draft,
+            ),
+          }
+        : record,
     );
+
+    if (await persistRecords(nextRecords)) {
+      cancelEditingDraft();
+      setMessage(
+        approvalReset
+          ? `Saved ${target.accountName} edits. Review and approve the post again before publishing.`
+          : `Saved ${target.accountName} schedule and autopublish settings.`,
+      );
+    }
   }
 
   async function refreshXMetricsNow() {
@@ -674,71 +734,6 @@ export function PublishCalendarPanel({
     } finally {
       setRunningAutopublish(false);
     }
-  }
-
-  function rescheduleDraft(row: PublishCalendarRow, nextDate: string) {
-    let finalDate = nextDate;
-
-    if (
-      finalDate &&
-      row.autopublishEnabled &&
-      isSundayDate(finalDate)
-    ) {
-      const bumped = bumpSundayToMonday(finalDate);
-
-      if (
-        window.confirm(
-          `Autopublish does not run on Sundays. Move this draft to ${formatCalendarDateWithWeekday(bumped)} instead?`,
-        )
-      ) {
-        finalDate = bumped;
-      }
-    }
-
-    updateRecord(row.contentPackageId, (record) => ({
-      ...record,
-      contentPackage: {
-        ...record.contentPackage,
-        updatedAt: new Date().toISOString(),
-      },
-      platformDrafts: record.platformDrafts.map((draft) =>
-        draft.id === row.draftId
-          ? {
-              ...draft,
-              suggestedScheduledFor: finalDate || undefined,
-              updatedAt: new Date().toISOString(),
-            }
-          : draft,
-      ),
-    }));
-    setMessage(
-      finalDate
-        ? `Rescheduled ${row.title} to ${formatCalendarDateWithWeekday(finalDate)}.`
-        : `Cleared suggested date for ${row.title}.`,
-    );
-  }
-
-  function rescheduleDraftBucket(
-    row: PublishCalendarRow,
-    nextBucketId: OpsScheduleBucketId,
-  ) {
-    updateRecord(row.contentPackageId, (record) => ({
-      ...record,
-      contentPackage: {
-        ...record.contentPackage,
-        updatedAt: new Date().toISOString(),
-      },
-      platformDrafts: record.platformDrafts.map((draft) =>
-        draft.id === row.draftId
-          ? {
-              ...draft,
-              suggestedScheduleBucketId: nextBucketId,
-              updatedAt: new Date().toISOString(),
-            }
-          : draft,
-      ),
-    }));
-    setMessage(`Updated ${row.title} publish window.`);
   }
 
   async function removeScheduledDraft(row: PublishCalendarRow) {
@@ -1216,14 +1211,8 @@ export function PublishCalendarPanel({
         ? resolveLatestPerformanceSnapshot(packageRecord, publishedPost.id)
         : null;
     const accountId = targetAccountIdById.get(row.publicationTargetId);
-    const currentTarget = publicationTargets.find(
-      (target) => target.id === row.publicationTargetId,
-    );
     const compatibleTargets = publicationTargets.filter(
       (target) => target.platform === row.platform,
-    );
-    const currentTargetConnected = Boolean(
-      socialAccountStatusForTarget(currentTarget)?.connected,
     );
     const accountStatus = linkedInAccountStatus(accountId);
     const isPosted = row.postStatus === "posted" || row.timing === "posted";
@@ -1249,6 +1238,15 @@ export function PublishCalendarPanel({
       row.draftStatus === "approved" &&
       !isPosted &&
       metaStatusForRow?.connected;
+    const isEditing = editingDraftId === row.draftId && Boolean(draftEdit);
+    const editingTarget = isEditing
+      ? publicationTargets.find(
+          (target) => target.id === draftEdit?.publicationTargetId,
+        )
+      : undefined;
+    const editingTargetConnected = Boolean(
+      socialAccountStatusForTarget(editingTarget)?.connected,
+    );
 
     if (isPosted) {
       return (
@@ -1346,7 +1344,160 @@ export function PublishCalendarPanel({
                 scheduleBucketId: row.suggestedScheduleBucketId,
               })}
             </p>
-            <CalendarDraftBody body={row.body} platform={row.platform} />
+            {isEditing && draftEdit ? (
+              <div className="mt-3 border-t border-slate-200 pt-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-1.5 text-xs font-semibold text-slate-700 md:col-span-2">
+                    Post
+                    <textarea
+                      value={draftEdit.body}
+                      onChange={(event) =>
+                        setDraftEdit((current) =>
+                          current
+                            ? { ...current, body: event.target.value }
+                            : current,
+                        )
+                      }
+                      rows={8}
+                      className="min-h-40 w-full resize-y rounded-md border border-slate-300 bg-white p-3 text-sm font-normal leading-6 text-slate-900"
+                    />
+                    <span className="font-normal text-slate-500">
+                      {row.platform === "X"
+                        ? `${draftEdit.body.length}/280 characters`
+                        : `${draftEdit.body.length} characters`}
+                    </span>
+                  </label>
+
+                  {platformSupportsAutopublish(row.platform) &&
+                  compatibleTargets.length > 0 ? (
+                    <label className="grid gap-1.5 text-xs font-semibold text-slate-700">
+                      Account/Page
+                      <select
+                        value={draftEdit.publicationTargetId}
+                        onChange={(event) => {
+                          const nextTarget = publicationTargets.find(
+                            (target) => target.id === event.target.value,
+                          );
+                          const connected = Boolean(
+                            socialAccountStatusForTarget(nextTarget)?.connected,
+                          );
+                          setDraftEdit((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  autopublishEnabled:
+                                    connected && current.autopublishEnabled,
+                                  publicationTargetId: event.target.value,
+                                }
+                              : current,
+                          );
+                        }}
+                        className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
+                      >
+                        {compatibleTargets.map((target) => {
+                          const connected = Boolean(
+                            socialAccountStatusForTarget(target)?.connected,
+                          );
+
+                          return (
+                            <option
+                              key={target.id}
+                              value={target.id}
+                              disabled={!connected}
+                            >
+                              {target.accountName}
+                              {connected ? "" : " - not connected"}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                  ) : null}
+
+                  <label className="grid gap-1.5 text-xs font-semibold text-slate-700">
+                    Date
+                    <input
+                      type="date"
+                      value={draftEdit.suggestedScheduledFor}
+                      onChange={(event) =>
+                        setDraftEdit((current) =>
+                          current
+                            ? {
+                                ...current,
+                                suggestedScheduledFor: event.target.value,
+                              }
+                            : current,
+                        )
+                      }
+                      className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
+                    />
+                  </label>
+
+                  <label className="grid gap-1.5 text-xs font-semibold text-slate-700">
+                    Time
+                    <select
+                      value={draftEdit.suggestedScheduleBucketId}
+                      onChange={(event) =>
+                        setDraftEdit((current) =>
+                          current
+                            ? {
+                                ...current,
+                                suggestedScheduleBucketId: event.target
+                                  .value as OpsScheduleBucketId,
+                              }
+                            : current,
+                        )
+                      }
+                      className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900"
+                    >
+                      {OPS_SCHEDULE_BUCKETS.map((bucket) => (
+                        <option key={bucket.id} value={bucket.id}>
+                          {bucket.localTime}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={draftEdit.autopublishEnabled}
+                      disabled={!editingTargetConnected}
+                      onChange={(event) =>
+                        setDraftEdit((current) =>
+                          current
+                            ? {
+                                ...current,
+                                autopublishEnabled: event.target.checked,
+                              }
+                            : current,
+                        )
+                      }
+                    />
+                    Autopublish on schedule
+                  </label>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveDraftEdits(row)}
+                    className="inline-flex h-9 items-center rounded-md bg-slate-950 px-3 text-xs font-semibold text-white hover:bg-slate-700"
+                  >
+                    Save changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelEditingDraft}
+                    className="inline-flex h-9 items-center rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <CalendarDraftBody body={row.body} platform={row.platform} />
+            )}
             {row.scheduleWarnings.length > 0 ? (
               <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">
                 {row.scheduleWarnings.map((warning) => (
@@ -1371,6 +1522,16 @@ export function PublishCalendarPanel({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={isEditing}
+            onClick={() => startEditingDraft(row)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:bg-slate-100"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+            {isEditing ? "Editing" : "Edit"}
+          </button>
+
           {row.draftStatus !== "approved" ? (
             <button
               type="button"
@@ -1430,85 +1591,6 @@ export function PublishCalendarPanel({
                 : "Publish to Instagram"}
             </button>
           ) : null}
-
-          {platformSupportsAutopublish(row.platform) &&
-          compatibleTargets.length > 0 ? (
-            <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
-              Account/Page
-              <select
-                value={row.publicationTargetId}
-                onChange={(event) =>
-                  changeDraftDestination(row, event.target.value)
-                }
-                className="max-w-56 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
-              >
-                {compatibleTargets.map((target) => {
-                  const connected = Boolean(
-                    socialAccountStatusForTarget(target)?.connected,
-                  );
-
-                  return (
-                    <option
-                      key={target.id}
-                      value={target.id}
-                      disabled={!connected}
-                    >
-                      {target.accountName}
-                      {connected ? "" : " - not connected"}
-                    </option>
-                  );
-                })}
-              </select>
-            </label>
-          ) : null}
-
-          <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
-            Date
-            <input
-              type="date"
-              value={row.suggestedScheduledFor ?? ""}
-              onChange={(event) => rescheduleDraft(row, event.target.value)}
-              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
-            />
-          </label>
-
-          <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
-            Window
-            <select
-              value={
-                row.suggestedScheduleBucketId ??
-                platformScheduleBucketId(row.platform)
-              }
-              onChange={(event) =>
-                rescheduleDraftBucket(
-                  row,
-                  event.target.value as OpsScheduleBucketId,
-                )
-              }
-              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
-            >
-              {OPS_SCHEDULE_BUCKETS.map((bucket) => (
-                <option key={bucket.id} value={bucket.id}>
-                  {bucket.localTime}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="inline-flex h-9 items-center gap-2 rounded-md border border-violet-200 bg-violet-50 px-3 text-xs font-semibold text-violet-900">
-            <input
-              type="checkbox"
-              checked={row.autopublishEnabled}
-              disabled={
-                !platformSupportsAutopublish(row.platform) ||
-                !currentTargetConnected
-              }
-              onChange={(event) =>
-                toggleAutopublish(row, event.target.checked)
-              }
-            />
-            Autopublish on schedule
-          </label>
 
           <button
             type="button"
