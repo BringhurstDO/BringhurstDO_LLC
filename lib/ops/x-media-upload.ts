@@ -10,6 +10,8 @@ type XChunkedUploadDependencies = {
   sleep?: (ms: number) => Promise<void>;
 };
 
+const X_UPLOAD_MAX_ATTEMPTS = 3;
+
 function mediaCategoryForKind(kind: XChunkedMediaKind) {
   return kind === "video"
     ? "tweet_video"
@@ -27,6 +29,56 @@ function processingInfoFromResponse(text: string): XProcessingInfo | undefined {
   return json.data?.processing_info ?? json.processing_info;
 }
 
+function retryableUploadStatus(status: number) {
+  return status === 429 || status >= 500;
+}
+
+async function requestXUpload(
+  label: string,
+  request: () => Promise<Response>,
+  wait: (ms: number) => Promise<void>,
+) {
+  let lastFailure: { status: number; text: string } | null = null;
+
+  for (let attempt = 1; attempt <= X_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await request();
+      const text = await response.text();
+
+      if (response.ok) {
+        return { response, text };
+      }
+
+      lastFailure = { status: response.status, text };
+
+      if (
+        !retryableUploadStatus(response.status) ||
+        attempt === X_UPLOAD_MAX_ATTEMPTS
+      ) {
+        break;
+      }
+    } catch (error) {
+      if (attempt === X_UPLOAD_MAX_ATTEMPTS) {
+        throw new Error(
+          `X media ${label} request failed after ${attempt} attempts: ${
+            error instanceof Error ? error.message : "network error"
+          }`,
+        );
+      }
+    }
+
+    await wait(1000 * 2 ** (attempt - 1));
+  }
+
+  if (!lastFailure) {
+    throw new Error(`X media ${label} request failed.`);
+  }
+
+  throw new Error(
+    `X media ${label} failed (${lastFailure.status}) after ${X_UPLOAD_MAX_ATTEMPTS} attempts: ${lastFailure.text.slice(0, 400)}`,
+  );
+}
+
 export async function uploadXMediaChunked(
   input: {
     accessToken: string;
@@ -41,25 +93,23 @@ export async function uploadXMediaChunked(
   const wait = dependencies.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const mediaCategory = mediaCategoryForKind(input.kind ?? "image");
 
-  const initResponse = await fetchRequest(`${input.uploadUrl}/initialize`, {
-    body: JSON.stringify({
-      media_type: input.contentType,
-      total_bytes: input.bytes.byteLength,
-      media_category: mediaCategory,
-    }),
-    headers: {
-      Authorization: `Bearer ${input.accessToken}`,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
-  const initText = await initResponse.text();
-
-  if (!initResponse.ok) {
-    throw new Error(
-      `X media INIT failed (${initResponse.status}): ${initText.slice(0, 400)}`,
-    );
-  }
+  const { text: initText } = await requestXUpload(
+    "INIT",
+    () =>
+      fetchRequest(`${input.uploadUrl}/initialize`, {
+        body: JSON.stringify({
+          media_type: input.contentType,
+          total_bytes: input.bytes.byteLength,
+          media_category: mediaCategory,
+        }),
+        headers: {
+          Authorization: `Bearer ${input.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      }),
+    wait,
+  );
 
   const initJson = JSON.parse(initText) as {
     data?: { id?: string };
@@ -77,51 +127,42 @@ export async function uploadXMediaChunked(
 
   for (let offset = 0; offset < input.bytes.byteLength; offset += chunkSize) {
     const chunk = input.bytes.slice(offset, offset + chunkSize);
-    const form = new FormData();
-    form.append("segment_index", String(segmentIndex));
-    form.append(
-      "media",
-      new Blob([Buffer.from(chunk)], { type: input.contentType }),
-      `ops-chunk-${segmentIndex}`,
-    );
+    await requestXUpload(
+      "APPEND",
+      () => {
+        const form = new FormData();
+        form.append("segment_index", String(segmentIndex));
+        form.append(
+          "media",
+          new Blob([Buffer.from(chunk)], { type: input.contentType }),
+          `ops-chunk-${segmentIndex}`,
+        );
 
-    const appendResponse = await fetchRequest(
-      `${input.uploadUrl}/${encodedMediaId}/append`,
-      {
-        body: form,
-        headers: {
-          Authorization: `Bearer ${input.accessToken}`,
-        },
-        method: "POST",
+        return fetchRequest(`${input.uploadUrl}/${encodedMediaId}/append`, {
+          body: form,
+          headers: {
+            Authorization: `Bearer ${input.accessToken}`,
+          },
+          method: "POST",
+        });
       },
+      wait,
     );
-
-    if (!appendResponse.ok) {
-      const appendText = await appendResponse.text();
-      throw new Error(
-        `X media APPEND failed (${appendResponse.status}): ${appendText.slice(0, 400)}`,
-      );
-    }
 
     segmentIndex += 1;
   }
 
-  const finalizeResponse = await fetchRequest(
-    `${input.uploadUrl}/${encodedMediaId}/finalize`,
-    {
-      headers: {
-        Authorization: `Bearer ${input.accessToken}`,
-      },
-      method: "POST",
-    },
+  const { text: finalizeText } = await requestXUpload(
+    "FINALIZE",
+    () =>
+      fetchRequest(`${input.uploadUrl}/${encodedMediaId}/finalize`, {
+        headers: {
+          Authorization: `Bearer ${input.accessToken}`,
+        },
+        method: "POST",
+      }),
+    wait,
   );
-  const finalizeText = await finalizeResponse.text();
-
-  if (!finalizeResponse.ok) {
-    throw new Error(
-      `X media FINALIZE failed (${finalizeResponse.status}): ${finalizeText.slice(0, 400)}`,
-    );
-  }
 
   let processing = processingInfoFromResponse(finalizeText);
 
@@ -140,19 +181,17 @@ export async function uploadXMediaChunked(
     statusUrl.searchParams.set("command", "STATUS");
     statusUrl.searchParams.set("media_id", mediaId);
 
-    const statusResponse = await fetchRequest(statusUrl, {
-      headers: {
-        Authorization: `Bearer ${input.accessToken}`,
-      },
-      method: "GET",
-    });
-    const statusText = await statusResponse.text();
-
-    if (!statusResponse.ok) {
-      throw new Error(
-        `X media STATUS failed (${statusResponse.status}): ${statusText.slice(0, 400)}`,
-      );
-    }
+    const { text: statusText } = await requestXUpload(
+      "STATUS",
+      () =>
+        fetchRequest(statusUrl, {
+          headers: {
+            Authorization: `Bearer ${input.accessToken}`,
+          },
+          method: "GET",
+        }),
+      wait,
+    );
 
     processing = processingInfoFromResponse(statusText);
 
