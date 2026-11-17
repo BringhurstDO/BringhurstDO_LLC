@@ -1196,7 +1196,7 @@ export function PublishCalendarPanel({
     );
   }
 
-  function CalendarRowCard({ row }: { row: PublishCalendarRow }) {
+  function renderCalendarRowCard(row: PublishCalendarRow) {
     const packageRecord = records.find(
       (record) => record.contentPackage.id === row.contentPackageId,
     );
@@ -1803,7 +1803,9 @@ export function PublishCalendarPanel({
           </h2>
           <div className="mt-4 grid gap-3">
             {todayRows.map((row) => (
-              <CalendarRowCard key={row.draftId} row={row} />
+              <div key={row.draftId} className="contents">
+                {renderCalendarRowCard(row)}
+              </div>
             ))}
           </div>
         </section>
@@ -1839,7 +1841,9 @@ export function PublishCalendarPanel({
           </p>
           <div className="mt-4 grid gap-3">
             {overdueRows.map((row) => (
-              <CalendarRowCard key={row.draftId} row={row} />
+              <div key={row.draftId} className="contents">
+                {renderCalendarRowCard(row)}
+              </div>
             ))}
           </div>
         </section>
@@ -1871,7 +1875,9 @@ export function PublishCalendarPanel({
           </h2>
           <div className="mt-4 grid gap-3">
             {group.rows.map((row) => (
-              <CalendarRowCard key={row.draftId} row={row} />
+              <div key={row.draftId} className="contents">
+                {renderCalendarRowCard(row)}
+              </div>
             ))}
           </div>
         </section>
