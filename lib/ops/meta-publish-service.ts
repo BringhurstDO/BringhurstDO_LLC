@@ -15,9 +15,14 @@ import {
 } from "@/lib/ops/meta-client";
 import { findMetaAccount, resolveMetaConfig } from "@/lib/ops/meta-config";
 import { classifyPublishMediaKind } from "@/lib/ops/ops-media-kind";
-import { resolvePublishImageUrl } from "@/lib/ops/ops-publish-media";
+import {
+  fetchPublicMediaBytes,
+  resolvePublishImageUrl,
+} from "@/lib/ops/ops-publish-media";
+import { uploadOpsIgScreenshot } from "@/lib/ops/ops-media-upload";
 import { saveSocialPublishLog } from "@/lib/ops/social-connections-db";
 import { appendRequiredSocialMetadata } from "@/lib/ops/social-metadata";
+import { prepareInstagramImage } from "@/lib/ops/social-media-normalize";
 import type {
   OpsContentPackageRecord,
   OpsProjectId,
@@ -250,6 +255,26 @@ export async function publishMetaDraft(
     }
 
     try {
+      let publishImageUrl = image.imageUrl;
+
+      if (mediaKind === "image") {
+        const fetched = await fetchPublicMediaBytes(image.imageUrl);
+        const prepared = await prepareInstagramImage({
+          bytes: fetched.bytes,
+          contentType: fetched.contentType,
+        });
+        const uploaded = await uploadOpsIgScreenshot({
+          bytes: prepared.bytes,
+          contentType: prepared.contentType,
+          originalName: `instagram-${input.platformDraftId}-${Date.now()}.jpg`,
+          projectId:
+            input.publishingProjectId ??
+            input.sourceProjectId ??
+            "bringhurstdo",
+        });
+        publishImageUrl = uploaded.assetLocation;
+      }
+
       const published =
         mediaKind === "video"
           ? await publishInstagramVideoPost({
@@ -262,7 +287,7 @@ export async function publishMetaDraft(
           : await publishInstagramImagePost({
               caption,
               igUserId: account.instagramBusinessAccountId,
-              imageUrl: image.imageUrl,
+              imageUrl: publishImageUrl,
               pageAccessToken: ready.value.accessToken,
               socialMentions: input.socialMentions,
             });
@@ -281,8 +306,8 @@ export async function publishMetaDraft(
         id: publishLogId,
         notes: [
           input.trigger === "autopublish"
-            ? `Scheduled autopublish to Instagram as ${account.label}. ${mediaLabel}: ${image.imageUrl}`
-            : `Operator-approved manual publish to Instagram as ${account.label}. ${mediaLabel}: ${image.imageUrl}`,
+            ? `Scheduled autopublish to Instagram as ${account.label}. ${mediaLabel}: ${publishImageUrl}`
+            : `Operator-approved manual publish to Instagram as ${account.label}. ${mediaLabel}: ${publishImageUrl}`,
         ],
         platform: "Meta",
         platformDraftId: input.platformDraftId,

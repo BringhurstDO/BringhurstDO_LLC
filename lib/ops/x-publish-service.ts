@@ -14,6 +14,7 @@ import {
   fetchPublicMediaBytes,
   resolvePublishImageUrl,
 } from "@/lib/ops/ops-publish-media";
+import { prepareXMediaForUpload } from "@/lib/ops/social-media-normalize";
 import type {
   OpsContentPackageRecord,
   OpsProjectId,
@@ -223,11 +224,12 @@ export async function publishXDraft(
 
     if (image.ok) {
       const fetched = await fetchPublicMediaBytes(image.imageUrl);
+      const prepared = await prepareXMediaForUpload(fetched);
       const mediaId = await uploadXMedia({
         accessToken: ready.value.accessToken,
-        bytes: fetched.bytes,
-        contentType: fetched.contentType,
-        kind: fetched.kind,
+        bytes: prepared.bytes,
+        contentType: prepared.contentType,
+        kind: prepared.kind,
       });
       mediaIds = [mediaId];
     }
