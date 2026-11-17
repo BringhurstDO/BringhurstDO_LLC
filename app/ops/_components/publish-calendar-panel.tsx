@@ -363,6 +363,29 @@ export function PublishCalendarPanel({
     [metaStatus],
   );
 
+  const socialAccountStatusForTarget = useCallback(
+    (target: PublicationTarget | undefined) => {
+      if (!target) {
+        return null;
+      }
+
+      if (target.platform === "LinkedIn") {
+        return linkedInAccountStatus(target.accountId);
+      }
+
+      if (target.platform === "X") {
+        return xAccountStatus(target.accountId);
+      }
+
+      if (target.platform === "Facebook" || target.platform === "Instagram") {
+        return metaAccountStatus(target.accountId);
+      }
+
+      return null;
+    },
+    [linkedInAccountStatus, metaAccountStatus, xAccountStatus],
+  );
+
   const calendarRows = useMemo(() => {
     const rows = buildPublishCalendarRows(records);
     const filtered = filterPublishCalendarRows(rows, {
@@ -459,6 +482,15 @@ export function PublishCalendarPanel({
   }
 
   function approveDraft(row: PublishCalendarRow) {
+    const target = publicationTargets.find(
+      (item) => item.id === row.publicationTargetId,
+    );
+    const canAutopublish = Boolean(
+      target &&
+        platformSupportsAutopublish(target.platform) &&
+        socialAccountStatusForTarget(target)?.connected,
+    );
+
     updateRecord(row.contentPackageId, (record) => ({
       ...record,
       contentPackage: {
@@ -470,7 +502,8 @@ export function PublishCalendarPanel({
           ? {
               ...draft,
               autopublishEnabled:
-                enableAutopublishOnApprove || draft.autopublishEnabled,
+                canAutopublish &&
+                (enableAutopublishOnApprove || draft.autopublishEnabled),
               status: "approved" as PlatformDraftStatus,
               updatedAt: new Date().toISOString(),
             }
@@ -478,13 +511,23 @@ export function PublishCalendarPanel({
       ),
     }));
     setMessage(
-      enableAutopublishOnApprove
+      enableAutopublishOnApprove && canAutopublish
         ? `Approved and enabled autopublish for ${row.accountName} / ${row.platform}.`
         : `Approved ${row.accountName} / ${row.platform} draft.`,
     );
   }
 
   function toggleAutopublish(row: PublishCalendarRow, enabled: boolean) {
+    const target = publicationTargets.find(
+      (item) => item.id === row.publicationTargetId,
+    );
+
+    if (enabled && !socialAccountStatusForTarget(target)?.connected) {
+      setIssues(["Connect this publishing account before enabling autopublish."]);
+      setMessage("");
+      return;
+    }
+
     updateRecord(row.contentPackageId, (record) => ({
       ...record,
       contentPackage: {
@@ -505,6 +548,54 @@ export function PublishCalendarPanel({
       enabled
         ? `Autopublish enabled for ${row.title}.`
         : `Autopublish disabled for ${row.title}.`,
+    );
+  }
+
+  function changeDraftDestination(
+    row: PublishCalendarRow,
+    publicationTargetId: string,
+  ) {
+    const target = publicationTargets.find(
+      (item) => item.id === publicationTargetId,
+    );
+
+    if (!target || target.platform !== row.platform) {
+      setIssues(["Choose an account on the same platform as this draft."]);
+      setMessage("");
+      return;
+    }
+
+    if (!socialAccountStatusForTarget(target)?.connected) {
+      setIssues([`Connect ${target.accountName} before selecting it for publishing.`]);
+      setMessage("");
+      return;
+    }
+
+    updateRecord(row.contentPackageId, (record) => ({
+      ...record,
+      contentPackage: {
+        ...record.contentPackage,
+        updatedAt: new Date().toISOString(),
+      },
+      platformDrafts: record.platformDrafts.map((draft) =>
+        draft.id === row.draftId
+          ? {
+              ...draft,
+              accountName: target.accountName,
+              autopublishEnabled: false,
+              projectId: target.projectId ?? draft.projectId,
+              publicationTargetId: target.id,
+              publishingProjectId:
+                target.projectId ?? draft.publishingProjectId,
+              status: "needs review" as PlatformDraftStatus,
+              updatedAt: new Date().toISOString(),
+            }
+          : draft,
+      ),
+    }));
+    setIssues([]);
+    setMessage(
+      `Publishing destination changed to ${target.accountName}. Review and approve the draft again, then re-enable autopublish.`,
     );
   }
 
@@ -1125,6 +1216,15 @@ export function PublishCalendarPanel({
         ? resolveLatestPerformanceSnapshot(packageRecord, publishedPost.id)
         : null;
     const accountId = targetAccountIdById.get(row.publicationTargetId);
+    const currentTarget = publicationTargets.find(
+      (target) => target.id === row.publicationTargetId,
+    );
+    const compatibleTargets = publicationTargets.filter(
+      (target) => target.platform === row.platform,
+    );
+    const currentTargetConnected = Boolean(
+      socialAccountStatusForTarget(currentTarget)?.connected,
+    );
     const accountStatus = linkedInAccountStatus(accountId);
     const isPosted = row.postStatus === "posted" || row.timing === "posted";
     const canPublishLinkedIn =
@@ -1331,6 +1431,37 @@ export function PublishCalendarPanel({
             </button>
           ) : null}
 
+          {platformSupportsAutopublish(row.platform) &&
+          compatibleTargets.length > 0 ? (
+            <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
+              Account/Page
+              <select
+                value={row.publicationTargetId}
+                onChange={(event) =>
+                  changeDraftDestination(row, event.target.value)
+                }
+                className="max-w-56 rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900"
+              >
+                {compatibleTargets.map((target) => {
+                  const connected = Boolean(
+                    socialAccountStatusForTarget(target)?.connected,
+                  );
+
+                  return (
+                    <option
+                      key={target.id}
+                      value={target.id}
+                      disabled={!connected}
+                    >
+                      {target.accountName}
+                      {connected ? "" : " - not connected"}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+          ) : null}
+
           <label className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-xs font-semibold text-slate-700">
             Date
             <input
@@ -1368,7 +1499,10 @@ export function PublishCalendarPanel({
             <input
               type="checkbox"
               checked={row.autopublishEnabled}
-              disabled={!platformSupportsAutopublish(row.platform)}
+              disabled={
+                !platformSupportsAutopublish(row.platform) ||
+                !currentTargetConnected
+              }
               onChange={(event) =>
                 toggleAutopublish(row, event.target.checked)
               }
