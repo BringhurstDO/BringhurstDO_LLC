@@ -98,6 +98,20 @@ export function scheduleBucketById(bucketId: OpsScheduleBucketId) {
   return OPS_SCHEDULE_BUCKETS.find((bucket) => bucket.id === bucketId);
 }
 
+export function scheduleBucketHasReached(
+  currentBucketId: OpsScheduleBucketId,
+  scheduledBucketId: OpsScheduleBucketId,
+) {
+  const currentIndex = OPS_SCHEDULE_BUCKETS.findIndex(
+    (bucket) => bucket.id === currentBucketId,
+  );
+  const scheduledIndex = OPS_SCHEDULE_BUCKETS.findIndex(
+    (bucket) => bucket.id === scheduledBucketId,
+  );
+
+  return currentIndex >= 0 && scheduledIndex >= 0 && currentIndex >= scheduledIndex;
+}
+
 export function platformScheduleDefault(platform: PublicationPlatform) {
   return (
     PLATFORM_SCHEDULE_DEFAULTS.find((item) => item.platform === platform) ??

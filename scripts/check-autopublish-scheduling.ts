@@ -5,6 +5,7 @@ import {
   autopublishDraftMissedWindow,
   type PublishCalendarRow,
 } from "../lib/ops/publish-calendar";
+import { scheduleBucketHasReached } from "../lib/ops/platform-schedule-defaults";
 
 const baseRow: PublishCalendarRow = {
   accountName: "Test account",
@@ -58,6 +59,27 @@ assert.equal(
   ),
   false,
   "An unapproved draft must never be flagged as a missed autopublish.",
+);
+
+assert.equal(
+  scheduleBucketHasReached("midday", "midday"),
+  true,
+  "A scheduled bucket must be eligible in its own window.",
+);
+assert.equal(
+  scheduleBucketHasReached("afternoon", "midday"),
+  true,
+  "A failed midday draft must be eligible in the next later same-day bucket.",
+);
+assert.equal(
+  scheduleBucketHasReached("late-evening", "midday"),
+  true,
+  "A failed midday draft must remain eligible in later same-day buckets.",
+);
+assert.equal(
+  scheduleBucketHasReached("morning", "midday"),
+  false,
+  "An earlier bucket must not publish a later scheduled draft.",
 );
 
 async function checkVercelSchedules() {

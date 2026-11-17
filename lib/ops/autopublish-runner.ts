@@ -16,7 +16,10 @@ import {
   publishMetaDraft,
 } from "@/lib/ops/meta-publish-service";
 import { createDatabaseOpsPersistenceAdapter } from "@/lib/ops/persistence-db";
-import { platformScheduleBucketId } from "@/lib/ops/platform-schedule-defaults";
+import {
+  platformScheduleBucketId,
+  scheduleBucketHasReached,
+} from "@/lib/ops/platform-schedule-defaults";
 import {
   calendarDaysBetween,
   OPS_AUTOPUBLISH_CATCH_UP_DAYS,
@@ -215,8 +218,8 @@ function isEligibleDraft(
     return null;
   }
 
-  if (effectiveBucketId !== bucketId) {
-    return `Scheduled for ${effectiveBucketId}, not ${bucketId}.`;
+  if (!scheduleBucketHasReached(bucketId, effectiveBucketId)) {
+    return `Scheduled for ${effectiveBucketId}; ${bucketId} has not reached that window yet.`;
   }
 
   return null;
