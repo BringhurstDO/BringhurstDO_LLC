@@ -15,10 +15,10 @@ const products = [
   {
     href: "/syncsoap",
     title: "SyncSOAP",
-    badge: "Gated Beta",
+    badge: "",
     eyebrow: "Clinical workflow",
     description:
-      "The Scribe is the bottleneck. SyncSOAP is the solution. Chart from home, not the hospital.",
+      "AI-assisted draft SOAP notes. The clinician reviews the draft. Clinical judgment stays with the clinician.",
     span: "lg:col-span-7",
     cta: "Explore SyncSOAP",
     theme: "clinical",
@@ -287,7 +287,7 @@ export default function Home() {
                 href="/syncsoap"
                 className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
               >
-                Join the SyncSOAP beta
+                Explore SyncSOAP
               </Link>
               <Link href="/innovation" className={cardLinkClass}>
                 How we build
@@ -425,9 +425,11 @@ export default function Home() {
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <CardTitle className="text-2xl">{product.title}</CardTitle>
-                  <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${product.badgeClass}`}>
-                    {product.badge}
-                  </span>
+                  {product.badge ? (
+                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${product.badgeClass}`}>
+                      {product.badge}
+                    </span>
+                  ) : null}
                 </div>
                 <CardDescription className="max-w-2xl text-base">
                   {product.description}

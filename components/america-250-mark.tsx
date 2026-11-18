@@ -55,10 +55,27 @@ export function America250FooterMark() {
           </p>
         </div>
       </div>
-      <div className="flex h-9 overflow-hidden rounded-md border border-slate-200 sm:w-36">
-        <span className="flex-1 bg-[#b91c1c]" aria-hidden />
-        <span className="flex-1 bg-white" aria-hidden />
-        <span className="flex-1 bg-[#1d4ed8]" aria-hidden />
+      <div
+        className="relative h-9 w-36 shrink-0 overflow-hidden rounded-sm border border-slate-200"
+        aria-hidden
+      >
+        <div className="absolute inset-0 flex flex-col">
+          {Array.from({ length: 13 }, (_, index) => (
+            <span
+              key={index}
+              className={
+                index % 2 === 0
+                  ? "min-h-0 flex-1 bg-[#B22234]"
+                  : "min-h-0 flex-1 bg-white"
+              }
+            />
+          ))}
+        </div>
+        <div className="absolute left-0 top-0 grid h-[54%] w-[40%] grid-cols-3 grid-rows-2 place-items-center bg-[#3C3B6E]">
+          {Array.from({ length: 6 }, (_, index) => (
+            <span key={index} className="size-1 rounded-full bg-white" />
+          ))}
+        </div>
       </div>
     </div>
   );

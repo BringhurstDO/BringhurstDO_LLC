@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Camera, Mic } from "lucide-react";
+import Link from "next/link";
 
 import { ProductPrimaryCta } from "@/components/product-primary-cta";
 import { SyncSoapLogo } from "@/components/syncsoap-logo";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const CAROUSEL_INTERVAL_MS = 4500;
 
@@ -24,17 +27,25 @@ export function SyncSoapHeroCarousel() {
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <div className="space-y-8 rounded-2xl border border-white/50 bg-white/55 p-6 shadow-sm backdrop-blur-sm sm:p-8">
             <h1 className="text-4xl font-bold leading-tight tracking-tight text-slate-800 sm:text-5xl md:text-6xl lg:text-6xl">
-              From Patient Conversation to Completed SOAP Note in Seconds.
+              Draft SOAP notes. The clinician still decides.
             </h1>
             <p className="max-w-xl text-lg leading-relaxed text-slate-800/90">
-              SyncSOAP is your ambient AI scribe. Just press record, focus on
-              your patient, and let our secure network generate perfectly
-              formatted clinical documentation.
+              SyncSOAP is AI-assisted draft SOAP documentation. The clinician
+              reviews the draft. Clinical judgment stays with the clinician.
+              Not autonomous diagnosis. Not automatic chart submission.
             </p>
-            <div>
-              <ProductPrimaryCta href="https://www.syncsoap.com/" external>
-                Join the Gated Beta
+            <div className="flex flex-wrap gap-3">
+              <ProductPrimaryCta href="https://syncsoap.com/" external>
+                See SyncSOAP
               </ProductPrimaryCta>
+              <Link
+                href="https://syncsoap.com/pilots-investors"
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Pilots and research
+              </Link>
             </div>
           </div>
 
@@ -208,7 +219,7 @@ export function SyncSoapHeroCarousel() {
                 </div>
               </div>
 
-              {/* Slide 4: AI Scribe → SOAP */}
+              {/* Slide 4: Draft SOAP note */}
               <div
                 className={`absolute inset-0 bottom-10 flex flex-col px-5 pt-4 transition-opacity duration-700 ease-in-out ${
                   currentSlide === 3
@@ -236,14 +247,12 @@ export function SyncSoapHeroCarousel() {
                   </p>
                   <p>
                     <span className="font-semibold text-primary">A:</span>{" "}
-                    Assessment: New presentation, possible etiologies
-                    include... Differential Diagnoses: contact dermatitis,
-                    localized eczema...
+                    Draft only. The clinician confirms the assessment before
+                    the chart.
                   </p>
                   <p>
-                    <span className="font-semibold text-primary">P:</span> Plan:
-                    Prescribe topical hydrocortisone 1% for... Return prn if no
-                    improvement.
+                    <span className="font-semibold text-primary">P:</span>{" "}
+                    Treatment and follow-up stay with the clinician.
                     <span
                       className="ml-0.5 inline-block h-2.5 w-1.5 animate-pulse rounded-sm bg-primary"
                       aria-hidden
@@ -273,7 +282,7 @@ export function SyncSoapHeroCarousel() {
                     />
                   </svg>
                   <span className="text-[11px] text-slate-400 sm:text-xs">
-                    Generating final assessment details...
+                    Preparing a draft for clinician review...
                   </span>
                 </div>
               </div>
@@ -296,14 +305,13 @@ export function SyncSoapHeroCarousel() {
                     <span className="font-semibold text-primary">
                       Assessment:
                     </span>{" "}
-                    Contact dermatitis, right forearm. Localized eczema vs
-                    irritant dermatitis on differential.
+                    Draft note. The clinician confirms the finding before
+                    anything enters the chart.
                   </p>
                   <p>
                     <span className="font-semibold text-primary">Plan:</span>{" "}
-                    Topical hydrocortisone 1% BID x 2 weeks. Emollients as
-                    needed. Avoid known irritants. Return prn if no improvement
-                    or worsening.
+                    The clinician decides treatment and follow-up. Nothing
+                    submits on its own.
                   </p>
                 </div>
                 <button
@@ -311,7 +319,7 @@ export function SyncSoapHeroCarousel() {
                   className="mt-3 w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_rgba(8,145,178,0.35)] transition hover:bg-primary/90"
                   aria-hidden
                 >
-                  Sign & Export to EHR
+                  Clinician reviews the draft
                 </button>
               </div>
 

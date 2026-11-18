@@ -100,7 +100,7 @@ const founderTimeline = [
     timeframe: "BringhurstDO LLC",
     title: "SyncSOAP emerged from charting fatigue and workflow drag.",
     body: "The medical side of the work became a focused product thesis: use AI responsibly to reduce note burden, protect clinical flow, and make documentation feel like support rather than interference.",
-    tags: ["Clinical documentation", "AI scribe", "Burnout reduction"],
+    tags: ["Clinical documentation", "Draft notes", "Burnout reduction"],
     accentClass:
       "border-slate-200/90 bg-[linear-gradient(to_bottom,rgba(241,245,249,0.95),rgba(255,255,255,0.98))]",
     pillClass:

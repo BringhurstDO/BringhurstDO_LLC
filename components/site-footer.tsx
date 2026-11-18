@@ -93,19 +93,13 @@ export function SiteFooter() {
               with modern, high-performance software.
             </p>
           </div>
-          <div className="flex max-w-md flex-col gap-3 sm:items-end">
-            <div className="flex flex-wrap justify-end gap-3">
-              <span className="rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
-                HIPAA-Ready Architecture
-              </span>
+          {pathname === "/syncsafety" ? (
+            <div className="flex max-w-md flex-col gap-3 sm:items-end">
               <span className="rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
                 OSHA 1904 Compliant
               </span>
             </div>
-            <p className="text-right text-xs text-muted-foreground">
-              Nova Southeastern University - Doctor of Osteopathic Medicine Candidate
-            </p>
-          </div>
+          ) : null}
         </div>
 
         <div>
