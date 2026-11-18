@@ -35,7 +35,7 @@ export function America250HeaderBanner() {
 export function America250FooterMark() {
   return (
     <div
-      className="flex w-full flex-col gap-4 rounded-md border border-red-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+      className="flex w-full rounded-md border border-red-200 bg-white px-4 py-4 shadow-sm"
       aria-label="Celebrating America's 250th birthday"
     >
       <div className="flex items-center gap-4">
@@ -53,28 +53,6 @@ export function America250FooterMark() {
           <p className="text-sm text-muted-foreground">
             1776-2026 commemorative site accent
           </p>
-        </div>
-      </div>
-      <div
-        className="relative h-9 w-36 shrink-0 overflow-hidden rounded-sm border border-slate-200"
-        aria-hidden
-      >
-        <div className="absolute inset-0 flex flex-col">
-          {Array.from({ length: 13 }, (_, index) => (
-            <span
-              key={index}
-              className={
-                index % 2 === 0
-                  ? "min-h-0 flex-1 bg-[#B22234]"
-                  : "min-h-0 flex-1 bg-white"
-              }
-            />
-          ))}
-        </div>
-        <div className="absolute left-0 top-0 grid h-[54%] w-[40%] grid-cols-3 grid-rows-2 place-items-center bg-[#3C3B6E]">
-          {Array.from({ length: 6 }, (_, index) => (
-            <span key={index} className="size-1 rounded-full bg-white" />
-          ))}
         </div>
       </div>
     </div>
